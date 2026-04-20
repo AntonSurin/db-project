@@ -1,0 +1,43 @@
+table "dbo"."parametr_account" {
+  owner = postgres
+  columns = (
+    column "account_name" {
+      type = character varying(9)
+    }
+    column "parametr_ellis" {
+      type = character varying(10)
+    }
+    column "parametr_name" {
+      type = character varying(10)
+    }
+    column "value" {
+      type = character varying(255)
+    }
+    column "string_value" {
+      type = character varying(255)
+    }
+    column "date_begin" {
+      type = date
+    }
+  )
+}
+
+index "dbo"."parametr_account_idx_parametr_account" {
+  table = "dbo"."parametr_account"
+  type = btree
+  columns = <
+    {
+      definition = account_name
+    }
+
+    {
+      definition = parametr_name
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    value
+  ]
+}
+

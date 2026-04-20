@@ -1,0 +1,51 @@
+function "report"."comfort(integer)" {
+  text = """
+
+begin
+
+	_result =	(	
+					select string_agg(case when pa.value::int > 0 then lower(pl."name") || ', ' else '' end, '')
+					from parametr.list pl
+						inner join parametr.account pa on pa.parametr_id = pl.id
+					where lower(pl.short_name) in ('lf', 'gv', 'xv', 'chblk', 'co', 'vn', 'ep', 'gp')
+						and pa.account_id = _account_id
+						and date_end is null
+				);
+
+	_result =	(
+					select 
+						case 
+							when length(_result) <= 0 
+							then _result 
+							else  substring(_result, 1, length(_result) - 2) 
+						end
+				);
+
+end;	
+"""
+  returnType = text
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _result
+      type = text
+      mode = OUT
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 26.08.2014
+ Description:	Список удобств на лицевом счете
+ =============================================
+"""
+}
+

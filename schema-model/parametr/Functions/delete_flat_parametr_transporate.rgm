@@ -1,0 +1,44 @@
+function "parametr"."delete_flat_parametr_transporate()" {
+  text = """
+
+begin
+
+	set session_replication_role = replica;
+	
+	with cte as 
+	(
+		select 
+			pf.id,
+			pf.flat_id,
+			pf.parametr_id, 
+			pf.date_end,
+			(lead(pf.date_begin, 1, null) over (partition by pf.flat_id, pf.parametr_id order by pf.flat_id, pf.parametr_id, pf.date_begin) - interval '1 day') as new_date_end
+	from parametr.flat pf 
+	where pf.parametr_id in (select distinct d.parametr_id from deleted d)
+		and flat_id in (select distinct d.flat_id from deleted d)
+	)
+
+	update parametr.flat pf 
+		set date_end = ct.new_date_end
+	from cte ct
+	where ct.id = pf.id and 
+		((ct.date_end is null or ct.date_end <> new_date_end) 
+				or ct.new_date_end is null );
+
+	set session_replication_role = default;	
+
+	return null;
+		
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  Trigger [Parametr].[DeleteFlatParametrTransporate]    
+ Script Date: 28.10.2022 14:42:20
+"""
+}
+

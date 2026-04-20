@@ -1,0 +1,37 @@
+table "utility"."comparison" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_comparison"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.comparison_id_seq'::regclass)
+    }
+    column "odn_sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "utility"."comparison"."fk_comparison_sub_list" {
+  columns = [
+    "odn_sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

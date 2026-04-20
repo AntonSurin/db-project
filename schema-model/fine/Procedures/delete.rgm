@@ -1,0 +1,35 @@
+procedure "fine"."delete(integer, jsonb)" {
+  text = """
+
+
+	delete 
+	from fine.calculation as fc
+	using adress.account aa, jsonb_populate_recordset(null::account.list, _account) as a 
+	where aa.id = fc.account_id and a.account_id = aa.parent_id and period_id = _period_id;
+
+"""
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 06.09.2016
+ description:	удаление начислений по пени с фильтром по домам
+ =============================================
+"""
+}
+

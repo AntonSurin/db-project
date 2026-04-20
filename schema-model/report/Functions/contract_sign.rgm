@@ -1,0 +1,147 @@
+function "report"."contract_sign(integer)" {
+  text = """
+
+begin
+
+	create temp table _parametr (person_id int, birth_place varchar(200), "location" varchar(200), phone varchar(200));
+	create temp table _phones (contragent_id int, phone text);
+	create temp table _owner
+							(
+								person_id		int,
+								house_id		int, 
+								account_id		int, 
+								"type"			bool, 
+								owner_name		text, 
+								date_birth		varchar(13), 
+								person_inn		varchar(12), 
+								person_kpp		varchar(9),
+								person_ogrn		varchar(13),
+								series			varchar(100),
+								"number"		varchar(100),
+								date_begin		varchar(10),
+								is_by_name		varchar(255),
+								person_title	varchar(50),
+								person_agent	varchar(255)
+							);
+
+	insert into _phones
+	select cc.contragent_id, p.value as phone
+	from contragent.contact as cc
+		inner join contragent.account ca on ca.contragent_id = cc.contragent_id
+		left join lateral (select pp.value from jsonb_populate_recordset(null::contragent.phone, cc.phone) pp) as p on true
+	where ca.account_id = _account_id;
+
+	insert into _owner(person_id, house_id, account_id, "type", owner_name, date_birth, person_inn, person_kpp, person_ogrn, series, "number", date_begin, is_by_name, person_title, person_agent)
+	select 
+		 cl.id
+		,al.house_id
+		,ca.account_id
+		,coalesce(cl."type", false) as "type"
+		,cl.full_name as owner_name	
+		,to_char(ci.date_birth, 'dd.MM.yyyy') || ' г.'
+		,cl.inn as person_inn
+		,cl.kpp as person_kpp
+		,cl.ogrn as person_ogrn
+		,p.series
+		,p."number"
+		,to_char(p."date", 'dd.MM.yyyy')
+		,p.is_by_name
+		,a."name" as person_title
+		,a.short_name as person_agent
+	from contragent.list cl
+		inner join contragent.info ci on ci.contragent_id = cl.id
+		inner join contragent.account ca on ca.contragent_id = cl.id
+		inner join contragent.owner_documents od on od.contragent_account_id = ca.id
+		inner join adress.light_info al on al.account_id = ca.account_id
+		/*сбор паспортных данных*/
+		left join lateral 
+						(
+							select di."name" as is_by_name, ci.series, ci."number", ci.code, ci."date", dk."name" as kind_name
+							from contragent.info ci
+								inner join documents.is_by di on di.id = ci.is_by_id
+								inner join documents.kind dk on dk.id = ci.kind_id
+							where cl.id = ci.contragent_id
+						) p on true
+		left join lateral 
+						(
+							select ot."name", pa.short_name
+							from person.agent pa 
+								inner join organization.title ot on ot.id = pa.title_id
+							where pa.contragent_id = cl.id
+						) a on true
+	where ca.account_id = _account_id and coalesce(od.date_end, current_date) >= current_date;
+
+	insert into _parametr (person_id, birth_place, "location", phone)
+	select 
+		 ca.contragent_id 
+		,ci.place_birth as birth_place
+		,ci."location" as "location"
+		,cc.phone as phone
+	from contragent.account ca
+		inner join contragent.info ci on ci.contragent_id = ca.contragent_id
+		inner join _owner o on o.account_id = ca.account_id and ca.contragent_id = o.person_id
+		left join contragent.contact cc on cc.contragent_id = ca.contragent_id;
+	
+	return query
+	select 
+		 ot.short_name as organization_type
+		,ol.short_name as organization_name
+		,ol.inn
+		,ol.kpp
+		,ol.ogrn
+		,oc.bank_name
+		,oc.rs
+		,oc.ks
+		,oc.bik
+		,oc.bank_adress
+		,ott."name" as employee_title
+		,oe.short_name as employee_name
+		,concat(oa.city, ' ', oa.street, ' ', oa.house) as organization_adress
+		,ol.email
+		,ol.phone
+		,o.*
+		,p.birth_place
+		,p."location"
+		,(
+			select string_agg(c.phone , ', ')
+			from _phones c
+			where c.contragent_id = o.person_id
+		) as person_phone
+	from organization.list ol
+		inner join organization.adress oa on oa.id = ol.adress_real
+		inner join organization."type" ot on ot.id = ol.type_id
+		inner join organization.counting oc on oc.list_id = ol.id
+		inner join organization.employee oe on oe.list_id = ol.id
+		inner join organization.title ott on ott.id = oe.title_id
+		inner join house.employee he on he.employee_id = oe.id
+		inner join adress.house ah on ah.id = he.house_id and ah.work_id = ol.id and ah.work_counting_id = oc.id
+		inner join _owner o on o.house_id = ah.id
+		left join _parametr p on p.person_id = o.person_id
+	where oe."type" = 1;
+
+	drop table if exists _parametr;
+	drop table if exists _owner;
+	drop table if exists _phones;
+
+end;
+"""
+  returnType = TABLE(organization_type character varying, organization_name character varying, inn character varying, kpp character varying, ogrn character varying, bank_name character varying, rs character varying, ks character varying, bik character varying, bank_adress character varying, employee_title character varying, employee_name text, organization_adress text, email character varying, phone character varying, person_id integer, house_id integer, account_id integer, type boolean, owner_name text, date_birth character varying, person_inn character varying, person_kpp character varying, person_ogrn character varying, series character varying, number character varying, date_begin character varying, is_by_name character varying, person_title character varying, person_agent character varying, birth_place character varying, location character varying, person_phone text)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 19.19.2016
+ Description:	Подпись в договоре
+ =============================================
+"""
+}
+

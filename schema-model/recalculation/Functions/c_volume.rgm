@@ -1,0 +1,221 @@
+function "recalculation"."c_volume(integer, integer, integer, integer)" {
+  text = """
+
+declare 
+	_period_id			int;
+	_date_begin			date;
+	_date_end			date;
+	_min_period			int;
+	_min_calc_period_id int;
+	_sql 				text = '';
+begin
+	
+	_period_id = (select id from "period".list where is_working = true);
+	
+	_root_id = null; 
+	_min_period = (select min(id) from "period".list where is_open = true);
+	
+	select date_begin, date_end
+	into _date_begin, _date_end  
+	from "period".list 
+	where id = _period_id;
+	
+	_min_calc_period_id = (select  coalesce(min(period_id), _period_id) from calculation.parametr_transporate_arch);
+
+	create temp table _counter (account_id int, counter_id int, sublist_id int, value numeric (13,5), c_value numeric (13,5), rate numeric (9,6));
+	create temp table _volume_table (root_id int, account_id int, counter_id int, sublist_id int, value numeric(20,10), c_value numeric(20,10), period_id int, flow numeric(20,10), diff numeric(20,10));
+
+--if exists(select 1 from counter.value where c_value <> 0 and [date] between _date_begin and _date_end)
+	begin
+		_root_id = (select id from recalculation.root where "type" = 2 and period_id = _period_id);
+		
+		if (_root_id is not null)
+			then 
+				begin
+					delete from recalculation."result" where account_id in (select account_id from calculation.account) and root_id = _root_id;
+					delete from recalculation.account;
+				end; 
+			else
+				begin
+					insert into recalculation.root ("name", "date", period_id, "type", rules, odn, period_begin, period_end, session_id)
+					select 'Корректировка показаний приборов учета', current_date, _period_id, 2, 0, false, _period_id, _period_id, _session_id;
+		
+					_root_id = (select max(id) from recalculation.root);
+				end;
+		end if;	
+
+		insert into _counter
+		select ca.account_id, ca.counter_id, cf.sublist_id, cf.value, cf.c_value, cf.rate
+		from counter.flow cf
+			inner join counter.account ca on ca.counter_id = cf.counter_id
+			inner join calculation.account cat on cat.account_id = ca.account_id
+		where c_value is not null  and c_value <> 0.0 and cf.period_id = _period_id;
+	
+		insert into _volume_table
+		select
+			_root_id as root_id
+			,account_id 
+			,t.counter_id
+			,c.sublist_id
+			,value
+			,c_value
+			,period_id
+			,flow 
+			,case 
+				when (c_value * c.rate) - sum(flow) over (partition by t.counter_id, t.sublist_id order by period_id desc) > 0 then flow
+				when flow - (sum(flow) over (partition by t.counter_id, t.sublist_id order by period_id desc) - (c_value * c.rate)) > 0
+					then flow - (sum(flow) over (partition by t.counter_id, t.sublist_id order by period_id desc) - (c_value * c.rate))
+				else 0
+			end as diff
+		from _counter c 
+			inner join (
+							select cf.counter_id, period_id, flow, cf.sublist_id 
+							from counter.flow cf
+								inner join _counter c on c.counter_id = cf.counter_id
+							where period_id <> _period_id and period_id >= _min_period
+						) t on c.counter_id = t.counter_id and c.sublist_id = t.sublist_id;
+	
+		select min(period_id),max(period_id) 
+		into _period_start, _period_end
+		from _volume_table 
+		where diff > 0.0;
+	
+		_period_start = (case when _period_start >= _min_calc_period_id then _period_start else _min_calc_period_id end);
+
+		insert into recalculation.account
+		select distinct account_id 
+		from _volume_table 
+		where diff >0;
+	
+		call recalculation.cp_transporate (_period_start, _period_end, _root_id); 
+
+		delete 
+		from recalculation.tarif as rc
+		where exists (	
+						select 1
+						from recalculation.tarif  rcp
+							left join (select account_id, period_id
+										from _volume_table 
+										where diff > 0.0 
+										group by account_id, period_id) v on v.account_id  = rcp.account_id and rcp.period_id = v.period_id
+						where rcp.root_id = _root_id and v.account_id is null and rcp = rc
+					 );
+
+		delete 
+		from recalculation.normativ as rc
+		where exists (
+						select 1
+						from recalculation.normativ  rcp
+							left join (select account_id, period_id
+										from _volume_table 
+										where diff > 0.0
+										group by account_id, period_id) v on v.account_id  = rcp.account_id and rcp.period_id = v.period_id
+						where rcp.root_id = _root_id and v.account_id is null and rcp = rc 
+					 );
+
+		delete 
+		from recalculation.volume as rc
+		where exists (
+						select 1
+						from recalculation.volume  rcp
+							left join (select account_id, period_id
+										from _volume_table 
+										where diff > 0.0
+										group by account_id, period_id) v on v.account_id  = rcp.account_id and rcp.period_id = v.period_id
+						where rcp.root_id = _root_id and v.account_id is null and rcp = rc 
+					 );
+
+		delete 
+		from recalculation.sum_volume as rc
+		where exists (
+						select 1
+					  	from recalculation.sum_volume  rcp
+							left join (select account_id, period_id
+										from _volume_table 
+										where diff > 0.0
+										group by account_id, period_id) v on v.account_id  = rcp.account_id and rcp.period_id = v.period_id
+						where rcp.root_id = _root_id and v.account_id is null and rcp = rc
+					 );
+
+		delete 
+		from recalculation.parametr_transporate as rc
+		where exists (
+						select 1
+					 	from recalculation.parametr_transporate  rcp
+							left join (select account_id, period_id
+										from _volume_table 
+										where diff > 0.0
+										group by account_id, period_id) v on v.account_id  = rcp.account_id and rcp.period_id = v.period_id
+						where rcp.root_id = _root_id and v.account_id is null and rcp = rc
+					 );
+
+		_sql = (select string_agg( '
+					update recalculation.parametr_transporate as cp
+						 set 
+						"' || pl.short_name || '" = "' || pl.short_name || '" - vt.diff
+					from (
+							select period_id, sublist_id, account_id, root_id, sum(diff) as diff
+							from _volume_table
+							group by period_id, sublist_id, account_id, root_id) vt 
+					where vt.root_id = cp.root_id 
+						and vt.account_id = cp.account_id 
+						and vt.period_id = cp.period_id 
+						and vt.sublist_id = ' || us.id || ' 
+						and cp.account_id = ' || t.account_id ,';
+					')
+				from utility.sublist us
+					inner join parametr.sublist ps on ps.sublist_id = us.id
+					inner join parametr.list pl on pl.id = ps.parametr_id
+					inner join (
+									select distinct sublist_id, account_id 
+									from _volume_table 
+								) t on t.sublist_id = ps.sublist_id
+				where pl.catalog_id = 1 and us.is_counter  = true
+				);
+	
+		execute (_sql);
+
+	end;
+
+	drop table if exists _counter;
+	drop table if exists _volume_table;
+end;
+"""
+  returnType = record
+  arguments = <
+    {
+      name = _session_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_start
+      type = integer
+      mode = INOUT
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = INOUT
+    }
+
+    {
+      name = _root_id
+      type = integer
+      mode = INOUT
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		поляков п.г., глещинский д.в.
+ create date: 06.02.2015
+ description:	учет корректировочных показаний в начислениях
+ =============================================
+"""
+}
+

@@ -1,0 +1,201 @@
+function "counter"."import_info(jsonb, jsonb)" {
+  text = """
+
+declare 
+	_date_begin 				date;
+	_date_end 					date;
+	_period_id 					int;
+	_new_date					date;
+	_close_counter_if_overdue 	bool; 
+begin
+	
+	select id, date_begin, date_end 
+	into _period_id, _date_begin, _date_end
+	from "period".list 
+	where is_working = true;
+
+	----	 сдвиг даты поверки счетчиков, заканчивающихся в 2020 на 01.01.2021
+	update counter.list
+		set verification_date = ('2021-01-01'::date - interval '1 year' * verification_interval)   
+	where date_end is null 
+			and active = true 
+			and verification_interval is not null 
+			and verification_date is not null 
+			and (verification_date + interval '1 year' * verification_interval) between '2020-01-01'::date and '2020-12-31'::date; 
+
+	create temp table _close_counter_id (counter_id int, verification_interval int, verification_date date, failure_date date, sublist_id int, account_id int, value numeric(13,5)
+										, c_value numeric(13,5), flow_type_id int2, flow_date date, close_type varchar(50));
+
+	_new_date = (select case when current_date > _date_end or current_date < _date_begin then _date_end else current_date end);
+
+	insert into _close_counter_id
+	select cl.id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, null, cf.value, cf.c_value, cf.flow_type_id, cf."date", 'после трех месяцев с даты поверки' as close_type
+	from counter.list cl
+		inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+		inner join counter.house ch on ch.counter_id = cl.id
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = ch.house_id
+	where cl.active = true and cl.date_end is null and cf.flow_type_id = 0
+		and ((verification_date + interval '1 year' * verification_interval) + interval '3 month') < _new_date;
+
+	insert into _close_counter_id
+	select cl.id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, ca.account_id, cf.value, cf.c_value, cf.flow_type_id, cf."date", 'после трех месяцев с даты поверки' as close_type
+	from counter.list cl
+		inner join utility.sublist us on us.id = cl.sublist_id and us.list_id != 1028
+		inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+		inner join counter.account ca on ca.counter_id = cl.id
+		inner join adress.account aa on aa.id = ca.account_id
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = aa.house_id
+	where cl.active = true and cl.date_end is null and coalesce(cf."date", _date_begin) < _new_date
+		and ((verification_date + interval '1 year' * verification_interval) + interval '3 month') < _new_date;
+
+	/* добавлены счетчики с проставленной датой выхода из строя */
+	insert into _close_counter_id
+	select cl.id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, null, cf.value, cf.c_value, cf.flow_type_id, cf."date", 'после трех месяцев с даты выхода из строя' as close_type
+	from counter.list cl
+		inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+		inner join counter.house ch on ch.counter_id = cl.id
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = ch.house_id
+	where cl.active = true and cl.date_end is null and cf.flow_type_id = 0
+		and (cl.failure_date + interval '3 month') < _new_date;
+		
+	insert into _close_counter_id
+	select cl.id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, ca.account_id, cf.value, cf.c_value, cf.flow_type_id, cf."date", 'после трех месяцев с даты выхода из строя' as close_type
+	from counter.list cl
+		inner join utility.sublist us on us.id = cl.sublist_id and us.list_id != 1028
+		inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+		inner join counter.account ca on ca.counter_id = cl.id
+		inner join adress.account aa on aa.id = ca.account_id
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = aa.house_id
+	where cl.active = true and cl.date_end is null and coalesce(cf."date", _date_begin) < _new_date
+		and (cl.failure_date + interval '3 month') < _new_date;
+		
+	
+	_close_counter_if_overdue = (select coalesce(nullif(array_to_string(xpath('/root/calculation/closecounterifoverdue/text()', lower(p.xml_data::text)::xml)::text[], ''),''),'false')::bool from special.parametr p);
+	
+	if _close_counter_if_overdue = true
+		then
+			begin
+				
+				insert into _close_counter_id
+				select cl.id, cc.verification_interval, cc.verification_date, cl.failure_date, cl.sublist_id, ca.account_id, cf.value, cf.c_value, cf.flow_type_id, cf."date", 'все счетчики по услуге если просрочен хотя бы один' as close_type
+				from _close_counter_id cc
+					inner join counter.account ca on ca.account_id = cc.account_id
+					inner join counter.list cl on cl.sublist_id = cc.sublist_id and cl.id = ca.counter_id 
+					inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+				where cl.id <> cc.counter_id and cl.active = true and cl.date_end is null and cl.date_begin < _date_begin;
+			
+			end;
+	end if;
+	
+	update counter.list cl
+	set active = false,
+		date_end = (_date_begin - 1)
+	from _close_counter_id c 
+	where c.counter_id = cl.id;
+
+	delete 
+	from counter.flow cf
+	using _close_counter_id f
+	where cf.period_id = _period_id and cf.counter_id = f.counter_id;
+
+	merge into counter.closed_verification_date as targets
+	using (select 
+			cci.counter_id
+			,_period_id as period_id
+			,cci.verification_interval
+			,cci.verification_date
+			,cci.failure_date
+			,cci.sublist_id
+			,cci.account_id
+			,cci.value
+			,cci.c_value
+			,cci.flow_type_id
+			,cci.flow_date
+			,cci.close_type
+		from _close_counter_id cci)
+	as sources (counter_id, period_id, verification_interval, verification_date, failure_date, sublist_id, account_id, value, c_value, flow_type_id, flow_date, close_type)
+	on (targets.counter_id = sources.counter_id)
+	when matched then
+		update set
+			period_id = sources.period_id,
+			verification_interval = sources.verification_interval,
+			verification_date = sources.verification_date,
+			failure_date = sources.failure_date,
+			sublist_id = sources.sublist_id,
+			account_id = sources.account_id,
+			value = sources.value,
+			c_value = sources.c_value,
+			flow_type_id = sources.flow_type_id,
+			flow_date = sources.flow_date,
+			close_type = sources.close_type
+	when not matched then
+		insert (counter_id, period_id, verification_interval, verification_date, failure_date, sublist_id, account_id, value, c_value, flow_type_id, flow_date, close_type)
+		values (sources.counter_id, sources.period_id, sources.verification_interval, sources.verification_date, sources.failure_date, sources.sublist_id, sources.account_id, sources.value, sources.c_value, sources.flow_type_id, sources.flow_date, sources.close_type);
+
+		
+	return query
+	select 
+		 ai.short_name_flat
+		,ai.account_name
+		,('№'|| cl."number" )::varchar(3) as "number"
+		,cf.counter_id
+		,cf.prev_value as p_value
+		,c.value
+		,cf.c_value
+		,cf.sublist_id
+		,us."name" as sublist_name
+		,ai.order_id
+		,c."date"
+		,cl.service_guid as counter_guid
+		,cl.failure_date 
+		,ai.work_id as organization_id
+		,(case when coalesce((cl.verification_date + interval '1 year' * cl.verification_interval), c."date") < c."date" then false else true end ) as verification_valid
+		,coalesce(uw.max_flow, 1000.0) as max_flow
+		,coalesce(cl.rate, 1.0) as rate
+		,coalesce(c.flow_type_id, 0)::int2 as flow_type
+		,coalesce(cf.flow_type_id, 0)::int2 as old_flow_type
+	from jsonb_populate_recordset(null::"import".counter, _counter) c
+		inner join counter.list cl on c.counter_id = cl.id or c.counter_guid = cl.service_guid
+		inner join counter.flow cf on cf.counter_id = cl.id
+		inner join utility.sublist us on us.id = cl.sublist_id
+		inner join counter.account ca on ca.counter_id = cl.id
+		inner join adress.info ai on ai.account_id = ca.account_id
+		left join utility.warnings uw on uw.sublist_id = cl.sublist_id
+	where cf.period_id = _period_id	
+		and (ai.house_id in (select h.house_id from jsonb_populate_recordset(null::house.list, _house) h)	
+				or not exists(select 1 from jsonb_populate_recordset(null::house.list, _house) h)
+			);
+
+	drop table if exists _close_counter_id;	
+
+end;
+"""
+  returnType = TABLE(short_name_flat text, account_name character varying, number character varying, counter_id integer, p_value numeric, value numeric, c_value numeric, sublist_id integer, sublist_name character varying, order_id integer, date date, counter_guid uuid, failure_date date, organization_id integer, verification_valid boolean, max_flow numeric, rate numeric, flow_type smallint, old_flow_type smallint)
+  arguments = <
+    {
+      name = _counter
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 13.10.2016
+ description:	формирование таблицы для отображения логов по импорту счетчиков
+ modyfied date: добавлен фильтр загрузки счетчиков по домам
+ modified:	05.08.2019 трофимов б.и. - изменения в логике загрузки показаний 
+ modified:	26.03.2020 юркин е.ю. - закрытие истекших счетчиков после 3 мес. с даты поверки 
+ =============================================
+"""
+}
+

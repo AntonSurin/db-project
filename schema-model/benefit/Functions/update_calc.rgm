@@ -1,0 +1,59 @@
+function "benefit"."update_calc()" {
+  text = """
+
+declare 
+	_period_id 		int;
+	_account_id 	int;
+	_benefit_type 	int2;
+begin
+	
+	_period_id = (select period_id from inserted limit 1);
+	_account_id = (select account_id from inserted limit 1);
+
+	_benefit_type = (select array_to_string(xpath('root/ui/usebenefit/text()', lower(p.xml_data::text)::xml)::text[], '')::int2
+					 from special.parametr p);
+
+	if _benefit_type = 2
+		then
+			begin
+				
+				update recalculation."result" rr
+					set 
+						diff_volume = i.volume_result, 
+						diff_result = i.benefit_result, 
+						recalc_result = i.benefit_result
+				from recalculation.root r
+					inner join (
+								select bc.account_id, bc.period_id, bc.sublist_id, -sum(bc.volume_result) as volume_result, -sum (bc.benefit_result) as benefit_result 
+								from benefit.calculation bc
+								where bc.account_id = _account_id 
+									and bc.period_id = _period_id 
+								group by bc.account_id, bc.period_id, bc.sublist_id
+								) i on 1 = 1
+				where rr.root_id = r.id 
+					and  i.account_id = rr.account_id 
+					and i.sublist_id = rr.sublist_id 
+					and r."type" = 6 
+					and r.period_id = _period_id;
+			
+			end;
+	end if;
+
+return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 02.05.2017
+ Description:	Обновление данных о расчете льгот при ручном редактировании
+ =============================================
+"""
+}
+

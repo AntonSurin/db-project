@@ -1,0 +1,38 @@
+table "service"."task_queue" {
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.task_queue_id_seq'::regclass)
+    }
+    column "object_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "status" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "type" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "text" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "error_message" {
+      type = text
+    }
+    column "user_hash" {
+      type = uuid
+      null = NOT NULL
+    }
+  )
+}
+

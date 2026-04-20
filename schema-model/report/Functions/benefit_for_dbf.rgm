@@ -1,0 +1,105 @@
+function "report"."benefit_for_dbf()" {
+  text = """
+
+declare 
+	_period_id int;
+	_benefits jsonb;
+begin
+
+	_period_id = (select id from "period".list where is_working = true);
+
+	create temp table _table 
+	(
+		fio 				varchar(500), 
+		surname 			varchar(150),
+		"name"				varchar(100),
+		middlename	 		varchar(100),
+		short_name_adress 	varchar(500),
+		account_name 		varchar(11),
+		code 				varchar(10),
+		percent_housing 	int,
+		percent_utility 	int,
+		count_benefit 		int,
+		osq					numeric(9,5),
+		col_reg				int,
+		"year"				int,
+		name_month			varchar(50),
+		day_in_month		int,
+		sublist_name 		varchar(100),
+		code_sublist		int,
+		unit_name			varchar(50),
+		lgot_volume			numeric(9,5),
+		tarif				numeric(9,5),
+		norm 				numeric(9,2),
+		benefit_result 		numeric(9,2),
+		order_id			int,
+		account_order_id 	int
+	);
+
+	_benefits = (select jsonb_agg(jsonb_build_object('object_id', id)) from benefit.list);
+
+	insert into _table
+	select *
+	from report.benefit (_period_id, _benefits);
+
+	return query
+	select 
+		 surname
+		,"name"
+		,middlename
+		,short_name_adress 
+		,code
+		,max(case when code_sublist = 1 then lgot_volume end) as vol_1
+		,max(case when code_sublist = 1 then tarif end) as tarif_1
+		,max(case when code_sublist = 1 then norm end) as norm_1
+		,max(case when code_sublist = 1 then benefit_result end) as suml_1
+		,max(case when code_sublist = 2 then lgot_volume end) as vol_2
+		,max(case when code_sublist = 2 then tarif end) as tarif_2
+		,max(case when code_sublist = 2 then norm end) as norm_2
+		,max(case when code_sublist = 2 then benefit_result end) as suml_2
+		,max(case when code_sublist = 3 then lgot_volume end) as vol_3
+		,max(case when code_sublist = 3 then tarif end) as tarif_3
+		,max(case when code_sublist = 3 then norm end) as norm_3
+		,max(case when code_sublist = 3 then benefit_result end) as suml_3
+		,max(case when code_sublist = 4 then lgot_volume end) as vol_4
+		,max(case when code_sublist = 4 then tarif end) as tarif_4
+		,max(case when code_sublist = 4 then norm end) as norm_4
+		,max(case when code_sublist = 4 then benefit_result end) as suml_4
+		,max(case when code_sublist = 5 then lgot_volume end) as vol_5
+		,max(case when code_sublist = 5 then tarif end) as tarif_5
+		,max(case when code_sublist = 5 then norm end) as norm_5
+		,max(case when code_sublist = 5 then benefit_result end) as suml_5
+		,max(case when code_sublist = 6 then lgot_volume end) as vol_6
+		,max(case when code_sublist = 6 then tarif end) as tarif_6
+		,max(case when code_sublist = 6 then norm end) as norm_6
+		,max(case when code_sublist = 6 then benefit_result end) as suml_6
+		,max(case when code_sublist = 7 then lgot_volume end) as vol_7
+		,max(case when code_sublist = 7 then tarif end) as tarif_7
+		,max(case when code_sublist = 7 then norm end) as norm_7
+		,max(case when code_sublist = 7 then benefit_result end) as suml_7
+		,max(case when code_sublist = 8 then lgot_volume end) as vol_8
+		,max(case when code_sublist = 8 then tarif end) as tarif_8
+		,max(case when code_sublist = 8 then norm end) as norm_8
+		,max(case when code_sublist = 8 then benefit_result end) as suml_8
+	from _table
+	group by surname, "name", middlename, code, short_name_adress
+	order by surname, "name", middlename;
+
+	drop table if exists _table;
+
+end
+"""
+  returnType = TABLE(surname character varying, name character varying, middlename character varying, short_name_adress character varying, code character varying, vol_1 numeric, tarif_1 numeric, norm_1 numeric, suml_1 numeric, vol_2 numeric, tarif_2 numeric, norm_2 numeric, suml_2 numeric, vol_3 numeric, tarif_3 numeric, norm_3 numeric, suml_3 numeric, vol_4 numeric, tarif_4 numeric, norm_4 numeric, suml_4 numeric, vol_5 numeric, tarif_5 numeric, norm_5 numeric, suml_5 numeric, vol_6 numeric, tarif_6 numeric, norm_6 numeric, suml_6 numeric, vol_7 numeric, tarif_7 numeric, norm_7 numeric, suml_7 numeric, vol_8 numeric, tarif_8 numeric, norm_8 numeric, suml_8 numeric)
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Create date: <Create Date,,>
+ Description:	<Description,,>
+ =============================================
+"""
+}
+

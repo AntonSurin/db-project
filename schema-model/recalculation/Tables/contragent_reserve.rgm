@@ -1,0 +1,60 @@
+table "recalculation"."contragent_reserve" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contragent_reserve"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('recalculation.contragent_reserve_id_seq'::regclass)
+    }
+    column "root_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "contragent_account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "book_id" {
+      type = integer
+    }
+    column "type_id" {
+      type = smallint
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+foreignKey "recalculation"."contragent_reserve"."fk_contragent_reserve_account" {
+  columns = [
+    "contragent_account_id"
+  ]
+  referencedTable = "contragent"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "recalculation"."contragent_reserve"."fk_contragent_reserve_root" {
+  columns = [
+    "root_id"
+  ]
+  referencedTable = "recalculation"."root"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,61 @@
+table "payment"."pos_responce" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_pos_responce"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.pos_responce_id_seq'::regclass)
+    }
+    column "operation_code" {
+      type = integer
+      null = NOT NULL
+    }
+    column "payment_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "terminal_id" {
+      type = character varying(15)
+      null = NOT NULL
+    }
+    column "authorization_code" {
+      type = character varying(8)
+    }
+    column "reference_number" {
+      type = character varying(18)
+    }
+    column "date_time_host" {
+      type = date
+    }
+    column "terminal_date_time" {
+      type = date
+    }
+    column "response_code_host" {
+      type = character varying(3)
+    }
+    column "trx_id" {
+      type = integer
+    }
+    column "terminal_trx_id" {
+      type = integer
+    }
+    column "status" {
+      type = integer
+      null = NOT NULL
+    }
+    column "text_response" {
+      type = character varying(100)
+    }
+    column "pan" {
+      type = character varying(19)
+    }
+  )
+}
+

@@ -1,0 +1,42 @@
+function "payment"."calc_1c(integer)" {
+  text = """
+
+begin
+
+	return query
+	select 
+		_period_id as period_id
+		,ai.work_id
+		,ai.account_name
+		,pb.sublist_id
+		,pb.in_balance
+		,pb.current_calculate as calc
+		,coalesce(pb.tarif,0) as tarif
+		,coalesce(pb.volume,0) as volume
+	from payment.balance pb
+		inner join adress.info ai on ai.account_id = pb.account_id
+		where pb.period_id = _period_id 
+				and pb.current_calculate != 0;
+
+end;
+"""
+  returnType = TABLE(period_id integer, work_id integer, account_name character varying, sublist_id integer, in_balance numeric, calc numeric, tarif numeric, volume numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Е.Ю
+ Create date: 06.04.2025
+ Description:	Отчет начисления по периоду для 1С
+ =============================================
+"""
+}
+

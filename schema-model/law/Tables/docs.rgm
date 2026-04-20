@@ -1,0 +1,91 @@
+table "law"."docs" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_docs"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('law.docs_id_seq'::regclass)
+    }
+    column "parent_id" {
+      type = integer
+    }
+    column "folder_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "payment_date" {
+      type = date
+    }
+    column "date_status_change" {
+      type = date
+    }
+    column "sum" {
+      type = numeric(20,2)
+    }
+    column "status_id" {
+      type = integer
+    }
+    column "notifyed_id" {
+      type = integer
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "delivery_status" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "law"."docs"."fk_docs_folder" {
+  columns = [
+    "folder_id"
+  ]
+  referencedTable = "law"."folder"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "law"."docs"."fk_docs_status" {
+  columns = [
+    "status_id"
+  ]
+  referencedTable = "law"."status"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "law"."docs_idx_folder_notify" {
+  table = "law"."docs"
+  type = btree
+  columns = <
+    {
+      definition = folder_id
+    }
+
+    {
+      definition = notifyed_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    status_id
+  ]
+}
+

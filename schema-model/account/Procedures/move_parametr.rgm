@@ -1,0 +1,94 @@
+procedure "account"."move_parametr(integer, integer, date)" {
+  text = """
+
+declare 
+	    _is_use_reserve bool;
+	   _account 		jsonb;
+begin 	   
+	
+	
+	_is_use_reserve = 	(select (case 
+	 								when array_to_string(xpath('Root/Calculation/IsUseReserve/text()', p.xml_data)::text[] , '') = '' 
+	 								then false 
+	 								else array_to_string(xpath('Root/Calculation/IsUseReserve/text()', p.xml_data)::text[], '')::bool 
+	 							end)::bool
+ 						 from special.parametr p);
+
+	update parametr.account p
+		set value = pa.value 
+	from parametr.account pa 
+		inner join parametr.list pl on pl.id = pa.parametr_id 
+		left join parametr.sublist ps on ps.parametr_id = pa.parametr_id
+	where p.account_id = _new_account_id 
+			and p.parametr_id = pa.parametr_id 
+			and pa.account_id = _account_id 
+			and pa.parametr_id <> 1362 
+			and pl.type_id <> 5 
+			and pa.date_begin = (select max(date_begin) 
+								from parametr.account ppa 
+								where ppa.account_id = pa.account_id and ppa.parametr_id = pa.parametr_id and date_begin <= _date)
+			and ps.parametr_id is null;
+
+	if _is_use_reserve = true
+		then
+			_account = (select jsonb_agg(jsonb_build_object('account_id', _account_id)));
+			call calculation.contragent (_account);
+	end if;
+
+	/*	перенос настроек пени	*/
+	merge into fine.account as targets
+	using
+	(
+		select a.id, fine_id
+		from adress.account aa
+			inner join fine.account fa on fa.account_id = aa.id
+			inner join (
+							select id, group_id
+							from adress.account 
+							where parent_id = _new_account_id
+						) a on coalesce(a.group_id, 0) = coalesce(aa.group_id, 0)
+		where aa.parent_id = _account_id
+	) as sources (account_id, fine_id)
+	on (targets.account_id = sources.account_id)
+	when matched then
+		update set
+			fine_id = sources.fine_id
+	when not matched then
+		insert(account_id, fine_id)
+		values(sources.account_id, sources.fine_id);
+
+
+
+end
+"""
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _new_account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _date
+      type = date
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:	глещинский д.в.
+ create date: 05.08.2017
+ description:	перенос параметров из существующего лицевого счета на новый
+ =============================================
+"""
+}
+

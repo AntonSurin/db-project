@@ -1,0 +1,18 @@
+table "dbo"."balance" {
+  owner = postgres
+  columns = (
+    column "account_name" {
+      type = character varying(9)
+    }
+    column "code_sublist" {
+      type = character varying(2)
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "in_balance" {
+      type = numeric(9,2)
+    }
+  )
+}
+

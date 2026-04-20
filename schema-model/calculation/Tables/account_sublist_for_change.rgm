@@ -1,0 +1,106 @@
+table "calculation"."account_sublist_for_change" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__account_s__3214ec27dac54cb7"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('calculation.account_sublist_for_change_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_parent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "period_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "calculation"."account_sublist_for_change"."fk_account_sublist_for_change_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "calculation"."account_sublist_for_change_idx_period_id_acc_part_id" {
+  table = "calculation"."account_sublist_for_change"
+  type = btree
+  columns = <
+    {
+      definition = account_parent_id
+    }
+
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    sublist_id
+    value
+    date_begin
+    date_end
+  ]
+}
+
+trigger "calculation"."account_sublist_for_change"."insert_account_sublist" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = calculation.change_account_sublist
+  functionArguments = [
+  ]
+  table = "calculation"."account_sublist_for_change"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "calculation"."account_sublist_for_change"."update_account_sublist" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = calculation.change_account_sublist
+  functionArguments = [
+  ]
+  table = "calculation"."account_sublist_for_change"
+  constraint = False
+  newTableReference = inserted
+}
+

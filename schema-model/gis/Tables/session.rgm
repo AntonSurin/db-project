@@ -1,0 +1,17 @@
+table "gis"."session" {
+  primaryKey = {
+    columns = [
+      "session_id"
+    ]
+    name = "pk_session_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "session_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+

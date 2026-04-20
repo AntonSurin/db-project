@@ -1,0 +1,38 @@
+function "tests"."chech_placed_pd(integer, jsonb)" {
+  text = """
+
+
+	select ha.account_name
+	from documents.payment_document as pd
+		inner join house.account ha on pd.account_id = ha.account_id
+		inner join house.flat hf on ha.flat_id = hf.flat_id
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = hf.flat_id
+	where pd.state in (1,0,5) and pd.period_id = _period_id;
+
+"""
+  returnType = TABLE(account_name character varying)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:	Ильющенко Денис
+ Create date: 19.12.2017
+ Description:	Тест перед выгрузкой ПД на ГИС 
+ =============================================
+"""
+}
+

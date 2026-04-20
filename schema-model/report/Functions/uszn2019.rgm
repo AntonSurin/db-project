@@ -1,0 +1,476 @@
+function "report"."uszn2019(integer, integer)" {
+  text = """
+
+declare		
+	_flat_id		int;
+	_date_begin		date;
+	_date_end		date;
+	_code_sq 		varchar(30);
+	_code_gaz 		varchar(30);
+	_code_heating 	varchar(30);
+	_code_cw 		varchar(30);
+	_code_hw 		varchar(30);
+	_code_kan 		varchar(30);
+	_code_waste 	varchar(30);
+	_code_lift 		varchar(30);
+	_code_electric 	varchar(30);
+	_sql_tarif 		text = '';
+	_sql_normativ 	text = '';
+begin
+
+	select pl.date_begin, pl.date_end 
+	into _date_begin, _date_end
+	from "period".list pl 
+	where pl.id = _period_id;
+
+	_flat_id = (select a.flat_id from adress.account a where a.id = _account_id);
+
+	_code_sq 		= (select pf.value from parametr.flat pf where pf.date_end is null and pf.flat_id = _flat_id and pf.parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'code_sq'));
+	_code_gaz		= (select pf.value from parametr.flat pf where pf.date_end is null and pf.flat_id = _flat_id and pf.parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'code_gaz'));
+	_code_heating	= (select pf.value from parametr.flat pf where pf.date_end is null and pf.flat_id = _flat_id and pf.parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'code_heating'));
+	_code_cw		= (select pf.value from parametr.flat pf where pf.date_end is null and pf.flat_id = _flat_id and pf.parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'code_cw'));
+	_code_hw		= (select pf.value from parametr.flat pf where pf.date_end is null and pf.flat_id = _flat_id and pf.parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'code_hw'));
+	_code_kan		= (select pf.value from parametr.flat pf where pf.date_end is null and pf.flat_id = _flat_id and pf.parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'code_kan'));
+	_code_waste		= (select pf.value from parametr.flat pf where pf.date_end is null and pf.flat_id = _flat_id and pf.parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'code_waste'));
+	_code_lift		= (select pf.value from parametr.flat pf where pf.date_end is null and pf.flat_id = _flat_id and pf.parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'code_lift'));
+	_code_electric	= (select pf.value from parametr.flat pf where pf.date_end is null and pf.flat_id = _flat_id and pf.parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'code_electric'));
+
+	drop table if exists _column_tarif;
+	drop table if exists _column_normativ; 
+	drop table if exists _c_tarif;
+	drop table if exists _c_normativ;
+	drop table if exists _sublist_provider;
+	drop table if exists _counter_list;
+	drop table if exists _tarif_list;
+	drop table if exists _u_sublist;
+	drop table if exists _result;		
+
+	create temp table _column_tarif (column_name varchar(50), sublist_id int);
+	create temp table _column_normativ (column_name varchar(50), sublist_id int);
+	create temp table _c_tarif (tarif numeric(10,2), sublist_id int);
+	create temp table _c_normativ (normativ numeric(15,5), sublist_id int);
+	create temp table _sublist_provider (name varchar(100), sublist_id int, house_id int, provider_id int, territory_id int);
+	create temp table _counter_list (account_id int, sublist_id int);
+	create temp table _tarif_list (house_id int, provider_id int, sublist_id int, tarif numeric(10,2), "number" int);
+	create temp table _u_sublist (id int, list_id int, is_kp bool, is_counter bool, "name" varchar(200), unit_name varchar(20), type int);
+	create temp table _result 
+	(
+		provider_name 	varchar(200), 
+		account_name 	varchar(20), 
+		"name" 			varchar(200), 
+		code 			varchar(30), 
+		tarif 			varchar(30), 
+		normativ 		numeric(15,5), 
+		is_counter 		varchar(3), 
+		order_id 		int, 
+		communal_id 	int, 
+		sublist_id 		int
+	);
+	
+	insert into _column_tarif
+	select ic.column_name, us.id as sublist_id
+	from information_schema."columns" ic
+		inner join utility.sublist us on lower(us.short_name) = lower(right(ic.column_name,length(ic.column_name)-2))
+	where lower(ic.table_schema) = 'calculation' and lower(ic.table_name) = 'tarif' and lower(ic.column_name) like 't_%' and us."type" <> 2;
+	
+	insert into _column_normativ
+	select ic.column_name, us.id as sublist_id
+	from information_schema."columns" ic
+		inner join utility.sublist us on lower(us.short_name) = lower(right(ic.column_name,length(ic.column_name)-2))
+	where lower(ic.table_schema) = 'calculation' and lower(ic.table_name) = 'normativ' and lower(ic.column_name) like 'n_%' and us."type" <> 2;
+
+	_sql_tarif =	(
+						select  string_agg('
+							select ' 
+							|| cf.column_name || ' as tarif, ' || sublist_id || ' as sublist_id
+							from calculation.tarif
+							where account_id = ' || _account_id,'
+							union ')				
+						from _column_tarif cf
+					);
+			
+	_sql_tarif = '
+				insert into _c_tarif (tarif, sublist_id) 
+				'|| _sql_tarif;
+
+	_sql_normativ = (select string_agg('
+					select ' 
+					|| cn.column_name || ' as normativ, ' || (case when cn.sublist_id in (12,18,19) then 12 else cn.sublist_id end ) || ' as sublist_id
+					from calculation.normativ
+					where account_id = ' ||_account_id ,'
+					union ')
+					from _column_normativ cn);
+
+	_sql_normativ = '
+				insert into _c_normativ (normativ, sublist_id) 
+				' || _sql_normativ;
+
+	execute (_sql_tarif);
+	execute (_sql_normativ);
+
+	insert into  _sublist_provider ("name", sublist_id, house_id, provider_id, territory_id)
+	select distinct 
+		 up."name"
+		,usp.sublist_id
+		,ah.id as house_id
+		,usp.provider_id
+		,usp.territory_id
+	from utility.provider up
+		inner join utility.sublist_provider usp on usp.provider_id = up.id
+		inner join adress.house ah on ah.territory_id = usp.territory_id and ah.id = usp.house_id
+	where ah.id = (select distinct a.house_id from adress.account a where a.id = _account_id) 
+		and coalesce(usp.date_end, _date_begin) >= _date_begin 
+		and usp.date_begin <= _date_end
+		and usp.sublist_id not in (32, 34, 37);
+
+	insert into  _tarif_list (house_id, provider_id, sublist_id, tarif, "number")
+	select distinct 
+			th.house_id, 
+			tl.provider_id, 
+			tl.sublist_id, 
+			tl.value as tarif, 
+			th."number"
+	from tarif.house_tarif th
+		inner join adress.house ah on ah.id = th.house_id
+		inner join tarif.list tl on tl.id = th.tarif_id	
+									and ah.territory_id = tl.territory_id 
+									and coalesce(th.date_end, _date_begin) >= _date_begin 
+									and th.date_begin <= _date_end
+	where ah.id = (select distinct a.house_id from adress.account a where a.id = _account_id);
+
+	insert into  _counter_list (account_id, sublist_id)
+	select ca.account_id, cl.sublist_id
+	from counter.account ca
+		inner join counter.list cl on cl.id = ca.counter_id
+	where ca.account_id = _account_id and cl.date_begin <= _date_end and coalesce(cl.date_end, _date_end) >= _date_begin
+	group by ca.account_id, cl.sublist_id;
+	
+	insert into  _u_sublist (id, list_id, is_kp, is_counter, "name", unit_name, type)
+	select us.id, us.list_id, us.is_kp, us.is_counter, us."name", uu."name" as unit_name, us.type
+	from utility.sublist us 
+		inner join utility.unit uu on uu.id = us.unit_id 
+									and us.date_begin <= _date_end 
+									and coalesce(us.date_end, _date_end) >= _date_begin;
+
+	if not exists (
+					select *
+					from adress.account aa
+						inner join _sublist_provider usp on usp.house_id = aa.house_id
+						inner join _u_sublist us on us.id = usp.sublist_id
+						inner join _tarif_list tl on tl.house_id = aa.house_id and tl.sublist_id = usp.sublist_id and tl.provider_id = usp.provider_id
+						inner join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0 and ct.tarif = tl.tarif
+					where aa.id = _account_id and us.list_id = 1024 and coalesce(us.is_kp, false) = false and us.type <> 4
+					)
+		then
+			insert into _result
+			select distinct 
+				 usp."name" as provider_name
+				,aa."name" as account_name
+				,'Содержание жилого помещения' as "name"
+				,_code_sq as code
+				,coalesce(ct.tarif, tl.tarif)  || ' руб/м2' as tarif
+				,null as normativ
+				,null as is_counter
+				,1 as order_id
+				,null as communal_id
+				,us.id as sublist_id
+			from adress.account aa
+				left join _sublist_provider usp on usp.house_id = aa.house_id
+				left join _u_sublist us on us.id = usp.sublist_id
+				left join _tarif_list tl on tl.house_id = aa.house_id and tl.sublist_id = usp.sublist_id and tl.provider_id = usp.provider_id
+				left join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0	and ct.tarif = tl.tarif
+			where aa.id = _account_id and us.list_id = 1024 and coalesce(us.is_kp, false) = false and us.type <> 4;
+		else
+			insert into _result
+			select distinct 
+				 usp."name" as provider_name
+				,aa."name" as account_name
+				,'Содержание жилого помещения' as "name"
+				,_code_sq as code
+				,coalesce(ct.tarif, tl.tarif) || ' руб/м2' as tarif
+				,null::numeric(15,5) as normativ
+				,null::varchar(3) as is_counter
+				,1 as order_id
+				,null::int as communal_id
+				,us.id as sublist_id
+			from adress.account aa
+				inner join _sublist_provider usp on usp.house_id = aa.house_id
+				inner join _u_sublist us on us.id = usp.sublist_id
+				inner join _tarif_list tl on tl.house_id = aa.house_id and tl.sublist_id = usp.sublist_id and tl.provider_id = usp.provider_id
+				inner join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0 and ct.tarif = tl.tarif
+			where aa.id = _account_id and us.list_id = 1024 and coalesce(us.is_kp, false) = false and us.type <> 4;
+	end if;
+
+	insert into _result
+	select distinct
+		 usp."name" as provider_name
+		,aa."name" as account_name
+		,case 
+			when us.list_id = 1021 then 'Горячее водоснабжение'
+			when us.list_id = 1027 then 'Водоотведение'
+			when us.list_id = 1022 then 'Отопление'
+			when us.list_id = 1020 then 'Холодное водоснабжение'
+			when us.list_id = 1023 then 'Газоснабжение'
+		end as "name"	
+		,case 
+			when us.list_id = 1021 then _code_hw
+			when us.list_id = 1027 then _code_kan
+			when us.list_id = 1022 then _code_heating
+			when us.list_id = 1020 then _code_cw
+			when us.list_id = 1023 then _code_gaz
+		end as code	
+		,coalesce(ct.tarif,tl.tarif) || ' руб/' || us.unit_name  as tarif
+		,cn.normativ as normativ
+		,case 
+			when us.is_counter = true 
+			then 
+				case 
+					when c.sublist_id is not null 
+					then 'да' 
+					else 'нет' 
+				end 
+		end as is_counter
+		,case 
+			when us.list_id = 1021 then 2
+			when us.list_id = 1027 then 4
+			when us.list_id = 1022 then 6
+			when us.list_id = 1020 then 3
+			when us.list_id = 1023 then 7
+		end as order_id,
+		case	
+			when us.list_id = 1020 then 11
+			when us.list_id = 1021 then 12
+			when us.list_id = 1027 then 13
+		end as communal_id
+		,us.id as sublist_id
+	from adress.account aa
+		left join _sublist_provider usp on usp.house_id = aa.house_id
+		left join _u_sublist us on us.id = usp.sublist_id
+		left join _tarif_list tl on tl.house_id = aa.house_id and tl.sublist_id = usp.sublist_id and tl.provider_id = usp.provider_id
+		left join _counter_list c on c.sublist_id = usp.sublist_id
+		left join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0	and ct.tarif = tl.tarif
+		left join _c_normativ cn on cn.sublist_id = usp.sublist_id and coalesce(cn.normativ,0) > 0
+	where aa.id = _account_id and us.list_id in (1020,1021,1022,1023,1027);
+
+	insert into _result
+	select distinct
+		 usp."name" as provider_name
+		,aa."name" as account_name
+		,'Обращение с твердыми коммунальными отходами' as name	
+		,_code_waste as code
+		,ct.tarif || ' руб/' || us.unit_name as tarif
+		,cn.normativ as normativ
+		,null::bool as is_counter
+		,8 as order_id
+		,null::int as communal_id
+		,us.id as sublist_id
+	from adress.account aa
+		left join _sublist_provider usp on usp.house_id = aa.house_id
+		left join _u_sublist us on us.id = usp.sublist_id
+		left join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0
+		left join _c_normativ cn on cn.sublist_id = usp.sublist_id and coalesce(cn.normativ,0) > 0
+	where aa.id = _account_id and us.id = 15;
+
+	insert into _result
+	select distinct 
+	 	 usp."name" as provider_name
+		,aa."name" as account_name
+		,'Обращение с твердыми коммунальными отходами' as "name"	
+		,_code_waste as code
+		,ct.tarif || ' руб/' || us.unit_name as tarif
+		,cn.normativ as normativ
+		,null::bool as is_counter
+		,8 as order_id
+		,null::int as communal_id
+		,us.id as sublist_id
+	from adress.account aa
+		inner join _sublist_provider usp on  usp.house_id = aa.house_id
+		inner join _u_sublist us on us.id = usp.sublist_id
+		inner join _tarif_list tl on tl.house_id = aa.house_id and tl.sublist_id = usp.sublist_id and tl.provider_id = usp.provider_id
+		inner join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0 and ct.tarif = tl.tarif
+		left join _c_normativ cn on cn.sublist_id = usp.sublist_id and coalesce(cn.normativ,0) > 0
+	where aa.id = _account_id and us.list_id = 1026 and us.id != 15;
+
+	insert into _result
+	select distinct
+		 usp."name" as provider_name
+		,aa."name" as account_name
+		,'Электроснабжение' as "name"	
+		,_code_electric as code
+		,ct.tarif || ' руб/' || us.unit_name as tarif
+		,cn.normativ as normativ
+		,case 
+			when us.is_counter = true
+			then 
+				case 
+					when c.sublist_id is not null 
+					then 'да' 
+					else 'нет' 
+				end 
+		end as is_counter
+		,5 as order_id
+		,14 as communal_id
+		,us.id as sublist_id
+	from adress.account aa
+		left join _sublist_provider usp on usp.house_id = aa.house_id
+		left join _u_sublist us on us.id = usp.sublist_id
+		left join _counter_list c on c.sublist_id = usp.sublist_id
+		left join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0
+		left join _c_normativ cn on cn.sublist_id = usp.sublist_id and coalesce(cn.normativ,0) > 0
+	where aa.id = _account_id and us.id = 27;
+
+	insert into _result
+	select distinct
+		 usp."name" as provider_name
+		,aa."name" as account_name
+		,'Электроснабжение' as "name"	
+		,_code_electric as code
+		,ct.tarif || ' руб/' || us.unit_name as tarif
+		,null::numeric(15,5) as normativ
+		,case 
+			when us.is_counter = true
+			then 
+				case 
+					when c.sublist_id is not null 
+					then 'да' 
+					else 'нет' 
+				end 
+		end as is_counter
+		,5 as order_id
+		,null::int as communal_id
+		,us.id as sublist_id
+	from adress.account aa
+		inner join _sublist_provider usp on  usp.house_id = aa.house_id
+		inner join _u_sublist us on us.id = usp.sublist_id
+		inner join _counter_list c on c.sublist_id = usp.sublist_id
+		inner join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0
+	where aa.id = _account_id and us.list_id = 1028 and us.id != 27;
+				
+	insert into _result 
+	select distinct
+		 usp."name" as provider_name
+		,aa."name" as account_name
+		,us."name"	
+		,_code_lift as code
+		,ct.tarif || ' руб/' || us.unit_name as tarif
+		,null::numeric(15,5) as normativ 
+		,null::varchar(3) as is_counter
+		,us.id as order_id
+		,null::int as communal_id
+		,us.id as sublist_id
+	from adress.account aa
+		inner join _sublist_provider usp on  usp.house_id = aa.house_id
+		inner join _u_sublist us on us.id = usp.sublist_id
+		inner join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0
+	where aa.id = _account_id and us.list_id = 1025;
+
+	insert into _result 
+	select distinct
+		 usp."name" as provider_name
+		,aa."name" as account_name
+		,us."name"	
+		,null::varchar(30) as code
+		,ct.tarif || ' руб/' || us.unit_name as tarif
+		,null::numeric(15,5) as normativ 
+		,null::varchar(3) as is_counter
+		,us.id as order_id
+		,null::int as communal_id
+		,us.id as sublist_id
+	from adress.account aa
+		inner join _sublist_provider usp on  usp.house_id = aa.house_id
+		inner join _u_sublist us on us.id = usp.sublist_id
+		inner join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0
+	where aa.id = _account_id and coalesce(us.is_kp, false) = false and us.list_id not in (1020,1021,1022,1023,1024,1025,1026,1027,1028);
+
+	insert into _result 
+	select distinct
+		 usp."name" as provider_name
+		,aa."name" as account_name
+		,us."name"
+		,null::varchar(30) as code
+		,ct.tarif || ' руб/м2' as tarif
+		,null::numeric(15,5) as normativ
+		,null::varchar(3) as is_counter
+		,us.id as order_id
+		,null::int as communal_id
+		,us.id as sublist_id
+	from adress.account aa
+		inner join _sublist_provider usp on  usp.house_id = aa.house_id
+		inner join _u_sublist us on us.id = usp.sublist_id
+		inner join _c_tarif ct on ct.sublist_id = usp.sublist_id and coalesce(ct.tarif,0) > 0
+	where aa.id = _account_id and us.list_id not in (1020,1021,1022,1023,1025,1026,1027,1028) and coalesce(us.is_kp, false) = true and us.type <> 4;
+
+	return query
+	select distinct
+		 r.account_name
+		,case 
+			when coalesce(g.in_balance,0) - coalesce(g.pay,0) <= 0 then 'нет' 
+			else 
+				case 
+					when coalesce(d.in_balance,0) - coalesce(d.pay,0) > 0 then 'да' 
+					else 'нет' 
+				end 
+		end::varchar(3) as debt
+		,r.is_counter
+		,r."name"
+		,r.code
+		,r.order_id
+		,r.provider_name
+		,r.tarif
+		,case 
+			when coalesce(r.normativ, 0.00) = 0.00 and coalesce(cn.normativ, 0.00) = 0.00 then null::text
+			when coalesce(cn.normativ, 0.00) = 0.00 then r.normativ::text
+			else coalesce(r.normativ, 0.0) || ' / ' || coalesce(cn.normativ, 0.0)
+		end as normativ
+	from _result r
+		left join lateral (
+								select max(cn.normativ) as normativ 
+								from _c_normativ cn
+								where cn.sublist_id = r.communal_id 
+								group by cn.sublist_id
+							) cn on true
+		left join payment.balance d on d.account_parent_id = _account_id and d.sublist_id = r.sublist_id and d.period_id = "period".get_work_period_id()
+		left join payment.balance_group g on g.account_parent_id = _account_id and g.period_id = "period".get_work_period_id()
+		order by r.order_id;
+
+
+drop table if exists _column_tarif;
+drop table if exists _column_normativ; 
+drop table if exists _c_tarif;
+drop table if exists _c_normativ;
+drop table if exists _sublist_provider;
+drop table if exists _counter_list;
+drop table if exists _tarif_list;
+drop table if exists _u_sublist;
+drop table if exists _result;	
+
+end;
+"""
+  returnType = TABLE(account_name character varying, debt character varying, is_counter character varying, name character varying, code character varying, order_id integer, provider_name character varying, tarif character varying, normativ text)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Author Modify: Юркин Е.Ю.
+ Create date: <Create Date,,>
+ Modify date: 2021.04.19
+ Description: "СПРАВКА о характеристике жилья (УСЗН 2019)"
+ =============================================
+"""
+}
+

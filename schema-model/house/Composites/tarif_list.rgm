@@ -1,0 +1,18 @@
+composite "house"."tarif_list" {
+  owner = postgres
+  fields = (
+    field "house_id" {
+      type = integer
+    }
+    field "tarif_id" {
+      type = integer
+    }
+    field "number" {
+      type = smallint
+    }
+    field "date_begin" {
+      type = date
+    }
+  )
+}
+

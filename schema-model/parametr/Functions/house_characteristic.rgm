@@ -1,0 +1,42 @@
+function "parametr"."house_characteristic(integer)" {
+  text = """
+
+
+	select 
+		 pl.id
+		,pl.parent_id
+		,pl.type_id
+		,pl.short_name
+		,pl.is_required
+		,pl."name"
+		,ph.house_id
+		,ph.value
+		,pl.description
+	from parametr.list pl
+		inner join parametr.house ph on ph.parametr_id = pl.id
+	where pl.catalog_id = 3 
+		and pl.is_characteristic = true
+		and ph.house_id = _house_id 
+		and ph.date_end is null;
+
+"""
+  returnType = TABLE(id integer, parent_id integer, type_id integer, short_name character varying, is_required boolean, name character varying, house_id integer, value character varying, description character varying)
+  arguments = <
+    {
+      name = _house_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ =============================================
+"""
+}
+

@@ -1,0 +1,26 @@
+table "gis"."answerer_list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_answerer_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.answerer_list_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(320)
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+  )
+}
+

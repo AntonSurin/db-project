@@ -1,0 +1,92 @@
+procedure "parametr"."save_value_account(jsonb)" {
+  text = """
+
+declare 
+	_account jsonb;
+	_flat	 jsonb;
+begin		
+	
+	merge into parametr.account as targets 
+		using(select parametr_id, object_id, value, date_begin from jsonb_populate_recordset(null::parametr."change", _parametr) i) 
+		as sources(parametr_id, account_id, value, date_begin)
+	on (targets.parametr_id = sources.parametr_id and 
+			targets.account_id = sources.account_id and 
+			cast(coalesce(targets.date_begin, sources.date_begin) as date) = cast(sources.date_begin as date))
+	when matched then
+		update set
+			value = sources.value,
+			date_begin = sources.date_begin
+	when not matched then
+		insert (parametr_id, account_id, value, date_begin)
+		values (sources.parametr_id, sources.account_id, sources.value, sources.date_begin);	
+	
+	with cte as 
+	(
+		select 
+			pa.id,
+			pa.account_id, 
+			pa.parametr_id, 
+			pa.value, 
+			pa.date_begin, 
+			pa.date_end,
+			lead(pa.date_begin, 1, null) over (partition by pa.account_id, pa.parametr_id order by pa.account_id, pa.parametr_id, pa.date_begin) - 1  as new_date_end
+		from jsonb_populate_recordset(null::parametr."change", _parametr) p
+			inner join parametr.account pa on pa.account_id = p.object_id and pa.parametr_id = p.parametr_id
+	)
+
+	update parametr.account pa 
+		set date_end = new_date_end
+	from cte ct
+	where ct.id = pa.id;
+
+	if not exists(select * from jsonb_populate_recordset(null::parametr."change", _parametr) p where p.parametr_id in (1362, 279, 277, 278, 285))
+		then
+			return;
+	end if;
+
+	
+	_account = (
+					select jsonb_agg(jsonb_build_object('account_id', d.object_id))
+					from (
+							select p.object_id
+							from jsonb_populate_recordset(null::parametr."change", _parametr) p
+							group by p.object_id
+						 ) d
+	
+				);
+
+	_flat = (
+				select jsonb_agg(jsonb_build_object('object_id', d.flat_id))
+				from (
+						select distinct flat_id 
+						from jsonb_populate_recordset(null::account.list, _account) a 
+							inner join adress.account aa on aa.id = a.account_id
+						 ) d	
+			);
+	
+		
+
+	call gis.actualize_flat (_flat);
+	call gis.actualize_account (_account);
+
+end
+"""
+  arguments = <
+    {
+      name = _parametr
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=================================================================
+ author:		  ооо жилфондсервис
+ modified date: 18.12.2013
+ description:	  сохранение значений параметров на лицевых считах
+ ==================================================================
+"""
+}
+

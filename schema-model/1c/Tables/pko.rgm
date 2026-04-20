@@ -1,0 +1,157 @@
+table "1c"."pko" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_pko"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('"1c".pko_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "organization_guid" {
+      type = uuid
+    }
+    column "organization_name" {
+      type = character varying(255)
+    }
+    column "customers_guid" {
+      type = uuid
+    }
+    column "customers_name" {
+      type = character varying(255)
+    }
+    column "contract_guid" {
+      type = uuid
+    }
+    column "contract_name" {
+      type = character varying(255)
+    }
+    column "cash_guid" {
+      type = uuid
+    }
+    column "cash_name" {
+      type = character varying(255)
+    }
+    column "cash_flow_guid" {
+      type = uuid
+    }
+    column "cash_flow_name" {
+      type = character varying(255)
+    }
+    column "cash_customer_guid" {
+      type = uuid
+    }
+    column "cash_customer_name" {
+      type = character varying(255)
+    }
+    column "debt_guid" {
+      type = uuid
+    }
+    column "debt_name" {
+      type = character varying(255)
+    }
+    column "type_pko" {
+      type = character varying(100)
+    }
+    column "nomenclature_guid" {
+      type = uuid
+    }
+    column "nomenclature" {
+      type = character varying(255)
+    }
+    column "rs_guid" {
+      type = uuid
+    }
+    column "rs_name" {
+      type = character varying(255)
+    }
+    column "is_active" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "1c"."pko"."fk_pko_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "1c"."pko"."fk_pko_list" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "1c"."pko"."fk_pko_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "1c"."pko_idx_period_id" {
+  table = "1c"."pko"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+    {
+      definition = house_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    organization_guid
+    customers_guid
+    contract_guid
+    cash_guid
+    cash_flow_guid
+    cash_customer_guid
+    debt_guid
+    type_pko
+    rs_guid
+    is_active
+    customers_name
+    nomenclature_guid
+  ]
+}
+

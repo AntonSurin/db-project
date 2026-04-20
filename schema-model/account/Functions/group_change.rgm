@@ -1,0 +1,72 @@
+function "account"."group_change(integer, jsonb, date)" {
+  text = """
+
+declare 
+	_parametr jsonb;
+begin
+
+	_parametr = (select  jsonb_agg(json_build_object('object_id',a.account_id, 'parametr_id',gp.parametr_id, 'value',gp.value, 'date_begin',_date_begin))
+				from "group".parametr gp 
+					inner join jsonb_populate_recordset(null::account.list, _account) a on 1 = 1
+				where gp.group_id = _group_id); 
+
+	call parametr.save_value_account (_parametr);
+
+	if exists (select * from utility.contragent_group)
+	then 
+		insert into calculation.account_sublist(house_id, account_id, account_parent_id, sublist_id, value, "date")
+		select aa.house_id, aa.id, aa.parent_id, gc.sublist_id, gc.value, _date_begin
+		from adress.account aa
+			inner join jsonb_populate_recordset(null::account_list, _account) a on a.account_id = aa.parent_id
+			inner join utility.contragent_group_sublist uc on uc.group_id = aa.group_id and uc.house_id = aa.house_id
+			inner join "group".sublist gc on gc.sublist_id = uc.sublist_id
+		where gc.group_id = _group_id;
+	else 
+		insert into calculation.account_sublist(house_id, account_id, account_parent_id, sublist_id, value, "date")
+		select aa.house_id, aa.id, aa.parent_id, gc.sublist_id, gc.value, _date_begin
+		from adress.account aa
+			inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id
+			inner join "group".sublist gc on 1 = 1
+		where gc.group_id = _group_id;
+	end if;
+
+	return query
+	select gp.id, gp.group_id, gp.parametr_id, gp.value 
+	from "group".parametr gp
+	where gp.group_id = _group_id;
+
+
+end;
+"""
+  returnType = TABLE(id integer, group_id integer, parametr_id integer, value integer)
+  arguments = <
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _date_begin
+      type = date
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 15.12.2015
+ description:	редактирование группы параметров
+ =============================================
+"""
+}
+

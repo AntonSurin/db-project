@@ -1,0 +1,110 @@
+table "gis"."appeals" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_appeals"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.appeals_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "parent_appeal_guid" {
+      type = uuid
+    }
+    column "is_org" {
+      type = boolean
+    }
+    column "person" {
+      type = character varying(310)
+    }
+    column "email" {
+      type = character varying(100)
+    }
+    column "phone" {
+      type = character varying(20)
+    }
+    column "address" {
+      type = character varying(100)
+    }
+    column "apartment_number" {
+      type = character varying(100)
+    }
+    column "appeal_number" {
+      type = character varying(30)
+    }
+    column "appeal_date_create" {
+      type = timestamp(3) without time zone
+    }
+    column "topic" {
+      type = character varying(250)
+    }
+    column "oktmo" {
+      type = character varying(11)
+    }
+    column "text" {
+      type = text
+    }
+    column "answerer_guid" {
+      type = uuid
+    }
+    column "attachments" {
+      type = text
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "rolled_over" {
+      type = boolean
+    }
+    column "answer_is_not_required" {
+      type = boolean
+    }
+    column "appeal_withdrawn" {
+      type = boolean
+    }
+    column "withdrawn_comment" {
+      type = character varying(1000)
+    }
+    column "is_read" {
+      type = boolean
+      default = false
+    }
+    column "status" {
+      type = integer
+    }
+    column "execution_end_date" {
+      type = timestamp(3) without time zone
+    }
+    column "execution_date" {
+      type = timestamp(3) without time zone
+    }
+    column "execution_date_proceeding_comment" {
+      type = text
+    }
+    column "is_execution_date_proceeded" {
+      type = boolean
+    }
+    column "execution_date_gis" {
+      type = timestamp(3) without time zone
+    }
+    column "answerer_guid_gis" {
+      type = uuid
+    }
+    column "answer_is_not_required_gis" {
+      type = boolean
+    }
+    column "answer_is_not_required_cause" {
+      type = character varying(500)
+    }
+  )
+}
+

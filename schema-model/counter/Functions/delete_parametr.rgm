@@ -1,0 +1,148 @@
+function "counter"."delete_parametr()" {
+  text = """
+
+declare 
+	_sql		text = '';
+	_period_id	int;
+begin
+
+	_period_id = (select id from "period".list where is_working = true);
+
+	drop table if exists _temp_parametr;
+	drop table if exists _deleted_sublist;
+	drop table if exists _parametr;
+
+	create temp table _parametr (account_id int, parametr_id int, short_name varchar(50), value varchar(200));
+	create temp table _temp_parametr  (account_id int, sublist_id int, flow numeric(11,5));
+	create temp table _deleted_sublist  (sublist_id int);
+
+	insert into _deleted_sublist 
+	select distinct d.sublist_id 
+	from deleted d
+		inner join counter.list cl on cl.id = d.counter_id
+	where cl.is_calculation = true;
+
+	if exists (	select * 
+				from deleted i 
+					inner join counter.account ca on ca.counter_id = i.counter_id)
+		then 
+			begin
+		
+				with cte as 
+				(
+					select distinct ca.account_id, i.sublist_id
+					from deleted i
+						inner join counter.account ca on ca.counter_id = i.counter_id
+				)
+				---Объем по лс
+		
+				insert into _temp_parametr
+				select ca.account_id, i.sublist_id, sum(cf.flow)
+				from cte i
+					inner join counter.account ca on ca.account_id = i.account_id
+					left join counter.flow cf on cf.counter_id = ca.counter_id
+						and cf.sublist_id = i.sublist_id
+						and period_id = _period_id
+				group by ca.account_id, i.sublist_id;
+				
+				_sql = (select string_agg(t, '; ')
+						from		
+						(select '
+							update calculation.parametr_transporate cpp 
+								 set ' || pl.short_name || ' = cast(p.flow as ' || pt.system_type || 
+																					case 
+																						when pl.len is not null and pl."precision" is null then '(' || pl.len || ')'
+																						when pl.len is not null and pl."precision" is not null then '(' || pl.len || ',' || pl."precision" || ')'
+																						else ''
+																					end || ') 
+							from _temp_parametr p 
+							where  p.account_id = cpp.account_id and p.sublist_id = ' || ps.sublist_id as t
+						from parametr.list pl 
+							inner join parametr."type"  pt on pt.id = pl.type_id
+							inner join parametr.sublist ps on ps.parametr_id = pl.id
+							inner join _deleted_sublist ds on ds.sublist_id = ps.sublist_id
+						where ps.catalog_id = 1 
+						group by pl.short_name, pl.id, pt.system_type, pl.len, pl."precision", ps.sublist_id) as d);
+				
+						execute (_sql);		
+			end;
+	end if;
+
+	if exists (select * 
+			   from deleted i 
+					inner join counter.list cl on cl.id = i.counter_id
+					inner join counter.house ca on ca.counter_id = i.counter_id
+				where cl.is_calculation = true)
+		then
+			begin
+				
+				truncate _temp_parametr;
+			
+				_sql = '';
+		
+				with cte as 
+				(
+					select distinct ch.house_id, i.sublist_id
+					from deleted i
+						inner join counter.list cl on cl.id = i.counter_id
+						inner join counter.house ch on ch.counter_id = i.counter_id
+					where cl.is_calculation = true
+				)
+				
+				--Объем по домам	
+				insert into _temp_parametr
+				select ch.house_id, i.sublist_id, sum(case when cl.is_calculation = true then cf.flow else 0 end)
+				from cte i
+					inner join counter.house ch on ch.house_id = i.house_id
+					inner join counter.list cl on cl.id = ch.counter_id
+					left join counter.flow cf on cf.counter_id = ch.counter_id
+						and cf.sublist_id = i.sublist_id
+						and period_id = _period_id
+				where cl.is_calculation = true
+				group by ch.house_id, i.sublist_id;				
+		
+				_sql = 	(select string_agg(t, ' ;')
+						from (select '
+							update calculation.parametr_transporate cpp 
+								set ' || pl.short_name || ' = cast(p.flow as ' || pt.system_type || 
+																					case 
+																						when pl.len is not null and pl."precision" is null then '(' || pl.len || ')'
+																						when pl.len is not null and pl."precision" is not null then '(' || pl.len || ',' || pl."precision" || ')'
+																						else ''
+																					end || ') 
+							from _temp_parametr p 
+							where  p.account_id = cpp.house_id and p.sublist_id = ' || ps.sublist_id as t
+						from parametr.list pl 
+							inner join parametr."type"  pt on pt.id = pl.type_id
+							inner join parametr.sublist ps on ps.parametr_id = pl.id
+							inner join _deleted_sublist ds on ds.sublist_id = ps.sublist_id
+						where ps.catalog_id = 3 
+						group by pl.short_name, pl.id, pt.system_type, pl.len, pl."precision", ps.sublist_id) as d);
+		
+				execute(_sql);		
+							
+			end;
+	end if;
+
+	drop table if exists _temp_parametr;
+	drop table if exists _deleted_sublist;
+	drop table if exists _parametr;
+
+	return null;	
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Create date: <Create Date,,>
+ Description:	<Description,,>
+ =============================================
+"""
+}
+

@@ -1,0 +1,22 @@
+table "connection"."type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_connection_type"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('connection.type_id_seq'::regclass)
+    }
+    column "short_name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+

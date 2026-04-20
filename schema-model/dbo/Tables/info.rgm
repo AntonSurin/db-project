@@ -1,0 +1,12 @@
+table "dbo"."info" {
+  owner = postgres
+  columns = (
+    column "account_name" {
+      type = character varying(9)
+    }
+    column "info" {
+      type = character varying(1000)
+    }
+  )
+}
+

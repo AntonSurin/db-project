@@ -1,0 +1,208 @@
+table "recalculation"."result" {
+  primaryKey = {
+    columns = [
+      "root_id"
+      "period_id"
+      "house_id"
+      "flat_id"
+      "account_id"
+      "sublist_id"
+      "date_begin"
+    ]
+    name = "pk_result"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "root_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "day" {
+      type = integer
+    }
+    column "calc_tarif" {
+      type = numeric(9,2)
+    }
+    column "recalc_tarif" {
+      type = numeric(9,2)
+    }
+    column "diff_tarif" {
+      type = numeric(9,2)
+    }
+    column "calc_volume" {
+      type = numeric(11,5)
+    }
+    column "recalc_volume" {
+      type = numeric(11,5)
+    }
+    column "diff_volume" {
+      type = numeric(11,5)
+    }
+    column "calc_result" {
+      type = numeric(9,2)
+    }
+    column "recalc_result" {
+      type = numeric(9,2)
+    }
+    column "diff_result" {
+      type = numeric(9,2)
+    }
+    column "account_parent_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "recalculation"."result"."fk_result_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "recalculation"."result"."fk_result_root" {
+  columns = [
+    "root_id"
+  ]
+  referencedTable = "recalculation"."root"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+foreignKey "recalculation"."result"."fk_result_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "recalculation"."result_idx_account_sublist_diff_result" {
+  table = "recalculation"."result"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+    {
+      definition = diff_result
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    root_id
+    house_id
+    diff_volume
+  ]
+}
+
+index "recalculation"."result_idx_period_account_sublist" {
+  table = "recalculation"."result"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+    {
+      definition = account_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    diff_volume
+  ]
+}
+
+trigger "recalculation"."result"."delete_values" {
+  timing = AFTER
+  events = [
+    DELETE
+  ]
+  level = ROW
+  function = recalculation.delete_values
+  functionArguments = [
+  ]
+  table = "recalculation"."result"
+  constraint = False
+  oldTableReference = deleted
+}
+
+trigger "recalculation"."result"."insert_values_recalculation" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = ROW
+  function = recalculation.insert_values
+  functionArguments = [
+  ]
+  table = "recalculation"."result"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "recalculation"."result"."update_values_recalculation" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = ROW
+  function = recalculation.insert_values
+  functionArguments = [
+  ]
+  table = "recalculation"."result"
+  constraint = False
+  oldTableReference = deleted
+  newTableReference = inserted
+}
+

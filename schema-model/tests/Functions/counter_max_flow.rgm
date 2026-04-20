@@ -1,0 +1,96 @@
+function "tests"."counter_max_flow(jsonb)" {
+  text = """
+
+begin
+	
+	if exists 
+			(	
+				select * 
+				from calculation.account_sublist cs 
+					inner join utility.sublist us on us.id = cs.sublist_id 
+				where is_counter = true
+			)
+		and exists 
+				(
+					select uw.max_flow
+					from utility.warnings uw
+						inner join period.list pl on pl.is_working = true
+						inner join counter.flow cf on cf.period_id = pl.id and cf.sublist_id = uw.sublist_id
+						inner join counter.account ca on ca.counter_id = cf.counter_id
+					where cf.flow >= uw.max_flow
+					limit 1
+				)
+	then
+		begin
+			if exists (select a.account_id from jsonb_populate_recordset(null::account.list, _account) a) 
+			then	
+				begin
+					return query
+					select distinct 
+							'wrn' as severity, 
+							ao.short_name_adress, 
+							ao.account_name, 
+							us.name, 
+							uw.max_flow, 
+							cl.number, 
+							cf.flow, 
+							uu.name as unit
+					from utility.warnings uw
+						inner join period.list pl on pl.is_working = true
+						inner join counter.flow cf on cf.period_id = pl.id and cf.sublist_id = uw.sublist_id
+						inner join counter.account ca on ca.counter_id = cf.counter_id
+						inner join _account a on a.account_id = ca.account_id
+						inner join adress.owners ao on ao.account_id = ca.account_id
+						inner join utility.sublist us on us.id = uw.sublist_id
+						inner join counter.list cl on cl.id = ca.counter_id
+						inner join utility.unit uu on uu.id = us.unitid
+					where cf.flow >= uw.max_flow;
+				end;
+			else
+				begin
+					return query
+					select distinct 
+							'wrn' as severity, 
+							ao.short_name_adress, 
+							ao.account_name, 
+							us.name, 
+							uw.max_flow,
+							cl.number,
+							cf.flow,
+							uu.name as unit
+					from utility.warnings uw
+						inner join period.list pl on pl.is_working = true
+						inner join counter.flow cf on cf.period_id = pl.id and cf.sublist_id = uw.sublist_id
+						inner join counter.account ca on ca.counter_id = cf.counter_id
+						inner join adress.owners ao on ao.account_id = ca.account_id
+						inner join utility.sublist us on us.id = uw.sublist_id
+						inner join counter.list cl on cl.id = ca.counter_id
+						inner join utility.unit uu on uu.id = us.unitid
+					where cf.flow >= uw.max_flow;
+				end;
+			end if;
+		end;
+	end if;
+
+end;
+"""
+  returnType = TABLE(severity character varying, short_name_adress text, account_name character varying, name character varying, max_flow numeric, number smallint, flow numeric, unit character varying)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Евгений
+ Create date:	11.03.2024
+ Description:	Тест проверки превышения максимальных расходов по счетчикам
+ =============================================
+"""
+}
+

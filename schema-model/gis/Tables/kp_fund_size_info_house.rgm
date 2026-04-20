@@ -1,0 +1,68 @@
+table "gis"."kp_fund_size_info_house" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_kp_fund_size_info_house"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.kp_fund_size_info_house_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_gis" {
+      type = character varying(150)
+    }
+    column "start_period" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "end_period" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "fund_size_info_guid" {
+      type = uuid
+    }
+    column "status" {
+      type = integer
+      null = NOT NULL
+    }
+    column "start_balance" {
+      type = numeric(13,2)
+      null = NOT NULL
+    }
+    column "end_balance" {
+      type = numeric(13,2)
+      null = NOT NULL
+    }
+    column "sent_on_capital_repair" {
+      type = numeric(13,2)
+      null = NOT NULL
+    }
+    column "debt_for_performed_work" {
+      type = numeric(13,2)
+      null = NOT NULL
+    }
+    column "start_balance_gis" {
+      type = numeric(13,2)
+    }
+    column "end_balance_gis" {
+      type = numeric(13,2)
+    }
+    column "sent_on_capital_repair_gis" {
+      type = numeric(13,2)
+    }
+    column "debt_for_performed_work_gis" {
+      type = numeric(13,2)
+    }
+  )
+}
+

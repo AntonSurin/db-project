@@ -1,0 +1,68 @@
+procedure "eco"."fill_year_plan(integer, integer, integer)" {
+  text = """
+
+declare 
+	_period_id 		int = 0;
+	_period_end_id 	int = 0;
+begin
+	
+	select period_id, period_end_id
+	into _period_id, _period_end_id
+	from eco.year_plan 
+	where id = _target_plan_id;
+
+	insert into eco.approved_work (organization_work_id, year_plan_id, "year", "index", amount)
+	select aw.organization_work_id, _target_plan_id, _target_year, aw."index", amount 
+	from eco.approved_work aw 
+	where aw.year_plan_id = _source_plan_id;
+
+	insert into eco.planned_work (approved_work_id, year_plan_id, "month", "year")
+	select ap.id, ap.year_plan_id, p.month_id, p."year"
+	from eco.approved_work ap 
+		inner join (
+						select * 
+						from "period".list
+						where id between _period_id and _period_end_id
+					) as p on true
+	where ap.year_plan_id = _target_plan_id;
+
+	update eco.planned_work as t
+		set freq = s.freq
+	from eco.planned_work s
+		inner join eco.approved_work a on a.id = s.approved_work_id
+		inner join eco.organization_work ow on ow.id = a.organization_work_id
+		inner join eco.approved_work b on b.organization_work_id = a.organization_work_id and b.year_plan_id = _target_plan_id
+	where t.approved_work_id = b.id 
+			and t."month" = s."month" 
+			and s.year_plan_id = _source_plan_id;
+
+end
+"""
+  arguments = <
+    {
+      name = _source_plan_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _target_plan_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _target_year
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+object:  storedprocedure [eco].[fillyearplan]    
+ script date: 16.08.2022 11:10:54 
+"""
+}
+

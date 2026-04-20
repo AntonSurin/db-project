@@ -1,0 +1,40 @@
+table "benefit"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list_7"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('benefit.list_id_seq'::regclass)
+    }
+    column "code" {
+      type = character varying(10)
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(500)
+      null = NOT NULL
+    }
+    column "source_by_name" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "percent_housing" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "percent_utility" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+  )
+}
+

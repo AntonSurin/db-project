@@ -1,0 +1,35 @@
+view "payment"."view_detail" {
+  text = """-
+SELECT pb.date,
+    sum(pd.sum) AS payment_sum,
+    oc.rs,
+    aa.house_id,
+    pd.sublist_id
+   FROM ((((payment.batch pb
+     JOIN payment.list pl ON ((pb.id = pl.batch_id)))
+     JOIN payment.detal pd ON ((pd.payment_id = pl.id)))
+     JOIN adress.account aa ON ((aa.id = pl.account_id)))
+     JOIN organization.counting oc ON ((oc.id = pb.counting_id)))
+  GROUP BY pb.date, oc.rs, aa.house_id, pd.sublist_id;
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "date" {
+      type = date
+    }
+    column "payment_sum" {
+      type = numeric
+    }
+    column "rs" {
+      type = character varying(20)
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "sublist_id" {
+      type = integer
+    }
+  )
+}
+

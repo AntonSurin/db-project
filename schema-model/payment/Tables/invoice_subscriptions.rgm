@@ -1,0 +1,36 @@
+table "payment"."invoice_subscriptions" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_invoice_subscriptions"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.invoice_subscriptions_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "updated_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "is_disabled" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "accepted_date" {
+      type = timestamp(3) without time zone
+    }
+    column "session_id" {
+      type = integer
+    }
+  )
+}
+

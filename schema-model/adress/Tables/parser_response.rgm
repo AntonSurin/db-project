@@ -1,0 +1,41 @@
+table "adress"."parser_response" {
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.parser_response_id_seq'::regclass)
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "response" {
+      type = text
+    }
+  )
+}
+
+foreignKey "adress"."parser_response"."adress_parser_response_to_adress_flat" {
+  columns = [
+    "flat_id"
+  ]
+  referencedTable = "adress"."flat"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "adress"."parser_response_idx_adress_parser_response_flat_id" {
+  table = "adress"."parser_response"
+  type = btree
+  columns = <
+    {
+      definition = flat_id
+    }
+
+  >
+  isUnique = False
+}
+

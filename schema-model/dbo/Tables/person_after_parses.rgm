@@ -1,0 +1,38 @@
+table "dbo"."person_after_parses" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_dbo_person_after_parses"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('dbo.person_after_parses_id_seq'::regclass)
+    }
+    column "person_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "surname" {
+      type = text
+    }
+    column "name" {
+      type = text
+    }
+    column "middlename" {
+      type = text
+    }
+    column "left_after_parse" {
+      type = text
+    }
+  )
+}
+

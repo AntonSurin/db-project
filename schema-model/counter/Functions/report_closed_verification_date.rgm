@@ -1,0 +1,93 @@
+function "counter"."report_closed_verification_date(integer)" {
+  text = """
+
+
+	select *
+	from (
+			(select
+				hi.order_id, 
+				0 as account_order_id,
+				hi.short_adress as "адрес помещения", 
+				null as account_id,
+				null as "account_id лицевой счет",
+				us.name || ' №' || cast(cl.number as varchar(2)) as "Счетчик №", 
+				coalesce(cl.serial_number, '') as "серийный номер", 
+				case 
+					when lower(cv.close_type) = 'после трех месяцев с даты поверки' 
+						then cv.close_type || ' ' || cast((cv.verification_date + cv.verification_interval * interval '1 year') as varchar(10))
+					when lower(cv.close_type) = 'после трех месяцев с даты выхода из строя'
+						then cv.close_type || ' ' || cast(cv.failure_date as varchar(10))
+					when lower(cv.close_type) = 'все счетчики по услуге если просрочен хотя бы один'
+						then cv.close_type
+					else 
+						case 
+							when ((coalesce(cv.verification_date,cl.verification_date) + coalesce(cv.verification_interval,cl.verification_interval) * interval '1 year') + interval '3 month') < pl.date_end 
+								then 'после трех месяцев с даты поверки ' || (coalesce(cv.verification_date,cl.verification_date) + coalesce(cv.verification_interval,cl.verification_interval) * interval '1 year') 
+							when (coalesce(cv.failure_date,cl.failure_date) + interval '3 month') < pl.date_end 
+								then 'после трех месяцев с даты выхода из строя ' || coalesce(cv.failure_date, cl.failure_date)
+							else ''
+						end
+				end as "причина закрытия"
+			from counter.closed_verification_date cv 
+				inner join counter.house ch on ch.counter_id = cv.counter_id
+				inner join counter.list cl on cl.id = cv.counter_id
+				inner join utility.sublist us on us.id = cl.sublist_id
+				inner join house.info hi on hi.house_id = ch.house_id
+				inner join "period".list pl on pl.id = cv.period_id and pl.id between _period_id - 1 and _period_id
+			limit 100)
+			union all
+			(select 
+				ai.order_id, 
+				ai.account_order_id,
+				ai.short_name_flat as "Адрес помещения", 
+				ai.account_id,
+				ai.account_name as "account_id Лицевой счет",
+				us."name" || ' №' || cl."number" as "Счетчик №", 
+				coalesce(cl.serial_number, '') as "Серийный номер", 
+				case 
+					when lower(cv.close_type) = 'после трех месяцев с даты поверки' 
+						then cv.close_type || ' ' || (cv.verification_date + interval '1 year' * cv.verification_interval) 
+					when lower(cv.close_type) = 'после трех месяцев с даты выхода из строя'
+						then cv.close_type || ' ' || cv.failure_date 
+					when lower(cv.close_type) = 'все счетчики по услуге если просрочен хотя бы один'
+						then cv.close_type
+					else 
+						case 
+							when ((coalesce(cv.verification_date, cl.verification_date) + interval '1 year' * coalesce(cv.verification_interval, cl.verification_interval)) + interval '3 month') < pl.date_end 
+								then 'после трех месяцев с даты поверки ' || (coalesce(cv.verification_date, cl.verification_date)+interval '1 year' * coalesce(cv.verification_interval, cl.verification_interval))
+							when (coalesce(cv.failure_date, cl.failure_date) + interval '3 month') < pl.date_end 
+								then 'после трех месяцев с даты выхода из строя ' || coalesce(cv.failure_date, cl.failure_date) 
+							else ''
+						end
+				end as "Причина закрытия"
+			from counter.closed_verification_date cv 
+				inner join counter.account ca on ca.counter_id = cv.counter_id
+				inner join counter.list cl on cl.id = cv.counter_id
+				inner join utility.sublist us on us.id = cl.sublist_id
+				inner join adress.info ai on ai.account_id = ca.account_id
+				inner join "period".list pl on pl.id = cv.period_id and pl.id between _period_id - 1 and _period_id
+			limit 100)
+	) as F
+	order by order_id, account_order_id, "Счетчик №";
+
+"""
+  returnType = TABLE(order_id integer, account_order_id integer, "Адрес помещения" text, account_id integer, "account_id Лицевой счет" character varying, "Счетчик №" text, "Серийный номер" character varying, "Причина закрытия" text)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Е.Ю.
+ Create date: 18.02.2022
+ Description:	Формирование списка закрытых счетчиков, попавших в таблицу Counter.ClosedVerification_Date
+ =============================================
+"""
+}
+

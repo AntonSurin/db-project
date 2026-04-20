@@ -1,0 +1,44 @@
+table "adress"."message" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_message"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.message_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_begin" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_end" {
+      type = integer
+    }
+    column "message" {
+      type = character varying(8000)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "adress"."message"."fk_message_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

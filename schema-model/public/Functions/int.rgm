@@ -1,0 +1,13 @@
+function "public"."""int""()" {
+  text = """
+
+select 0:: integer;
+"""
+  returnType = integer
+  arguments = [
+  ]
+  language = sql
+  volatility = IMMUTABLE
+  owner = postgres
+}
+

@@ -1,0 +1,45 @@
+table "input"."counter" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_counter"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('input.counter_id_seq'::regclass)
+    }
+    column "input_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "parametr_name" {
+      type = character varying(20)
+    }
+  )
+}
+
+foreignKey "input"."counter"."fk_counter_list" {
+  columns = [
+    "input_id"
+  ]
+  referencedTable = "input"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+

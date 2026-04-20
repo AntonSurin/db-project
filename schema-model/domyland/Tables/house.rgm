@@ -1,0 +1,33 @@
+table "domyland"."house" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_house_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.house_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "domyland_id" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "domyland_inner_id" {
+      type = integer
+    }
+    column "status" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+

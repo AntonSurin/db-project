@@ -1,0 +1,36 @@
+table "dbo"."tarif_list_2020_07" {
+  owner = postgres
+  columns = (
+    column "name" {
+      type = character varying(100)
+    }
+    column "provider_id" {
+      type = integer
+    }
+    column "sub_list_id" {
+      type = integer
+    }
+    column "territory_id" {
+      type = integer
+    }
+    column "value" {
+      type = numeric(15,2)
+    }
+    column "document" {
+      type = character varying(500)
+    }
+    column "is_global" {
+      type = boolean
+    }
+    column "old_tarif_id" {
+      type = integer
+    }
+    column "type" {
+      type = character varying(50)
+    }
+    column "insert_date" {
+      type = timestamp(3) without time zone
+    }
+  )
+}
+

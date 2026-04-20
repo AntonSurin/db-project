@@ -1,0 +1,45 @@
+table "sms"."send_result" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_error"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('sms.send_result_id_seq'::regclass)
+    }
+    column "sms_dispatch_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "phone" {
+      type = character varying(50)
+    }
+    column "message" {
+      type = character varying(60)
+    }
+    column "date" {
+      type = timestamp(6) without time zone
+    }
+    column "count" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "sms"."send_result"."fk_error_dispatch" {
+  columns = [
+    "sms_dispatch_id"
+  ]
+  referencedTable = "sms"."dispatch"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

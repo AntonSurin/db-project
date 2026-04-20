@@ -1,0 +1,127 @@
+procedure "recalculation"."cp_transporate(integer, integer, integer)" {
+  text = """
+
+declare 			
+		_column		text= '';
+		_column_cp	text= '';
+		_sql		text = '';
+		_date_begin	date;
+		_date_end	date;
+		_is_odn		bool;
+begin
+
+	_is_odn = (
+				select coalesce(odn, false) 
+				from recalculation.root 
+				where id = _root_id
+			  );
+	_column_cp = (
+					select string_agg('cp.' || column_name, ',') 
+	           		from information_schema.columns 
+	           		where table_schema = 'calculation' and table_name = 'parametr_transporate_arch' and column_name <> 'id' and column_name <> 'period_id'
+	           	 );
+	_column = (
+				select string_agg(column_name, ',') 
+	           	from information_schema.columns 
+	           	where table_schema = 'calculation' and table_name = 'parametr_transporate_arch' and column_name <> 'id' and column_name <> 'period_id'
+	          );
+	
+	delete from recalculation.parametr_transporate	where root_id = _root_id;
+	delete from recalculation.tarif 				where root_id = _root_id;
+	delete from recalculation.normativ 				where root_id = _root_id;
+	delete from recalculation.volume 				where root_id = _root_id;
+	delete from recalculation.sum_volume 			where root_id = _root_id;
+	
+	_sql = ('
+	create temp table _table (period_id int, date_begin date, date_end date);
+
+	create temp table _house (house_id int);
+	
+	insert into _house
+	select distinct house_id 
+	from adress.account aa
+		inner join recalculation.account ra on ra.account_id = aa.id;
+
+
+	insert into _table 
+	select id, date_begin, date_end 
+	from period.list 
+	where id between ' || _period_begin || ' and ' || _period_end || ';
+
+	insert into recalculation.parametr_transporate (' || _column || ', root_id, period_id, date_begin, date_end, open_day, is_closed_end)
+	select ' || _column_cp || ', ' || _root_id || ', t.period_id, t.date_begin, t.date_end,  (t.date_end - t.date_begin) + 1, case when cp.is_closed = 1 then 1 else 0 end
+	from calculation.parametr_transporate_arch cp 
+		inner join _table t on t.period_id = cp.period_id' ||
+		case when _is_odn = true then '
+		inner join _house ai on ai.house_id = cp.house_id' else '
+		inner join recalculation.account ra on ra.account_id = cp.account_id;
+
+	drop table if exists _house;
+	drop table if exists _table;
+		' end
+			);
+
+	insert into recalculation.tarif (root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+	select _root_id, house_id, flat_id, account_id, pl.id, pl.date_begin, pl.date_end
+	from recalculation.account ra
+		inner join adress.account aa on aa.id = ra.account_id
+		inner join "period".list pl on 1 = 1
+	where pl.id between _period_begin and _period_end;
+	
+	insert into recalculation.normativ(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+	select _root_id, house_id, flat_id, account_id, pl.id, pl.date_begin, pl.date_end
+	from recalculation.account ra
+		inner join adress.account aa on aa.id = ra.account_id
+		inner join "period".list pl on 1 = 1
+	where pl.id between _period_begin and _period_end;
+
+	
+	insert into recalculation.sum_volume(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+	select _root_id, house_id, flat_id, account_id, pl.id, pl.date_begin, pl.date_end
+	from recalculation.account ra
+		inner join adress.account aa on aa.id = ra.account_id
+		inner join "period".list pl on 1 = 1
+	where pl.id between _period_begin and _period_end;
+
+	
+	insert into recalculation.volume(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+	select _root_id, house_id, flat_id, account_id, pl.id, pl.date_begin, pl.date_end
+	from recalculation.account ra
+		inner join adress.account aa on aa.id = ra.account_id
+		inner join "period".list pl on 1 = 1
+	where pl.id between _period_begin and _period_end;
+
+	execute (_sql);
+end
+"""
+  arguments = <
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _root_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 05.08.2014
+ description: создание процедуры recalculation.createparametrtransporate
+ =============================================
+"""
+}
+

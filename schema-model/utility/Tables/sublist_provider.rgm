@@ -1,0 +1,150 @@
+table "utility"."sublist_provider" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sub_list_provider"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.sublist_provider_id_seq'::regclass)
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "provider_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "territory_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+foreignKey "utility"."sublist_provider"."fk_sub_list_provider_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "utility"."sublist_provider"."fk_sub_list_provider_list_provider" {
+  columns = [
+    "provider_id"
+  ]
+  referencedTable = "utility"."provider"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "utility"."sublist_provider"."fk_sub_list_provider_list_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "utility"."sublist_provider"."fk_sub_list_provider_territory" {
+  columns = [
+    "territory_id"
+  ]
+  referencedTable = "adress"."territory"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "utility"."sublist_provider_ix_sub_list_provider_date_end" {
+  table = "utility"."sublist_provider"
+  type = btree
+  columns = <
+    {
+      definition = date_end
+    }
+
+  >
+  isUnique = False
+}
+
+index "utility"."sublist_provider_ix_sub_list_provider_house_id" {
+  table = "utility"."sublist_provider"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    sublist_id
+    date_begin
+    date_end
+  ]
+}
+
+index "utility"."sublist_provider_ix_sub_list_provider_provider_id" {
+  table = "utility"."sublist_provider"
+  type = btree
+  columns = <
+    {
+      definition = provider_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "utility"."sublist_provider_ix_sub_list_provider_sub_list_id" {
+  table = "utility"."sublist_provider"
+  type = btree
+  columns = <
+    {
+      definition = sublist_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "utility"."sublist_provider_ix_sub_list_provider_territory_id" {
+  table = "utility"."sublist_provider"
+  type = btree
+  columns = <
+    {
+      definition = territory_id
+    }
+
+  >
+  isUnique = False
+}
+

@@ -1,0 +1,154 @@
+view "house"."info" {
+  text = """-
+SELECT ss.district_id,
+    ad.name AS district_name,
+    ah.address_parser_guid,
+    ss.id AS settlement_id,
+    (((st.short_name)::text || ' '::text) || (ss.name)::text) AS settlement_name,
+    "as".street_book_id,
+    asb.short_name AS street_book_name,
+    ah.street_id,
+    "as".name AS street_name,
+    ah.number,
+    ahk.short_name AS house_kind_name,
+    ah.inner_city_district_id,
+    acd.name AS inner_city_district_name,
+    ah.korpus,
+    concat(
+        CASE
+            WHEN (acd.id = 0) THEN ''::text
+            ELSE ((acd.name)::text || ', '::text)
+        END,
+        CASE
+            WHEN ((COALESCE(asb.short_name, ''::character varying))::text <> ''::text) THEN ((asb.short_name)::text || ' '::text)
+            ELSE ''::text
+        END,
+        CASE
+            WHEN ((COALESCE("as".name, ''::character varying))::text <> ''::text) THEN "as".name
+            ELSE ''::character varying
+        END,
+        CASE
+            WHEN (((COALESCE("as".name, ''::character varying))::text <> ''::text) AND ((COALESCE(ah.number, ''::character varying))::text <> ''::text)) THEN ', '::text
+            ELSE ''::text
+        END,
+        CASE
+            WHEN (((COALESCE(aht.short_name, ''::character varying))::text <> ''::text) AND ((COALESCE(ah.number, ''::character varying))::text <> ''::text)) THEN ((COALESCE(aht.short_name, ''::character varying))::text || ' '::text)
+            ELSE ''::text
+        END,
+        CASE
+            WHEN ((COALESCE(ah.number, ''::character varying))::text <> ''::text) THEN COALESCE(ah.number, ''::character varying)
+            ELSE ''::character varying
+        END,
+        CASE
+            WHEN (((COALESCE(ah.korpus, ''::character varying))::text <> ''::text) AND (((COALESCE(ah.number, ''::character varying))::text <> ''::text) OR ((COALESCE("as".name, ''::character varying))::text <> ''::text))) THEN ', '::text
+            ELSE ''::text
+        END,
+        CASE
+            WHEN ((COALESCE(ah.korpus, ''::character varying))::text <> ''::text) THEN (((COALESCE(ahk.short_name, ''::character varying))::text || ' '::text) || (COALESCE(ah.korpus, ''::character varying))::text)
+            ELSE ''::text
+        END) AS short_adress,
+    ah.id AS house_id,
+    ah.work_id,
+    ah.work_counting_id,
+    ah.organization_id,
+    ah.organization_counting_id,
+    ah.order_id
+   FROM ((((((((adress.house ah
+     JOIN adress.house_type aht ON ((aht.id = ah.house_type_id)))
+     JOIN adress.house_kind ahk ON ((ahk.id = ah.house_kind_id)))
+     JOIN adress.street "as" ON (("as".id = ah.street_id)))
+     JOIN adress.street_book asb ON ((asb.id = "as".street_book_id)))
+     JOIN adress.settlement ss ON ((ss.id = "as".settlement_id)))
+     JOIN adress.settlement_type st ON ((st.id = ss.type_id)))
+     JOIN adress.district ad ON ((ad.id = ss.district_id)))
+     JOIN adress.inner_city_district acd ON ((acd.id = ah.inner_city_district_id)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  comment = """-
+ =============================================
+ Author:		Глещинский Д.В.
+ Create date: 04.02.2016
+ Modified date: 19.03.2021 Юркин Е.Ю., подчистил от избыточных данных в Short_Adress
+ Description:	Информация о доме
+ =============================================
+"""
+  columns = (
+    column "district_id" {
+      type = integer
+    }
+    column "district_name" {
+      type = character varying(255)
+    }
+    column "address_parser_guid" {
+      type = uuid
+    }
+    column "settlement_id" {
+      type = integer
+    }
+    column "settlement_name" {
+      type = text
+    }
+    column "street_book_id" {
+      type = integer
+    }
+    column "street_book_name" {
+      type = character varying(30)
+    }
+    column "street_id" {
+      type = integer
+    }
+    column "street_name" {
+      type = character varying(200)
+    }
+    column "number" {
+      type = character varying(10)
+    }
+    column "house_kind_name" {
+      type = character varying(20)
+    }
+    column "inner_city_district_id" {
+      type = integer
+    }
+    column "inner_city_district_name" {
+      type = character varying(100)
+    }
+    column "korpus" {
+      type = character varying(10)
+    }
+    column "short_adress" {
+      type = text
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "work_id" {
+      type = integer
+    }
+    column "work_counting_id" {
+      type = integer
+    }
+    column "organization_id" {
+      type = integer
+    }
+    column "organization_counting_id" {
+      type = integer
+    }
+    column "order_id" {
+      type = integer
+    }
+  )
+}
+
+index "house"."clx_house_info" {
+  view = "house"."info"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = True
+}
+

@@ -1,0 +1,30 @@
+table "gis"."comments" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_comments"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.comments_id_seq'::regclass)
+    }
+    column "key_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type_comments" {
+      type = integer
+      null = NOT NULL
+    }
+    column "comments" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+  )
+}
+

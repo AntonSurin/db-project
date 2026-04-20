@@ -1,0 +1,32 @@
+table "gis"."update_object_date" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_objects"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.update_object_date_id_seq'::regclass)
+    }
+    column "object_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_of_change" {
+      type = timestamp(3) without time zone
+    }
+    column "date_of_upload" {
+      type = timestamp(3) without time zone
+    }
+  )
+}
+

@@ -1,0 +1,88 @@
+function "fine"."fine_calc()" {
+  text = """
+
+declare	
+	_group_id	int;
+	_period_id	int; 
+	_date		date; 
+	_root_id	int; 
+	_date_begin	date; 
+	_date_end	date; 
+	_day		int;
+	_group_fine	bool;
+begin
+
+	update payment.balance pb
+		set current_calculate = f.fine
+	from (select account_id, period_id, sum(coalesce(fine,0)) as fine
+		  from inserted
+		  group by account_id, period_id) as f 
+	where pb.account_id = f.account_id and f.period_id = pb.period_id and pb.sublist_id = 7;
+
+	select 
+		coalesce(nullif(array_to_string(xpath('root/groupfine/isgroupfine/text()', lower(xml_data::text)::xml)::text[], ''),'')::bool, false), 
+		nullif(array_to_string(xpath('root/groupfine/group_id/text()', lower(xml_data::text)::xml)::text[], ''),'')::int
+	into _group_fine, _group_id
+	from special.parametr;
+
+	if (_group_fine = true)
+		then
+			begin
+				select id, current_date, date_begin, date_end, day_in_month 
+				into _period_id, _date, _date_begin, _date_end, _day
+				from "period".list 
+				where is_working = true;
+		
+				if exists(select * from recalculation.root where period_id = _period_id and "type" = 7)
+					then
+						begin
+							_root_id = (select id from recalculation.root where period_id = _period_id and "type" = 7);
+						end ;
+					else 
+						begin
+							insert into recalculation.root ("name", "date", period_id, "type", rules, odn, period_begin, period_end)
+							values ('Группировка пени', _date, _period_id, 7, 0, 0, _period_id, _period_id);  
+				
+							_root_id = (select max(id) from recalculation.root);
+						end;
+				end if;
+		
+				/*	Списываем пени	*/
+				insert into recalculation."result" (root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, date_end, "day", re_calc_result, diff_result, account_parent_id)
+				select _root_id, _period_id, aa.house_id, aa.flat_id, i.account_id, 7, _date_begin, _date_end, _day, -sum(fine), -sum(fine), aa.parent_id
+				from inserted i
+					inner join adress.account aa on aa.id = i.account_id
+				where aa.group_id != _group_id
+				group by i.account_id, aa.house_id, aa.flat_id, aa.parent_id;
+		
+				/*	Переносим пени на выбранную группу	*/
+		
+				insert into recalculation."result" (root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, date_end, "day", re_calc_result, diff_result, account_parent_id)
+				select _root_id, _period_id, aap.house_id, aap.flat_id, aap.id, 7, _date_begin, _date_end, _day, sum(fine), sum(fine), aap.parent_id
+				from inserted fc
+					inner join adress.account aa on aa.id = fc.account_id
+					inner join adress.account aap on aap.parent_id = fc.account_parent_id
+				where aa.group_id != _group_id and aap.group_id = _group_id
+				group by aap.id, aap.house_id, aap.flat_id, aap.parent_id;
+			
+			end;
+	end if;
+
+	return null;
+	
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 15.05.2015
+ Description:	Сохранение при начислении пени в Payment.Balance
+ =============================================
+"""
+}
+

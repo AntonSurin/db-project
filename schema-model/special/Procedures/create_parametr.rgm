@@ -1,0 +1,50 @@
+procedure "special"."create_parametr(character varying, character varying, character varying)" {
+  text = """
+
+declare 
+		_xml	xml;
+		_sql	text;
+begin
+	
+	_xml = (select xml_data from special.parametr);
+
+	_sql = '
+	update special.parametr
+	set 
+		xml_data =xml(replace(lower(''' || _xml::text || '''),''</' || _node || '>'',	''  <' || _parametr_name || '>' || _default_value || '</' || _parametr_name || '>
+  </' || _node || '>''));';
+	
+	execute(_sql);
+end
+"""
+  arguments = <
+    {
+      name = _node
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _parametr_name
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _default_value
+      type = character varying
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 19.12.2015
+ description:	добавление параметра в ветку
+ ============================================
+"""
+}
+

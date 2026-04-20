@@ -1,0 +1,54 @@
+table "utility"."documents" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.documents_id_seq'::regclass)
+    }
+    column "sublist_provider_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "document_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_begin" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_end" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "utility"."documents"."fk_documents_document" {
+  columns = [
+    "document_id"
+  ]
+  referencedTable = "partner"."document"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."documents"."fk_documents_sub_list_provider" {
+  columns = [
+    "sublist_provider_id"
+  ]
+  referencedTable = "utility"."sublist_provider"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

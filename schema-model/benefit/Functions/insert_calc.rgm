@@ -1,0 +1,79 @@
+function "benefit"."insert_calc()" {
+  text = """
+
+declare 
+	_root_id 		int;
+	_period_id 		int; 
+	_date_begin 	date; 
+	_date_end	 	date;
+	_days 			int2;
+	_benefit_type 	int2;
+begin
+
+	_period_id = (select period_id from inserted limit 1);
+
+	_benefit_type = (select array_to_string(xpath('root/ui/usebenefit/text()', lower(p.xml_data::text)::xml)::text[], '')::int2
+					from special.parametr p);
+
+	if _benefit_type = 2
+		then
+			begin
+				
+				select date_begin, date_end, day_in_month 
+				into _date_begin, _date_end, _days
+				from "period".list 
+				where id = _period_id;
+		
+				if exists (select * from recalculation.root where "type" = 6 and period_id = _period_id)
+					then
+						begin
+							_root_id = (select id from recalculation.root where "type" = 6 and period_id = _period_id);
+						end;
+					else 
+						begin 
+							insert into recalculation.root ("name", "date", period_id, "type", rules, odn, period_begin, period_end)
+							values ('Расчет льгот', current_date, _period_id, 6, 0, false, _period_id, _period_id);
+				
+							_root_id = (select max(id) from recalculation.root);	
+						end;
+				end if;
+			
+		 		insert into recalculation."result" (root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, date_end, "day", diff_volume, recalc_result, diff_result, account_parent_id)
+				select 
+					 _root_id
+					,_period_id
+					,i.house_id
+					,i.flat_id
+					,i.account_id
+					,sublist_id
+					,_date_begin
+					,_date_end
+					,_days
+					,-sum(volume_result)
+					,-sum(benefit_result)
+					,-sum(benefit_result)
+					,i.account_parent_id
+				from inserted i
+				group by i.house_id, i.flat_id, sublist_id, i.account_id, i.account_parent_id;
+				
+			end;
+	end if;
+				
+return null;				
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 02.05.2017
+ Description:	Триггер записи результатов расчета в Recalculation.Result
+ =============================================
+"""
+}
+

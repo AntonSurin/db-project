@@ -1,0 +1,45 @@
+table "law"."folder_parameters" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__folder_pa__3214ec279a3e6e71"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('law.folder_parameters_id_seq'::regclass)
+    }
+    column "folder_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "debt_balance_rules" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "is_use_fine_rate_history" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "date_fine_calc" {
+      type = date
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "law"."folder_parameters"."fk_folder_parameters_folder" {
+  columns = [
+    "folder_id"
+  ]
+  referencedTable = "law"."folder"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

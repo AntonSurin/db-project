@@ -1,0 +1,56 @@
+table "eco"."reporting_period_list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_reporting_period_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.reporting_period_list_id_seq'::regclass)
+    }
+    column "year_plan_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "eco"."reporting_period_list"."fk_reporting_period_list_year_plan" {
+  columns = [
+    "year_plan_id"
+  ]
+  referencedTable = "eco"."year_plan"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "eco"."reporting_period_list_ix_reporting_period_list" {
+  table = "eco"."reporting_period_list"
+  type = btree
+  columns = <
+    {
+      definition = year_plan_id
+    }
+
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = True
+}
+

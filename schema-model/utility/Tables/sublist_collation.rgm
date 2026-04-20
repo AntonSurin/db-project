@@ -1,0 +1,37 @@
+table "utility"."sublist_collation" {
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.sublist_collation_id_seq'::regclass)
+    }
+    column "service_type" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "code" {
+      type = character varying(10)
+    }
+    column "guid" {
+      type = character varying(40)
+    }
+    column "res_code" {
+      type = character varying(10)
+    }
+    column "res_guid" {
+      type = character(40)
+    }
+    column "gen_code" {
+      type = character varying(10)
+    }
+    column "gen_guid" {
+      type = character varying(40)
+    }
+  )
+}
+

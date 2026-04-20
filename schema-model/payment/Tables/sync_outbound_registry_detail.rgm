@@ -1,0 +1,58 @@
+table "payment"."sync_outbound_registry_detail" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sync_reg_detail"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.sync_outbound_registry_detail_id_seq'::regclass)
+    }
+    column "outbound_registry_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "group_id" {
+      type = integer
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "account_name" {
+      type = character varying(15)
+    }
+    column "service_guid" {
+      type = uuid
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "to_pay" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "fee" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "payment"."sync_outbound_registry_detail"."fk_sync_outbound_registry_detail_sync_outbound_registry" {
+  columns = [
+    "outbound_registry_id"
+  ]
+  referencedTable = "payment"."sync_outbound_registry"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

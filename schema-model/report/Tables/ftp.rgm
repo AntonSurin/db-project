@@ -1,0 +1,69 @@
+table "report"."ftp" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_ftp"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.ftp_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "file_name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "report_type_id" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "success" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "error_text" {
+      type = character varying(150)
+    }
+    column "connection_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "report"."ftp"."fk_ftp_connection" {
+  columns = [
+    "connection_id"
+  ]
+  referencedTable = "connection"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "report"."ftp"."fk_ftp_send_type" {
+  columns = [
+    "report_type_id"
+  ]
+  referencedTable = "report"."send_type"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,44 @@
+table "fine"."parametr" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_parametr_fine"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('fine.parametr_id_seq'::regclass)
+    }
+    column "amount_month" {
+      type = integer
+    }
+    column "amount_day" {
+      type = integer
+    }
+    column "list_id" {
+      type = integer
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "list_id_nvarchar" {
+      type = character varying
+      generatedAs = public.convert((10)::character varying, list_id)
+    }
+  )
+}
+
+foreignKey "fine"."parametr"."fk_parametr_fine_name_fine" {
+  columns = [
+    "list_id"
+  ]
+  referencedTable = "fine"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+

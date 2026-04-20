@@ -1,0 +1,103 @@
+function "counter"."mass_delete(integer, integer, integer, jsonb)" {
+  text = """
+
+declare 
+		_short_name	varchar(50);
+		_count		int;
+begin
+	
+	create temp table _counters (counter_id int, service_guid uuid, account_id int);
+	create temp table _account (account_id int); 
+	
+	_short_name = (select pl.short_name 
+				   from parametr.list pl
+						inner join parametr.sublist ps on ps.parametr_id = pl.id
+				   where ps.sublist_id = _sublist_id and ps.catalog_id = 1);
+
+	insert into _counters (counter_id, service_guid, account_id)
+	select cl.id, cl.service_guid, ca.account_id
+	from counter.list cl
+		inner join counter.account ca on ca.counter_id = cl.id
+		inner join adress.light_info al on al.account_id = ca.account_id
+		inner join jsonb_populate_recordset(null::special.objects, _flat_book) f on f.object_id = al.flat_book_id
+	where al.house_id = _house_id 
+		and cl.sublist_id = _sublist_id 
+		and cl."number" = _number
+		and not exists(select * from counter.flow cff where cff.counter_id = cl.id and flow_type_id <> 5 and value is not null);	
+
+	insert into _account
+	select distinct account_id 
+	from _counters;
+
+	_count = (select  count(*) from _counters);
+
+	if (_count > 0)
+		then	
+			begin
+				delete 
+				from counter.flow cf
+				where cf.counter_id in (select c.counter_id from _counters c);
+
+				delete 
+				from counter.account ca
+				where ca.counter_id in (select c.counter_id from _counters c);
+
+				delete 
+				from counter.list cl
+				where cl.id in (select c.counter_id from _counters c );
+
+				return query
+				select c.counter_id, aa.house_id, aa.name as account_name, c.service_guid
+				from _counters c
+					inner join adress.account aa on aa.id = c.account_id;
+					
+			end;
+		else
+			begin
+				raise notice 'Оотсутсвуют счетчики для удаления' using errcode= '55000' ; 
+			end;
+	end if;
+
+drop table if exists _counters;
+drop table if exists _account; 
+	
+end;
+"""
+  returnType = TABLE(counter_id integer, house_id integer, account_name character varying, service_guid uuid)
+  arguments = <
+    {
+      name = _house_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _sublist_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _number
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _flat_book
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 31.03.2017
+ description:	массовое удаление счетчиков на лицевых счетах
+ =============================================
+"""
+}
+

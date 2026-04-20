@@ -1,0 +1,14 @@
+table "temp"."import_parametr" {
+  owner = postgres
+  columns = (
+    column "direct_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "member_name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+

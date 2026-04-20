@@ -1,0 +1,208 @@
+table "counter"."flow" {
+  primaryKey = {
+    columns = [
+      "counter_id"
+      "period_id"
+    ]
+    name = "pk_flow_counter"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "prev_value" {
+      type = numeric(13,5)
+      null = NOT NULL
+      default = 0
+    }
+    column "value" {
+      type = numeric(13,5)
+    }
+    column "c_value" {
+      type = numeric(13,5)
+      null = NOT NULL
+      default = 0
+    }
+    column "flow_type_id" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "rate" {
+      type = numeric(9,6)
+    }
+    column "prev_date" {
+      type = date
+    }
+    column "date" {
+      type = date
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "security_date" {
+      type = timestamp(3) without time zone
+    }
+    column "gis_status_upload" {
+      type = boolean
+    }
+    column "flow" {
+      type = numeric
+      generatedAs = """-
+
+CASE
+    WHEN ((((COALESCE(value, (0)::numeric) - COALESCE(prev_value, (0)::numeric)) - COALESCE(c_value, (0)::numeric)) * rate) < (0)::numeric) THEN (0)::numeric
+    ELSE (((COALESCE(value, (0)::numeric) - COALESCE(prev_value, (0)::numeric)) - COALESCE(c_value, (0)::numeric)) * rate)
+END
+"""
+    }
+  )
+}
+
+foreignKey "counter"."flow"."fk_flow_list" {
+  columns = [
+    "counter_id"
+  ]
+  referencedTable = "counter"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "counter"."flow"."fk_flow_list1" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "counter"."flow"."fk_flow_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "counter"."flow_idx_flow_type" {
+  table = "counter"."flow"
+  type = btree
+  columns = <
+    {
+      definition = flow_type_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    counter_id
+    period_id
+  ]
+}
+
+index "counter"."flow_idx_period_id_flow_type" {
+  table = "counter"."flow"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+    {
+      definition = flow_type_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    counter_id
+    prev_value
+    value
+  ]
+}
+
+index "counter"."flow_idx_period_sublist_counter_values" {
+  table = "counter"."flow"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+    {
+      definition = counter_id
+    }
+
+  >
+  isUnique = True
+  includeColumns = [
+    prev_value
+    value
+    flow_type_id
+  ]
+}
+
+trigger "counter"."flow"."delete_parametr" {
+  timing = AFTER
+  events = [
+    DELETE
+  ]
+  level = STATEMENT
+  function = counter.delete_parametr
+  functionArguments = [
+  ]
+  table = "counter"."flow"
+  constraint = False
+  oldTableReference = deleted
+}
+
+trigger "counter"."flow"."fill_parametr_insert" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = counter.fill_parametr
+  functionArguments = [
+  ]
+  table = "counter"."flow"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "counter"."flow"."fill_parametr_update" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = counter.fill_parametr
+  functionArguments = [
+  ]
+  table = "counter"."flow"
+  constraint = False
+  newTableReference = inserted
+}
+

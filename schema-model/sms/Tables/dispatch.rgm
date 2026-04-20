@@ -1,0 +1,70 @@
+table "sms"."dispatch" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_dispatch"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('sms.dispatch_id_seq'::regclass)
+    }
+    column "batch_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "phones" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "count" {
+      type = integer
+    }
+    column "debt" {
+      type = numeric(9,2)
+    }
+    column "status" {
+      type = smallint
+    }
+    column "cost" {
+      type = numeric(5,2)
+    }
+    column "sms_amount" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "sms"."dispatch"."fk_dispatch_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "sms"."dispatch"."fk_dispatch_batch" {
+  columns = [
+    "batch_id"
+  ]
+  referencedTable = "sms"."batch"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

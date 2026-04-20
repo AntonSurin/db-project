@@ -1,0 +1,54 @@
+table "eco"."default_price" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_eco_default_price"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.default_price_id_seq'::regclass)
+    }
+    column "organization_work_id" {
+      type = integer
+    }
+    column "name" {
+      type = character varying(50)
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "price" {
+      type = numeric(18,4)
+    }
+    column "price_list_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "eco"."default_price"."fk_default_price_work_pricelist" {
+  columns = [
+    "price_list_id"
+  ]
+  referencedTable = "eco"."work_pricelist"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "eco"."default_price"."fk_eco_default_price_eco_org_work_org_work_id" {
+  columns = [
+    "organization_work_id"
+  ]
+  referencedTable = "eco"."organization_work"
+  referencedColumns = [
+    "id"
+  ]
+}
+

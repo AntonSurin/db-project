@@ -1,0 +1,29 @@
+table "report"."customize" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_customize"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.customize_id_seq'::regclass)
+    }
+    column "report_name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "report_stream" {
+      type = text
+      null = NOT NULL
+    }
+    column "old_report_stream" {
+      type = text
+    }
+  )
+}
+

@@ -1,0 +1,606 @@
+procedure "counter"."average(boolean, jsonb, integer)" {
+  text = """
+
+declare 
+		_date_begin 				date;
+		_date_end 					date;
+		_period_id 					int;
+		_count_owner 				bool = true;
+		_new_date 					date;
+		_close_counter_if_overdue 	bool; 
+		_sql						text = '';
+		_normativ					text = '';
+		_houses						jsonb;
+begin
+	
+-------------- запуск собственной процедуры начисления по среднему, если она создана
+
+	if exists (select *	from pg_proc where pronamespace =(select pn.oid from pg_catalog.pg_namespace pn where lower(nspname) = 'counter') and lower(proname) = 'custom_average') 
+		then
+			begin
+				call counter.custom_average (_option, _house, _session_id);
+				return;
+			end;
+	end if;
+
+	select id, date_begin, date_end 
+	into _period_id, _date_begin, _date_end
+	from "period".list 
+	where is_working = true; 
+
+	drop table if exists _account_open;
+	drop table if exists _house;
+
+	create temp table _account_open (account_id int not null primary key, account_open int);
+	create temp table _house (house_id int not null primary key);
+
+	insert into _house
+	select house_id
+	from jsonb_populate_recordset(null::house.list, _house) as h;
+
+	-------------- сдвиг даты поверки счетчиков истекших в 2020 году на 01.01.2021
+
+	if _option = true
+		then
+			begin
+				
+				update counter.list
+					set verification_date = ('2021-01-01'::date - interval '1 year' * verification_interval)   
+				where date_end is null 
+							and active = true 
+							and verification_interval is not null 
+							and verification_date is not null 
+							and (verification_date + interval '1 year' * verification_interval) between '2020-01-01'::date and '2020-12-31'::date; 
+		
+
+-------------------- Запуск процедуры заполнения нормативов по услугам имеющим ИПУ
+
+				_normativ =	(
+								select string_agg(coalesce(quote_ident('n_' || us.short_name) || ' = ' || fr.formula,''),',')
+								from utility.sublist us 
+									inner join utility."type" ut on ut.id = us."type" and us.is_on = true and us.is_counter = true 
+									inner join utility.formula_result fr on fr.sublist_id = us.id and fr."type" = 2
+									inner join parametr.sublist ps on ps.sublist_id = us.id and ps.catalog_id = 1
+								where fr.period_id = _period_id 
+							);
+						
+				_sql = (
+							select '
+					update calculation.normativ cn set
+						' || _normativ || '
+					from calculation.parametr_transporate cp
+						inner join _house h on h.house_id = cp.house_id
+					where cn.account_id = cp.account_id and cp.is_closed = 1'
+						);
+				
+				execute (_sql);
+
+------------------ закрытие истекших счетчиков после 3 мес. с даты поверки (кроме электроэнергии)
+				create temp table _close_counter_id (counter_id int, verification_interval int, verification_date date, failure_date date, sublist_id int, account_id int,
+													 value numeric(13,5), c_value numeric(13,5), flow_type_id int2, flow_date date, close_type varchar(50));
+				
+				_new_date = (case when current_date > _date_end or current_date < _date_begin then _date_end else current_date end);
+
+				insert into _close_counter_id
+				select cl.id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, null, cf.value, cf.c_value, cf.flow_type_id, cf.date, 'после трех месяцев с даты поверки' as close_type
+				from counter.list cl
+					inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+					inner join counter.house ch on ch.counter_id = cl.id
+					inner join _house h on h.house_id = ch.house_id
+				where cl.active = true and cl.date_end is null and cf.flow_type_id = 0
+						and ((verification_date + interval '1 year' * verification_interval) + interval '3 month') < _new_date;
+
+				insert into _close_counter_id
+				select cl.id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, ca.account_id, cf.value, cf.c_value, cf.flow_type_id, cf.date, 'после трех месяцев с даты поверки' as close_type
+				from counter.list cl
+					inner join utility.sublist us on us.id = cl.sublist_id and us.list_id != 1028
+					inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+					inner join counter.account ca on ca.counter_id = cl.id
+					inner join adress.account aa on aa.id = ca.account_id
+					inner join _house h on h.house_id = aa.house_id
+				where cl.active = true and cl.date_end is null and coalesce(cf.date,_date_begin) < _new_date
+						and ((verification_date + interval '1 year' * verification_interval) + interval '3 month') < _new_date;
+
+	/* добавлены счетчики с проставленной датой выхода из строя */
+				insert into _close_counter_id
+				select cl.id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, null, cf.value, cf.c_value, cf.flow_type_id, cf.date, 'после трех месяцев с даты выхода из строя' as close_type
+				from counter.list cl
+					inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+					inner join counter.house ch on ch.counter_id = cl.id
+					inner join _house h on h.house_id = ch.house_id
+				where cl.active = true and cl.date_end is null and cf.flow_type_id = 0
+						and (cl.failure_date + interval '3 month') < _new_date;
+
+				insert into _close_counter_id
+				select cl.id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, ca.account_id, cf.value, cf.c_value, cf.flow_type_id, cf.date, 'после трех месяцев с даты выхода из строя' as close_type
+				from counter.list cl
+					inner join utility.sublist us on us.id = cl.sublist_id and us.list_id != 1028
+					inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+					inner join counter.account ca on ca.counter_id = cl.id
+					inner join adress.account aa on aa.id = ca.account_id
+					inner join _house h on h.house_id = aa.house_id
+				where cl.active = true and cl.date_end is null and coalesce(cf.date,_date_begin) < _new_date
+						and (cl.failure_date + interval '3 month') < _new_date;
+
+				 _close_counter_if_overdue = (
+				 								select (case 
+							 								when array_to_string(xpath('Root/Calculation/CloseCounterIfOverdue/text()', p.xml_data)::text[] , '') = '' 
+							 								then false 
+							 								else array_to_string(xpath('Root/Calculation/CloseCounterIfOverdue/text()', p.xml_data)::text[], '')::bool 
+							 							end)::bool
+						 						 from special.parametr p
+						 					);
+				 
+				if _close_counter_if_overdue = true
+					then 
+						begin
+						
+							insert into _close_counter_id
+							select cl.id, cc.verification_interval, cc.verification_date, cl.failure_date, cl.sublist_id, ca.account_id, cf.value, cf.c_value, cf.flow_type_id
+								 , cf.date, 'все счетчики по услуге если просрочен хотя бы один' as close_type
+							from _close_counter_id cc
+								inner join counter.account ca on ca.account_id = cc.account_id
+								inner join counter.list cl on cl.sublist_id = cc.sublist_id and cl.id = ca.counter_id 
+								inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+							where cl.id <> cc.counter_id and cl.active = true and cl.date_end is null and cl.date_begin < _date_begin;
+							
+						end;
+				end if;
+
+				update counter.list cl
+					set active = false,
+						date_end = _date_begin - 1
+				from  _close_counter_id c 
+				where c.counter_id = cl.id;
+
+				delete 
+				from counter.flow cf
+				using _close_counter_id as cc
+				where cf.period_id = _period_id and cf.counter_id = cc.counter_id;
+
+				merge into counter.closed_verification_date as targets
+					using (select 
+							counter_id
+							,_period_id as period_id
+							,verification_interval
+							,verification_date
+							,failure_date
+							,sublist_id
+							,account_id
+							,value
+							,c_value
+							,flow_type_id
+							,flow_date
+							,close_type
+						from _close_counter_id)
+					as sources (counter_id, period_id, verification_interval, verification_date, failure_date, sublist_id, account_id, value, c_value, flow_type_id, flow_date, close_type)
+					on (targets.counter_id = sources.counter_id)
+					when matched then
+						update set
+							period_id = sources.period_id,
+							verification_interval = sources.verification_interval,
+							verification_date = sources.verification_date,
+							failure_date = sources.failure_date,
+							sublist_id = sources.sublist_id,
+							account_id = sources.account_id,
+							value = sources.value,
+							c_value = sources.c_value,
+							flow_type_id = sources.flow_type_id,
+							flow_date = sources.flow_date,
+							close_type = sources.close_type
+					when not matched then
+						insert (counter_id, period_id, verification_interval, verification_date, failure_date, sublist_id, account_id, value, c_value, flow_type_id, flow_date, close_type)
+						values (sources.counter_id, sources.period_id, sources.verification_interval, sources.verification_date, sources.failure_date, sources.sublist_id, sources.account_id, sources.value, sources.c_value, sources.flow_type_id, sources.flow_date, sources.close_type);
+
+--------------------------------------------------------------------------------
+						
+				insert into _account_open
+				select p.account_id,
+					sum(
+						(case when p.value = '1' then 1 else 0 end) 
+						* (
+							(
+								case 
+									when coalesce(p.date_end, pl.date_end) > pl.date_end 
+									then pl.date_end 
+									else coalesce(p.date_end, pl.date_end) 
+								end
+								-
+								case 
+									when p.date_begin < pl.date_begin 
+									then pl.date_begin 
+									else p.date_begin 
+								end) + 1
+							)
+						) as account_open
+				from parametr.account p
+					inner join "period".list pl on pl.is_working = true
+					inner join adress.account aa on aa.id = p.account_id
+					inner join _house h on h.house_id = aa.house_id
+					where parametr_id = 1362 
+						and coalesce(p.date_end, pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+						and p.date_begin <= (case when coalesce(p.date_end, pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end, pl.date_end) end)
+				group by p.account_id;
+		
+		
+			
+------------------ формирование списка счетчиков и дальнейший расчет по среднему/нормативу
+						
+				drop table if exists _counter;
+			
+				create table _counter 
+				(
+					counter_id 		int not null primary key, 
+					account_id 		int not null, 
+					sublist_id 		int, 
+					list_id 		int, 
+					"number" 		int, 
+					verify_date 	date, 
+					failure_date 	date
+				);
+			
+				insert into _counter
+				select distinct 
+					cf.counter_id, 
+					ca.account_id, 
+					cf.sublist_id, 
+					us.list_id, 
+					cl."number", 
+					(cl.verification_date + interval '1 year' * cl.verification_interval) as verify_date, 
+					cl.failure_date 
+				from counter.flow cf
+					inner join counter.account ca on ca.counter_id = cf.counter_id
+					inner join counter.list cl on cf.counter_id = cl.id
+					inner join _account_open oa on oa.account_id = ca.account_id and oa.account_open > 0 
+					inner join utility.sublist us on us.id = cl.sublist_id
+					inner join (
+								select sga.account_id, sgi.sublist_id
+								from utility.sublist_group_a_detail sga
+									inner join utility.sublist_group_h_detail sgh on sgh.group_id = sga.group_id 
+																					and sga.house_id = sgh.house_id
+									inner join utility.sublist_group_info sgi on sgi.group_id = sgh.group_id
+									inner join _account_open oa on oa.account_id = sga.account_id 
+																and oa.account_open > 0
+								where sga.period_id is null 
+									and sgi.sublist_id != 38 
+									and sgh.avg_type = true 
+									and sga.avg_type = true
+								) a on a.account_id = ca.account_id and a.sublist_id = cf.sublist_id
+				where period_id = _period_id 
+						and cl.sublist_id != 38
+						and cl.active = true
+						and coalesce(cf.flow_type_id,0) in (0,3,4,5);
+				
+			
+				drop table if exists _counter_a;
+				
+				create table _counter_a 
+				(
+					counter_id 	int not null primary key, 
+					period_id 	int not null
+				);
+			
+				insert into _Counter_A
+				select c.counter_id, max(c.period_id) as period_id 
+				from 	(
+							select cf.counter_id, max(cf.period_id) + 1 as period_id
+							from counter.flow cf
+								inner join _counter ca on ca.counter_id = cf.counter_id
+							where coalesce(cf.flow_type_id, 0) not in (0, 3, 4) and period_id <> _period_id
+							group by cf.counter_id
+							union all
+							select cf.counter_id, max(cf.period_id) as period_id
+							from counter.flow cf
+								inner join _counter ca on ca.counter_id = cf.counter_id
+								inner join "period".list pl on pl.id = cf.period_id
+							where period_id <> _period_id and ca.verify_date between pl.date_begin and pl.date_end
+							group by cf.counter_id
+							union all
+							select cf.counter_id, max(cf.period_id) as period_id
+							from counter.flow cf
+								inner join _counter ca on ca.counter_id = cf.counter_id
+								inner join period.list pl on pl.id = cf.period_id
+							where period_id <> _period_id and ca.failure_date between pl.date_begin and pl.date_end 
+							group by cf.counter_id
+						) c
+				group by c.counter_id;
+			
+				drop table if exists _counter_info;
+			
+				create temp table _counter_info 
+				(
+					counter_id 	int not null, 
+					sublist_id 	int not null, 
+					account_id 	int not null, 
+					cnt_avg 	int, 
+					cnt_work 	int, 
+					sum_f 		numeric (12,5), 
+					avg_type 	int2, 
+					"number" 	int2
+	
+				);
+			
+				drop table if exists _otop_sezon;
+				create temp table _otop_sezon 
+				(
+					house_id 	int not null primary key, 
+					otop_sezon 	bool not null
+				);
+			
+				insert into _otop_sezon (house_id, otop_sezon)
+				select ah.id as house_id, 
+					case
+						when coalesce(p.otop_off,0) = 1 then false
+						when (pl.month_id >= coalesce(te.month_begin,10) or pl.month_id <= coalesce(te.month_end,4)) or coalesce(p.otop_off,0) > 1 then true
+						else false
+					end as otop_sezon
+				from adress.territory te
+					inner join period.list pl on pl.is_working = true
+					inner join adress.house ah on ah.territory_id = te.id
+					inner join _house h on h.house_id = ah.id
+					left join (
+								select ph.house_id, coalesce(ph.value,'0')::int2 as otop_off
+								from parametr.house ph
+									inner join _house h on h.house_id = ph.house_id
+								where ph.parametr_id = 201 and ph.date_end is null
+							  ) p on p.house_id = ah.id;
+				
+				insert into _otop_sezon (house_id, otop_sezon)
+				select h.house_id, true as otop_sezon
+				from _house h
+					left join _otop_sezon os on os.house_id = h.house_id
+				where os.house_id is null;
+	
+				_houses = 	(
+								select jsonb_agg(jsonb_build_object('house_id', house_id)) as d
+								from _otop_sezon
+								where otop_sezon = true
+							);
+
+				insert into _counter_info
+				select *
+				from counter.average_heating (_houses);
+
+	/* AVG_TYPE
+		1 - По среднему если закончился срок поверки
+		2 - По нормативу
+		3 - По среднему
+	*/
+				
+
+				insert into _counter_info
+				select c.counter_id
+					  ,c.sublist_id
+					  ,c.account_id
+					  ,coalesce(cnt_a.cnt_avg, 0) as cnt_avg
+					  ,cnt_w.cnt_work
+					  ,sum_f
+					  ,case
+						  when c.verify_date < _new_date or c.failure_date < _new_date
+						  then 
+						  	case
+							  	when (cnt_avg >= 3 and c.list_id != 1028) or cnt_work <= 3
+							  	then 2
+							  	else 1
+							end
+						  else
+						  	case 
+							 	when (cnt_avg >=3 and c.list_id != 1028) or cnt_work <=3
+								then 2
+								else 3
+							end
+					   end as avg_type
+					   ,c."number"
+				from _counter c
+					inner join 
+						(
+							select cf.counter_id, count(*) as cnt_work
+							from counter.flow cf
+								inner join _counter ca on ca.counter_id = cf.counter_id
+							where coalesce(cf.flow_type_id,0) <> 5
+							group by cf.counter_id
+						) cnt_w on cnt_w.counter_id = c.counter_id
+					inner join 
+						(
+							select cf.counter_id, sum(cf.flow) as sum_f
+							from counter.flow cf
+								inner join _counter ca on ca.counter_id = cf.counter_id
+							where cf.period_id between _period_id - 6 and _period_id
+							group by cf.counter_id
+						) s on s.counter_id = c.counter_id
+					left join 
+						(
+							select cf.counter_id, count(cf.period_id) as cnt_avg
+							from counter.flow cf
+								inner join _counter_a ca on ca.counter_id = cf.counter_id
+							where coalesce(flow_type_id,0) in (0, 3, 4) and cf.period_id between ca.period_id and _period_id - 1 
+							group by cf.counter_id
+						) cnt_a on cnt_a.counter_id = c.counter_id;
+
+				with cte as
+				(
+					select  ci.*
+							,case 
+								when exists (select * from _counter_info c where c.sublist_id = ci.sublist_id and c.account_id = ci.account_id and c.counter_id <> ci.counter_id and c.avg_type = 2) and avg_type <> 2
+								then 0
+								else 1
+							 end must_calc
+							,cf.period_id
+							,cf.prev_value
+							,cf.value
+							,cf."date"
+							,cf.rate
+							,cf.flow_type_id
+							,cf.security_date 
+							,cf.session_id 
+							,row_number () over (partition by ci.account_id, ci.sublist_id
+																,(case 	
+																	when exists (
+																					select * 
+																					from _counter_info c 
+																					where c.sublist_id = ci.sublist_id 
+																						and c.account_id = ci.account_id
+																						and c.counter_id <> ci.counter_id 
+																						and c.avg_type = 2
+																				 ) 
+																		and avg_type <> 2
+																	then 0
+																	else 1
+																  end)  
+															order by ci.account_id, ci.sublist_id
+																	, (case 
+																			when exists (
+																							select * 
+																							from _counter_info c 
+																							where c.sublist_id = ci.sublist_id 
+																								and c.account_id = ci.account_id 
+																								and c.counter_id <> ci.counter_id 
+																								and c.avg_type = 2
+																						) 
+																				and avg_type <> 2
+																		then 0
+																		else 1
+																		end
+																	   ), ci."number"
+												) rn
+						
+					from _counter_info ci
+						inner join counter.flow cf on cf.counter_id = ci.counter_id and cf.period_id = _period_id
+				)
+	
+				update counter.flow cf
+					set 
+						 session_id = _session_id
+						,security_date = current_date
+						,date = _new_date
+						,flow_type_id = (
+											case 
+												when must_calc = 1 
+														and avg_type = 2 
+														and (
+																case 
+																	when c.sublist_id = 38 then (coalesce(osq, 0) - coalesce(nsq, 0) + coalesce(pldop, 0) - coalesce(npldop, 0)) 
+																	else 
+																		case 
+																			when coalesce(cp.flat_type, 0) = 0 then coalesce(nullif(cp.cpr, 0),coalesce(cp.count_owners, 0)) 
+																			else 0 
+																		end 
+																end
+															) <> 0  
+													then 4 
+												else 3 
+											end
+										)
+						,value = round (coalesce(c.prev_value,0)  
+									+	coalesce(case 
+												when must_calc = 1 
+													and avg_type = 2
+													and (case when c.sublist_id = 38 then (coalesce(osq,0) - coalesce(nsq,0) + coalesce(pldop,0) - coalesce(npldop,0)) else case	when coalesce(cp.flat_type,0) = 0	then coalesce(nullif(cp.cpr,0), coalesce(cp.count_owners,0)) else 0	end end) <> 0 
+												then 
+													case
+														when  rn = 1
+														then  (case 
+																when c.sublist_id = 22 then n_xv
+																when c.sublist_id = 24 then n_gv
+																when c.sublist_id = 38 then n_ot
+																when c.sublist_id = 27 then n_ed
+																when c.sublist_id = 58 then n_gz
+																when c.sublist_id = 23 then n_k
+																end) 
+																* 
+																(case 
+																	when c.sublist_id = 38 
+																		then (coalesce(osq,0) - coalesce(nsq,0) + coalesce(pldop,0) - coalesce(npldop,0))
+																	when c.sublist_id = 58 and exists (select * from utility.formula_result uf inner join period.list pl on pl.is_working = true and pl.id = uf.period_id where uf.sublist_id = 58 and uf.type = 2 and uf.formula ilike '%osq%') 
+																		then 1.0
+																		else 
+																			case 
+																				when coalesce (cp.cpr,0) <> 0 
+																				then cp.cpr
+																				else 
+																					case 
+																						when _count_owner = true  
+																						then coalesce(cp.count_owners,0)
+																						else 0
+																					end
+																			end 
+																	end) / nullif(c.rate, 0.0)
+															else 0.0
+														end
+												when must_calc = 0 then 0.0
+												else sum_f / nullif(case when cnt_work >= 6 then 6 else (cnt_work - 1) end, 0) / nullif(c.rate, 0.0)
+											end,0)
+								, (case when us.list_id = 1022 then 5 when us.list_id = 1028 then 2 else 3 end))
+				from cte c
+					inner join calculation.parametr_transporate cp on cp.account_id = c.account_id 
+					inner join calculation.normativ cn on cn.account_id = cp.account_id
+					inner join utility.sublist us on us.id = c.sublist_id
+				where c.counter_id = cf.counter_id and c.period_id = cf.period_id and c.value is null and c.date is null; 
+
+				drop table if exists _counter;
+				drop table if exists _counter_a;
+				drop table if exists _counter_info;
+				drop table if exists _otop_sezon;
+			end;
+		else 
+			begin
+		----- удаление сделаных начислений по среднему
+		
+				update counter.flow cf
+				set value = null
+					,"date" = null
+					,flow_type_id = 0
+				from counter.account ca 
+					inner join adress.account aa on aa.id = ca.account_id
+					inner join _house h on h.house_id = aa.house_id
+				where period_id = _period_id
+					and flow_type_id in (3,4) ;
+			end;
+	end if;
+
+	drop table if exists _house;
+	drop table if exists _account_open;
+	drop table if exists _close_counter_id;
+	drop table if exists _periods;
+	
+end
+"""
+  arguments = <
+    {
+      name = _option
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _session_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		поляков п.г.
+ create date: 02.06.2014
+ description:	расчет показаний счетчиков по среднему
+ modify:		юркин е.ю.
+ Modify: 20.10.2023 - добавил проверку на принудительное выключение отопительного периода (тогда принудительно объем среднее/норматив = 0 по Sublist_Id = 38)
+
+/*
+	1 - по среднему если закончился срок поверки
+	2 - по нормативу
+	3 - по среднему
+*/
+ =============================================
+"""
+}
+

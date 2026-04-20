@@ -1,0 +1,44 @@
+function "recalculation"."delete_values()" {
+  text = """
+
+declare 
+	_period_work 	int;
+	_account		jsonb;
+begin
+
+	_period_work = (select id from "period".list where is_working = true);
+
+	update payment.balance pb
+		set recalculate = coalesce(pb.recalculate, 0) - t."result"
+	from (select old.account_id, old.period_id, old.sublist_id, old.diff_result as "result") as t
+	where pb.account_id = t.account_id
+		and pb.sublist_id = t.sublist_id
+		and	pb.period_id = t.period_id;
+	
+	if old.period_id <> _period_work
+		then
+			begin 
+				_account = (select jsonb_agg(jsonb_build_object('account_id', old.account_parent_id )));
+				
+				call calculation.calc_in_balance (old.period_id, _period_work, _account);
+			end;
+	end if;
+
+	return null;	
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:	Поляков Павел
+ Create date: 11.03.2016
+ Description:	Удаление перерасчета
+ =============================================
+"""
+}
+

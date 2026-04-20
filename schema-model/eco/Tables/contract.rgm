@@ -1,0 +1,80 @@
+table "eco"."contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contract_3"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.contract_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "number" {
+      type = character varying(50)
+    }
+    column "sum" {
+      type = numeric(12,2)
+    }
+    column "date" {
+      type = date
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "partner_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "contract_work_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "advance" {
+      type = numeric(12,2)
+    }
+    column "work_begin" {
+      type = integer
+    }
+    column "work_end" {
+      type = integer
+    }
+    column "guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "eco"."contract"."fk_contract_contract_work" {
+  columns = [
+    "contract_work_id"
+  ]
+  referencedTable = "eco"."contract_work"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "eco"."contract"."fk_contract_provider" {
+  columns = [
+    "partner_id"
+  ]
+  referencedTable = "utility"."provider"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

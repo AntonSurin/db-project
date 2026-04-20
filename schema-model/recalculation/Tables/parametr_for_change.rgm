@@ -1,0 +1,85 @@
+table "recalculation"."parametr_for_change" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_parametr_for_change"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('recalculation.parametr_for_change_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "flat_id" {
+      type = integer
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "short_name" {
+      type = character varying(50)
+    }
+    column "value" {
+      type = character varying(50)
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+foreignKey "recalculation"."parametr_for_change"."fk_parametr_for_change_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "recalculation"."parametr_for_change"."fk_parametr_for_change_list" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "recalculation"."parametr_for_change_idx_dates" {
+  table = "recalculation"."parametr_for_change"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = date_begin
+    }
+
+    {
+      definition = date_end
+    }
+
+  >
+  isUnique = False
+}
+

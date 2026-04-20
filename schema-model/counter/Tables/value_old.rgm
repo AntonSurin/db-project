@@ -1,0 +1,31 @@
+table "counter"."value_old" {
+  owner = postgres
+  columns = (
+    column "id" {
+      type = bigint
+      null = NOT NULL
+      default = nextval('counter.value_old_id_seq'::regclass)
+    }
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = numeric(13,5)
+      null = NOT NULL
+    }
+    column "c_value" {
+      type = numeric(13,5)
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "flow_type_id" {
+      type = smallint
+      null = NOT NULL
+    }
+  )
+}
+

@@ -1,0 +1,58 @@
+table "gis"."sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sub_list_3"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.sublist_id_seq'::regclass)
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "gis_code" {
+      type = character varying(20)
+    }
+    column "gis_guid" {
+      type = uuid
+    }
+    column "resourse_code" {
+      type = character varying(20)
+    }
+    column "resourse_guid" {
+      type = uuid
+    }
+    column "group_code" {
+      type = character varying(20)
+    }
+    column "group_guid" {
+      type = uuid
+    }
+    column "gis_type" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "organization_setting_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "gis"."sublist"."fk_sub_list_sub_list1" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

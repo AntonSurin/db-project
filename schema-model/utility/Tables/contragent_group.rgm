@@ -1,0 +1,79 @@
+table "utility"."contragent_group" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contragent_group"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.contragent_group_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "contragent_id" {
+      type = integer
+    }
+    column "counting_id" {
+      type = integer
+    }
+    column "invoice_type" {
+      type = integer
+    }
+    column "invoice_header" {
+      type = character varying(50)
+    }
+    column "qr_code" {
+      type = character varying(500)
+    }
+    column "anotation" {
+      type = character varying(1000)
+    }
+    column "worker_organization_id" {
+      type = integer
+    }
+    column "worker_organization_counting_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "utility"."contragent_group"."fk_contragent_group_counting" {
+  columns = [
+    "counting_id"
+  ]
+  referencedTable = "contragent"."counting"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."contragent_group"."fk_contragent_group_list" {
+  columns = [
+    "contragent_id"
+  ]
+  referencedTable = "contragent"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+trigger "utility"."contragent_group"."create_detail_account" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = utility.create_detail_account
+  functionArguments = [
+  ]
+  table = "utility"."contragent_group"
+  constraint = False
+  newTableReference = inserted
+}
+

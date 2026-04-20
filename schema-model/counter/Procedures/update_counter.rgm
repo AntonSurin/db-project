@@ -1,0 +1,385 @@
+procedure "counter"."update_counter(jsonb, integer, smallint, integer, integer, character varying, integer, date, date, jsonb, boolean, integer, boolean, integer)" {
+  text = """
+
+declare 
+	_period_id 		int;
+	_date_begin 	date;
+	_date_end 		date default null::date;
+	_active 		bool = true;
+	_unit_id 		int;
+	_count 			int;
+	_period_begin 	date;
+begin
+		
+	create temp table _history_temp_date (counter_id int, verification_date date);
+	create temp table _history_temp_interval (counter_id int, verification_interval int);
+
+	if _catalog_id = 1
+		then 
+			begin
+				create temp table _account (account_id int);
+				create temp table _counter (id int, date_begin date, date_end date, sublist_id int, active bool, "number" int2, rate numeric(9, 6), unit_id int, is_show_value bool);
+				create temp table _counter_account (rownumber int, account_id int, counter_id int);
+		
+				create temp table _account_list (id int, account_id int);
+				create temp table _counter_list (id int, counter_id int);
+
+				select date_begin, date_begin, id 
+				into _date_begin, _period_begin, _period_id
+				from "period".list 
+				where is_working = true;
+
+				_unit_id = (select unit_id from utility.sublist where id = _sublist_id);
+
+				insert into _account (account_id)
+				select distinct ai.account_id
+				from adress.light_info ai 
+					inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = ai.house_id
+				where ai.account_id in (
+											select distinct ai.account_id
+											from adress.light_info ai 
+												inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = ai.house_id
+												inner join jsonb_populate_recordset(null::special.objects, _flat_book) f on f.object_id = ai.flat_book_id
+												inner join counter.account ca on ca.account_id = ai.account_id
+												inner join counter.list cl on cl.id = ca.counter_id
+											where cl.sublist_id = _sublist_id and cl."number" = _number
+											group by ai.account_id
+										);
+
+				if exists(select * from _account)
+					then
+						begin
+							if (_date_install is not null and exists(
+																		select 1 
+																		from counter.list cl
+																			inner join counter.account c on c.counter_id = cl.id
+																			inner join _account a on a.account_id = c.account_id 
+																		where cl.active = true and cl.sublist_id = _sublist_id and cl."number" = _number and _date_install > cl.date_begin
+																		fetch first 1 rows only
+																	)
+								)
+								then 
+									begin
+										raise notice 'Не корректная дата установки (Должна быть больше даты ввода в эксплуатацию)' using errcode = '55000';
+										drop table if exists _account;
+										drop table if exists _counter;
+										drop table if exists _counter_account;
+										drop table if exists _account_list;
+										drop table if exists _counter_list;
+										return;
+									end;
+							end if;
+					
+							update counter.list cl
+								set
+									mark_id = coalesce(cl.mark_id, _mark_id),
+									model = (case when cl.model is null or model = '' then _model else cl.model end), 
+									verification_interval = coalesce(cl.verification_interval, _interval),
+									verification_date = coalesce(cl.verification_date, _date_verf),
+									remote_metering_mode = _remote_metering,
+									remote_metering_info_id = coalesce(cl.remote_metering_info_id, _remote_metering_id),
+									installation_date = coalesce(cl.installation_date, _date_install),
+									is_export_to_gis = case when cl.unique_number is null then _is_export_to_gis else cl.is_export_to_gis end
+							from counter.account c 
+								inner join _account a on a.account_id = c.account_id 
+							where c.counter_id = cl.id and cl.active = true and cl.sublist_id = _sublist_id and cl."number" = _number;
+				
+--							return query
+--							select cl.*,c.account_id,c.counter_id  
+--							from counter.list cl
+--								inner join counter.account c on c.counter_id = cl.id
+--								inner join _account a on a.account_id = c.account_id 
+--							where cl.active = true and cl.sublist_id = _sublist_id and cl."number" = _number;	
+							 	
+							raise notice 'Успешно' using errcode = '55000';
+						end; 
+					else 
+						begin					
+							raise notice 'Счетчик(и) с такими параметрами уже существует' using errcode='55000';
+						end;
+
+				if(_date_verf is not null)
+				then
+					begin
+						insert into _history_temp_date(counter_id, verification_date)
+						select cl.id, _date_verf
+						from counter.list cl
+							inner join  counter.account c on c.counter_id = cl.id
+							inner join _account a on a.account_id = c.account_id
+						where cl.active = true 
+							and cl.sublist_id = _sublist_id 
+							and cl.number = _number
+							and cl.verification_date is null;
+					end;
+				end if;
+
+				if(_interval is not null)
+				then
+					begin
+						insert into _history_temp_interval(counter_id, verification_interval)
+						select cl.id, _interval
+						from counter.list cl
+							inner join counter.account c on c.counter_id = cl.id
+							inner join _account a on a.account_id = c.account_id
+						where cl.active = true 
+							and cl.sublist_id = _sublist_id 
+							and cl.number = _number
+							and cl.verification_interval is null;
+					end;
+				end if;
+
+				insert into counter.verification_history(counter_id, created_at, session_id, verification_date, verification_interval, resource)
+				select coalesce(ht.counter_id, htt.counter_id), current_date, _session_id, coalesce(ht.verification_date, cl.verification_date), coalesce(htt.verification_interval, cl.verification_interval), 2
+				from _history_temp_date ht
+					full join _history_temp_interval htt on ht.counter_id = htt.counter_id
+					inner join counter.list cl on cl.id = coalesce(ht.counter_id, htt.counter_id)
+				where coalesce(ht.verification_date, cl.verification_date) is not null;
+				end if;
+	
+				drop table if exists _account;
+				drop table if exists _counter;
+				drop table if exists _counter_account;
+				drop table if exists _account_list;
+				drop table if exists _counter_list;
+	
+			end;
+		
+		else
+			begin
+				
+				create temp table _house (house_id int);
+				create temp table _counter (id int, date_begin date, date_end date, sublist_id int, active bit, "number" int2, rate numeric(9, 6), unit_id int, is_show_value bit);
+				create temp table _counter_house (rownumber int, house_id int, counter_id int);
+		
+				create temp table _account_list (id int, house_id int);
+				create temp table _counter_list (id int, counter_id int);
+
+				select date_begin, date_begin, id 
+				into _date_begin, _period_begin, _period_id
+				from "period".list 
+				where is_working = true;
+
+				_unit_id = (select unit_id from utility.sublist where id = _sublist_id);
+
+				insert into _house (house_id)
+				select distinct ai.house_id
+				from adress.light_info ai 
+					inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = ai.house_id
+				where ai.house_id in (
+											select distinct ai.house_id
+											from adress.light_info ai 
+												inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = ai.house_id
+												inner join counter.house ca on ca.house_id= ai.house_id
+												inner join counter.list cl on cl.id = ca.counter_id
+											where cl.sublist_id = _sublist_id and cl."number" = _number
+											group by ai.house_id
+									);
+
+				if exists(select h.* from jsonb_populate_recordset(null::house.list, _house) h)
+					then
+						begin
+							if (_date_install is not null and exists(
+																		select 1 
+																		from counter.list cl
+																			inner join counter.house c on c.counter_id = cl.id
+																			inner join _house a on a.house_id = c.house_id 
+																		where cl.active = true and cl.sublist_id = _sublist_id and cl."number" = _number and _date_install > cl.date_begin
+																		fetch first 1 rows only
+																	)
+								)
+								then 
+									begin
+										raise notice 'Не корректная дата установки (Должна быть больше даты ввода в эксплуатацию)' using errcode = '55000';
+										drop table if exists _house;
+										drop table if exists _counter;
+										drop table if exists _counter_house;
+										drop table if exists _account_list;
+										drop table if exists _counter_list;
+										return;
+									end;
+							end if;
+					
+							update counter.list cl
+								set
+									mark_id = coalesce(cl.mark_id, _mark_id),
+									model = (case when cl.model is null or model = '' then _model else cl.model end), 
+									verification_interval = coalesce(cl.verification_interval, _interval),
+									verification_date = coalesce(cl.verification_date, _date_verf),
+									remote_metering_mode = _remote_metering,
+									remote_metering_info_id = coalesce(cl.remote_metering_info_id, _remote_metering_id),
+									installation_date = coalesce(cl.installation_date, _date_install),
+									is_export_to_gis = case when cl.unique_number is null then _is_export_to_gis else cl.is_export_to_gis end
+							from counter.house c 
+								inner join _house a on a.house_id = c.house_id 
+							where c.counter_id = cl.id and cl.active = true and cl.sublist_id = _sublist_id and cl."number" = _number;
+				
+--							return query
+--							select cl.*,c.account_id,c.counter_id  
+--							from counter.list cl
+--								inner join counter.account c on c.counter_id = cl.id
+--								inner join _account a on a.account_id = c.account_id 
+--							where cl.active = true and cl.sublist_id = _sublist_id and cl."number" = _number;	
+							 	
+							raise notice 'Успешно' using errcode = '55000';
+						end; 
+					else 
+						begin					
+							raise notice 'Счетчик(и) с такими параметрами уже существует' using errcode='55000';
+						end;
+				end if;
+
+				if(_date_verf is not null)
+				then
+					begin
+						insert into _history_temp_date(counter_id, verification_date)
+						select cl.id, _date_verf
+						from counter.list cl
+							inner join counter.house c on c.counter_id = cl.id
+							inner join _house a on a.house_id = c.house_id
+						where cl.active = true 
+							and cl.sublist_id = _sublist_id 
+							and cl.number = _number
+							and cl.verification_date is null;
+					end;
+				
+
+				if(_interval is not null)
+				then
+					begin
+						insert into _history_temp_interval(counter_id, verification_interval)
+						select cl.id, _interval
+						from counter.list cl
+							inner join counter.house c on c.counter_id = cl.id
+							inner join _house a on a.house_id = c.house_id
+						where cl.active = true 
+							and cl.sublist_id = _sublist_id 
+							and cl.number = _number
+							and cl.verification_interval is null;
+					end;
+				end if;
+
+				insert into counter.verification_history(counter_id, created_at, session_id, verification_date, verification_interval, resource)
+				select coalesce(ht.counter_id, htt.counter_id), current_date, _session_id, coalesce(ht.verification_date, cl.verification_date), coalesce(htt.verification_interval, cl.verification_interval), 2
+				from _history_temp_date ht
+					full join _history_temp_interval htt on ht.counter_id = htt.counter_id
+					inner join counter.list cl on cl.id = coalesce(ht.counter_id, htt.counter_id)
+				where coalesce(ht.verification_date, cl.verification_date) is not null;
+				end if;
+	
+			
+
+
+				drop table if exists _house;
+				drop table if exists _counter;
+				drop table if exists _counter_house;
+				drop table if exists _account_list;
+				drop table if exists _counter_list;
+				
+			end;
+		
+	end if;
+			
+	drop table _history_temp_date;
+	drop table _history_temp_interval;
+
+end
+"""
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _sublist_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _number
+      type = smallint
+      mode = IN
+    }
+
+    {
+      name = _catalog_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _mark_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _model
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _interval
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _date_verf
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _date_install
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _flat_book
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _is_export_to_gis
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _session_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _remote_metering
+      type = boolean
+      mode = IN
+      default = NULL::boolean
+    }
+
+    {
+      name = _remote_metering_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		ооо жилфондсервис
+ create date: 25.10.2013
+ description:	массовое добавление счетчиков
+ =============================================
+"""
+}
+

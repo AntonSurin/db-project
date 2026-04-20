@@ -1,0 +1,39 @@
+function "tests"."counters_with_missing_first_value(jsonb)" {
+  text = """
+
+
+	select
+		'wrn'::varchar(3) as severity,
+		aa."name" as account_name
+	from counter.account ca
+		inner join counter.list cl on cl.id = ca.counter_id 
+		inner join adress.account aa on aa.id = ca.account_id
+	where
+		not exists (select c.* from counter.flow c where c.counter_id = ca.counter_id and c.flow_type_id = 5)
+		and (not exists(select ac.account_id from jsonb_populate_recordset(null::account.list, _account) as ac) or ca.account_id in (select a.account_id from jsonb_populate_recordset(null::account.list, _account) as a))
+		and cl.active = true and cl.date_end is null
+	group by ca.account_id, aa."name";
+
+"""
+  returnType = TABLE(severity character varying, account_name character varying)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:			Поляков Павел
+ Create date:		13.09.2017
+ Modified date:	10.12.2020, Трофимов Б.И. - добавил фильтр по лс для автоматического запуска тестов
+ Modified date:	20.01.2021, Юркин Е.Ю. - добавил в выборку только открытые счетчики
+ Description:		Проверка на наличие счетчиков без первоначальных показаний
+ =============================================
+"""
+}
+

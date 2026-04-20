@@ -1,0 +1,61 @@
+function "payment"."balance_without_fine(jsonb, integer, integer, boolean)" {
+  text = """
+
+
+	select
+		 count(*) as count_big
+		,pb.account_parent_id as account_id
+		,pb.account_parent_id /*вытягиваем для сериализации*/
+		,pb.house_id
+		,pb.period_id
+		,sum(pb.in_balance) as in_balance
+		,sum(pb.current_calculate) as current_calc
+		,sum(pb.recalculate) as recalc
+		,sum(pb.pay) as pay
+		,sum(coalesce(pb.in_balance, 0) + coalesce(pb.current_calculate, 0) + coalesce(pb.recalculate, 0)  - coalesce(pb.pay, 0)) as out_balance
+	from payment.balance pb
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = pb.house_id
+	where pb.sublist_id != (case when _fine = false then 7 else -1000 end)
+		and pb.period_id between _period_begin and _period_end
+	group by pb.account_parent_id, pb.period_id, pb.house_id;
+	
+"""
+  returnType = TABLE(count_big bigint, account_id integer, account_parent_id integer, house_id integer, period_id integer, in_balance numeric, current_calc numeric, recalc numeric, pay numeric, out_balance numeric)
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _fine
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ =============================================
+"""
+}
+

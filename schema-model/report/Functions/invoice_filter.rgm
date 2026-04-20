@@ -1,0 +1,129 @@
+function "report"."invoice_filter(jsonb, integer, integer, integer, boolean)" {
+  text = """
+
+declare 
+	_is_print int = (select pl.id from parametr.list pl where Lower(pl.short_name) = 'is_print' and pl.catalog_id = 1);
+	_commisison numeric(5, 2) = (select pl.id from parametr.list pl where Lower(pl.short_name) = 'commission' and pl.catalog_id = 1);
+	_count int = 0;
+	_start_period int = _period_id - _col_mounth;
+	_sql text = '';
+begin	
+	create temp table _account_table (account_id int);
+	create temp table _temp (account_id int, old_calc numeric(9,2), c_period int4);
+	create index idx_a on _temp (account_id) include (old_calc, c_period);
+	
+		insert into _account_table 
+		select a.account_id
+		from jsonb_populate_recordset(null::account.list, _account) a;
+	 	
+		_count = (select count(*) from _account_table);		
+		_sql = 'select p.account_parent_id , sum(p.current_calc + p.recalc) as old_calc,  count(p.account_parent_id) c_period
+				from payment.balance_group p
+					inner join adress.account aa on aa.id = p.account_id 
+					inner join _account_table a on a.account_id = aa.parent_id 
+				where p.period_id < ' || _period_id || ' and p.period_id >= ' || _start_period || ' and (p.current_calc  +  p.recalc) <> 0';
+	
+	if (_group_id is null)
+		then
+			begin
+				_sql = _sql || '
+						group by p.account_parent_id';
+				if ( exists(select 1 from utility.contragent_group) )
+					then
+						begin
+							_sql = _sql || ',
+									p.account_id';
+							_sql = 'select accounts.account_parent_id, sum (accounts.old_calc) as old_calc,  max(accounts.c_period) c_period
+									from (' || _sql || ') as accounts 
+									group by accounts.account_parent_id';
+						end;
+				end if;
+			end;
+		else 
+			begin
+				_sql = _sql || '
+						and aa.group_id = ' || _group_id ||
+						'group by p.account_parent_id';
+			end;
+	end if;	
+
+	_sql = ('insert into _temp ' || _sql);
+	execute (_sql) ;
+	
+	return query
+	select  
+		 ct.account_id	
+		,ap."text"::text as anotation
+		,ha.print_text::text as house_anotation
+		,ct.is_print::int2
+		,cast(ct.commission as numeric(5,2)) as commission
+		,coalesce (t.old_calc,0) as old_calc
+		,coalesce (t.c_period,0) as c_period
+	from(
+			select pa.account_id as account_id
+		 		 ,cast(case when _is_export = true then 1 else max(case when pa.parametr_id = _is_print then pa.value::int end) end as int) is_print
+				 ,max(case when pa.parametr_id = _commisison then pa.value::int end) as commission
+			from parametr.account pa
+				inner join _account_table a on a.account_id = pa.account_id 
+			where pa.parametr_id in (_is_print, _commisison) and pa.date_end is null 
+			group by pa.account_id 
+		) ct
+		inner join adress.light_info al on al.account_id = ct.account_id
+		left join house.anotation ha on al.house_id = ha.house_id 
+		left join account.print_anotation ap on ap.account_id = ct.account_id
+		left join _temp t on t.account_id = ct.account_id
+	where coalesce(ct.is_print, '1') = case when _count > 1 then  '1' else coalesce(ct.is_print, '1') end 
+	order by al.order_id, al.account_order_id;
+
+drop table _account_table;
+drop table _temp;
+
+end ; 
+"""
+  returnType = TABLE(account_id integer, anotation text, house_anotation text, is_print smallint, commission numeric, old_calc numeric, c_period integer)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _col_mounth
+      type = integer
+      mode = IN
+      default = 0
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _is_export
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков П.Г.
+ Create date: 08.06.2015
+ Description:	Список лицевых счетов для формирования квитанци у которых есть начисления
+ =============================================
+"""
+}
+

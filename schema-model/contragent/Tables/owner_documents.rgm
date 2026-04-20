@@ -1,0 +1,86 @@
+table "contragent"."owner_documents" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_owner_documents"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('contragent.owner_documents_id_seq'::regclass)
+    }
+    column "contragent_account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "kind_id" {
+      type = integer
+    }
+    column "is_by_id" {
+      type = integer
+    }
+    column "series" {
+      type = character varying(100)
+    }
+    column "number" {
+      type = character varying(100)
+    }
+    column "share" {
+      type = character varying(10)
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "date_end" {
+      type = date
+    }
+    column "is_common_owner" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+  )
+}
+
+foreignKey "contragent"."owner_documents"."fk_owner_documents_account" {
+  columns = [
+    "contragent_account_id"
+  ]
+  referencedTable = "contragent"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "contragent"."owner_documents_idx_conragent_date_end" {
+  table = "contragent"."owner_documents"
+  type = btree
+  columns = <
+    {
+      definition = contragent_account_id
+    }
+
+    {
+      definition = date_begin
+    }
+
+    {
+      definition = date_end
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    kind_id
+    is_by_id
+    series
+    number
+    share
+  ]
+}
+

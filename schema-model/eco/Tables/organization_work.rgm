@@ -1,0 +1,92 @@
+table "eco"."organization_work" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_eco_organization_work"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.organization_work_id_seq'::regclass)
+    }
+    column "parent_id" {
+      type = integer
+    }
+    column "work_group_id" {
+      type = integer
+    }
+    column "dimension_unit_id" {
+      type = integer
+    }
+    column "sort_index" {
+      type = integer
+    }
+    column "name" {
+      type = character varying(500)
+    }
+    column "is_once" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "code" {
+      type = character varying(50)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "is_sum_amount" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "dimension_unit_text" {
+      type = character varying(50)
+    }
+    column "is_arch" {
+      type = boolean
+    }
+    column "is_move_plan" {
+      type = boolean
+    }
+    column "external_id" {
+      type = uuid
+      null = NOT NULL
+      default = gen_random_uuid()
+    }
+  )
+}
+
+foreignKey "eco"."organization_work"."fk_eco_organization_work_eco_organization_work_parent_id" {
+  columns = [
+    "parent_id"
+  ]
+  referencedTable = "eco"."organization_work"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "eco"."organization_work"."fk_eco_organization_work_eco_work_group_work_group_id" {
+  columns = [
+    "work_group_id"
+  ]
+  referencedTable = "eco"."work_group"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "eco"."organization_work"."fk_eco_organization_work_utility_unit_dimension_unit_id" {
+  columns = [
+    "dimension_unit_id"
+  ]
+  referencedTable = "utility"."unit"
+  referencedColumns = [
+    "id"
+  ]
+}
+

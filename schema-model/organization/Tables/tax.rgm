@@ -1,0 +1,100 @@
+table "organization"."tax" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_tax"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('organization.tax_id_seq'::regclass)
+    }
+    column "date" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "organization_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_start_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_end_id" {
+      type = integer
+    }
+    column "tax_type" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "vat_type" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "organization"."tax"."fk_tax_list" {
+  columns = [
+    "organization_id"
+  ]
+  referencedTable = "organization"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "organization"."tax"."fk_tax_list1" {
+  columns = [
+    "period_start_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "organization"."tax"."fk_tax_list2" {
+  columns = [
+    "period_end_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "organization"."tax"."fk_tax_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "organization"."tax_ix_tax" {
+  table = "organization"."tax"
+  type = btree
+  columns = <
+    {
+      definition = organization_id
+    }
+
+    {
+      definition = period_start_id
+    }
+
+  >
+  isUnique = True
+}
+

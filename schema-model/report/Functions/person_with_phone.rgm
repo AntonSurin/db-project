@@ -1,0 +1,79 @@
+function "report"."person_with_phone(jsonb)" {
+  text = """
+
+declare 
+	_date_begin date;
+begin
+
+	create table _contragent_phone (account_id int, phone varchar(15));
+
+	_date_begin = (select pl.date_begin from "period".list pl where is_working = true);
+
+	insert into _contragent_phone (account_id, phone)
+	select ca.account_id, r.value
+	from contragent.contact as cc
+		inner join contragent.account ca on ca.contragent_id = cc.contragent_id
+		inner join adress.account aa on aa.id = ca.account_id
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = aa.house_id
+		left join lateral (select p.value from jsonb_populate_recordset(null::contragent.phone,cc.phone) as p) as r on true
+	where coalesce(r.value, '') != ''and exists
+												(
+													select * 
+													from contragent.owner_documents co 
+													where co.contragent_account_id = ca.id and coalesce(co.date_end, _date_begin) >= _date_begin
+												)
+	/*	делаем union чтобы удалить дубляжи	*/
+	union
+
+	select ca.account_id, r.value
+	from account.contact as ca
+		inner join adress.account aa on aa.id = ca.account_id
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = aa.house_id
+		left join lateral (select p.value from jsonb_populate_recordset(null::contragent.phone,ca.phone) as p) as r on true
+	where coalesce(r.value, '') != '';
+	
+	return query
+	select 
+		al.account_id
+		,(
+			select string_agg(cl.full_name , ', ')
+			from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+			where ca.account_id = al.account_id  and od.date_end is null
+		) as person_name
+		,(
+			select string_agg(c.phone , ', ')
+			from _contragent_phone c
+			where c.account_id = al.account_id
+		) as phone
+	from adress.light_info al
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = al.house_id
+	where al.account_parent_id is null;
+
+drop table if exists _contragent_phone;
+
+end;
+"""
+  returnType = TABLE(account_id integer, person_name text, phone text)
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 14.07.2016
+ description:	список собственников с номерами телефонов (телефоны берутся из параметров на л/с)
+ 13.09.2018: переделал на выборку телефонов из json
+ 30.10.2018: добавил выборку телефонов из таблицы account.contact
+ =============================================
+"""
+}
+

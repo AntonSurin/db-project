@@ -1,0 +1,72 @@
+procedure "input"."cp_transporate()" {
+  text = """
+
+declare 
+		_sql 		text = '';
+		_aggregate 	text = '';
+		_update 	text = '';
+		_period_id 	int;
+begin
+
+	_period_id = (select id from "period".list where is_working = true);
+
+	
+	_sql = (select  string_agg(
+				'
+				with cte
+					as
+					(' || formula || ' ' || case when sublist_id is not null then 'and ia.sublist_id = ' || cast (sublist_id as varchar (5)) else '' end || '
+					)
+				update calculation.parametr_transporate as cpp
+					set '|| parametr_name || '= c.'||parametr_name || '
+				from cte c 
+				where c.account_id = cpp.account_id;','
+				')
+			from "input".parametr);
+
+	execute(_sql);
+		
+	-- заполнение расхода
+	select string_agg('
+		,sum(case when cf.sublist_id = ' || cast(sublist_id as varchar(10)) || ' then cf.flow end) as "' || parametr_name || '"','') as a,
+		string_agg('
+		cp."' || parametr_name || '" = f."' || parametr_name || '"',',') as b
+		into _aggregate,_update
+	from "input".counter
+	group by sublist_id, parametr_name;
+
+	if (length(_update) > 0)
+		then 
+			begin
+				_sql = '
+					update calculation.parametr_transporate cp
+						set ' || _update || '
+					from (
+							select 
+							ia.account_id ' || _aggregate || '
+							from input.counter ic
+								inner join input.account ia on ic.input_id = ia.input_id
+								inner join counter.flow cf on cf.counter_id = ic.counter_id
+							where cf.period_id = ' || cast(_period_id as varchar(5)) || '
+							group by ia.account_id
+						) f 
+					where f.account_id = cp.account_id;';
+				execute(_sql);
+			end;
+	end if;
+
+end
+"""
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 16.03.2016
+ description:	заполнение input.parametr_transporate
+ =============================================
+"""
+}
+

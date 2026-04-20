@@ -1,0 +1,31 @@
+table "fine"."account" {
+  primaryKey = {
+    columns = [
+      "account_id"
+    ]
+    name = "pk__account__349da586453d05ce"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "fine_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "fine"."account"."fk_account_account1" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

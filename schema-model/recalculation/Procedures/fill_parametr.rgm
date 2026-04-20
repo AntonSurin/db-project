@@ -1,0 +1,84 @@
+procedure "recalculation"."fill_parametr(jsonb, date, date)" {
+  text = """
+
+begin
+	
+	create temp table _house (house_id int);
+
+	insert into _house (house_id)
+	select distinct al.house_id
+	from adress.light_info al
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = al.account_id;
+
+	create temp table _parametr (parametr_id int, short_name varchar(50));
+
+	insert into _parametr (parametr_id, short_name)
+	select pl.id, pl.short_name 
+	from parametr.list pl
+	where pl.is_calculation = true and not exists(select * from parametr.sublist ps where ps.parametr_id = pl.id);
+
+	delete from recalculation.account;
+	delete from recalculation.parametr_for_change;
+
+	insert into recalculation.account
+	select a.account_id
+	from jsonb_populate_recordset(null::account.list, _account) a;
+
+	insert into recalculation.parametr_for_change (house_id, flat_id, account_id, parametr_id, short_name, value, date_begin, date_end)
+	select ph.house_id, null::int, null::int, ph.parametr_id, p.short_name, ph.value, _date_begin, _date_end
+	from parametr.house ph
+		inner join _parametr p on p.parametr_id = ph.parametr_id
+		inner join _house h on h.house_id = ph.house_id
+	where date_end is null;
+
+	insert into recalculation.parametr_for_change (house_id, flat_id, account_id, parametr_id, short_name, value, date_begin, date_end)
+	select null::int, pf.flat_id, null::int, pf.parametr_id, p.short_name, pf.value, _date_begin, _date_end
+	from parametr.flat pf
+		inner join adress.account aa on aa.flat_id = pf.flat_id
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.id
+		inner join _parametr p on p.parametr_id = pf.parametr_id 
+	where date_end is null;
+
+	insert into recalculation.parametr_for_change (house_id, flat_id, account_id, parametr_id, short_name, value, date_begin, date_end)
+	select null::int, null::int, pa.account_id, pa.parametr_id, p.short_name, pa.value, _date_begin, _date_end
+	from parametr.account pa
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pa.account_id
+		inner join _parametr p on p.parametr_id = pa.parametr_id 
+	where date_end is null;
+	
+	drop table if exists _house;
+	drop table if exists _parametr;
+	
+end
+"""
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _date_begin
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _date_end
+      type = date
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 27.12.2016
+ description:	заполнение таблицы для перерасчета параметров текущими значениями
+ =============================================
+"""
+}
+

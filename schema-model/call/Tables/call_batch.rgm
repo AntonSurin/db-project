@@ -1,0 +1,54 @@
+table "call"."call_batch" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_call_batch"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('call.call_batch_id_seq'::regclass)
+    }
+    column "batch_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "message" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "organization_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_create" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_start" {
+      type = timestamp(3) without time zone
+    }
+    column "date_end" {
+      type = timestamp(3) without time zone
+    }
+    column "status" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "error_message" {
+      type = character varying(1000)
+    }
+    column "cost" {
+      type = numeric(8,2)
+    }
+  )
+}
+

@@ -1,0 +1,110 @@
+table "recalculation"."root" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_root"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('recalculation.root_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(4000)
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "rules" {
+      type = integer
+      null = NOT NULL
+    }
+    column "odn" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "period_begin" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_end" {
+      type = integer
+      null = NOT NULL
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "is_use_volume_in_calc" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+  )
+}
+
+foreignKey "recalculation"."root"."fk_root_list" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "recalculation"."root"."fk_root_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "recalculation"."root"."fk_root_type" {
+  columns = [
+    "type"
+  ]
+  referencedTable = "recalculation"."type"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "recalculation"."root_ix_root_period_id" {
+  table = "recalculation"."root"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+    {
+      definition = type
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    period_begin
+    period_end
+  ]
+}
+

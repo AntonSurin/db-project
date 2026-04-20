@@ -1,0 +1,18 @@
+composite "parametr"."change" {
+  owner = postgres
+  fields = (
+    field "object_id" {
+      type = integer
+    }
+    field "parametr_id" {
+      type = integer
+    }
+    field "value" {
+      type = text
+    }
+    field "date_begin" {
+      type = date
+    }
+  )
+}
+

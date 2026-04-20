@@ -1,0 +1,11 @@
+sequence "payment"."batch_number_2025_seq" {
+  type = bigint
+  increment = 1
+  minValue = 197
+  maxValue = 9223372036854775807
+  start = 198
+  cache = 100
+  cycle = NO CYCLE
+  owner = postgres
+}
+

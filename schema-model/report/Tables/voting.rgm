@@ -1,0 +1,41 @@
+table "report"."voting" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_voting"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.voting_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "date_first" {
+      type = timestamp(6) without time zone
+    }
+    column "date_end" {
+      type = timestamp(6) without time zone
+    }
+    column "forma" {
+      type = character varying(15)
+      null = NOT NULL
+    }
+    column "show_doc" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "show_phone_and_mail" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+  )
+}
+

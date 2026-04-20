@@ -1,0 +1,57 @@
+function "account"."get_person_string(integer)" {
+  text = """
+
+begin
+
+	_result =	(	
+					select string_agg(cl.full_name, ', ')
+					from contragent.list cl
+					where id in ( 
+									select ca.contragent_id
+									from contragent.account ca 
+										inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+									where ca.account_id = _account_id
+										and (coalesce(od.date_end, current_date) >= current_date)
+									union
+									select ca.contragent_id
+									from contragent.account ca
+										inner join contragent.parametr cp on cp.contragent_account_id = ca.id and ca.account_id = _account_id
+									inner join parametr.book pb on pb.id = cp.book_id 
+										and pb.parametr_id = cp.parametr_id 
+										and cp.parametr_id = (select pl.id from parametr.list pl where pl.type_id = 2 and pl.catalog_id = 6 and lower(pl.short_name) = 't_reg') 
+										and pb."number" = '1'
+									where coalesce(ca.reg_date_end, current_date) >= current_date
+								)
+					);
+
+end;	
+"""
+  returnType = text
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _result
+      type = text
+      mode = OUT
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 03.06.2015
+ Modifyed:	Юркин Е.Ю.
+				08.06.2017
+				Добавлены все зарегистрированные в справку УСЗН 
+ Description:	Список всех зарегистрированных по данному лицевому счету в периоде
+ =============================================
+"""
+}
+

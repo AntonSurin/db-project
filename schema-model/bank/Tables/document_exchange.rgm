@@ -1,0 +1,92 @@
+table "bank"."document_exchange" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_bank_document_exchange"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('bank.document_exchange_id_seq'::regclass)
+    }
+    column "info_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "document_type" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "number" {
+      type = character varying(10)
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "target" {
+      type = character varying(300)
+    }
+    column "date_received" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "status" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "payer" {
+      type = character varying(200)
+    }
+    column "payer_inn" {
+      type = character varying(100)
+    }
+    column "payer_rs" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "payer_kpp" {
+      type = character varying(100)
+    }
+    column "recipient" {
+      type = character varying(200)
+    }
+    column "recipient_inn" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "recipient_rs" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "recipient_kpp" {
+      type = character varying(100)
+    }
+    column "payer_bik" {
+      type = character varying(9)
+    }
+    column "recipient_bik" {
+      type = character varying(9)
+    }
+  )
+}
+
+foreignKey "bank"."document_exchange"."fk_bank_document_exchange_bank_document_exchange_info" {
+  columns = [
+    "info_id"
+  ]
+  referencedTable = "bank"."document_exchange_info"
+  referencedColumns = [
+    "id"
+  ]
+}
+

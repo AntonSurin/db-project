@@ -1,0 +1,86 @@
+table "gis"."volume" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_volume_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.volume_id_seq'::regclass)
+    }
+    column "volume_quality_common_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "service_code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "service_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "is_municipal_resource" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "resource_code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "resource_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "okei_unit" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "volume" {
+      type = numeric(18,6)
+      null = NOT NULL
+    }
+    column "volume_t2" {
+      type = numeric(18,6)
+    }
+    column "volume_t3" {
+      type = numeric(18,6)
+    }
+    column "metering_device_code" {
+      type = character varying(50)
+    }
+    column "metering_device_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "gis"."volume"."fk_volume_characteristic" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+}
+
+foreignKey "gis"."volume"."fk_volume_volume_quality_common" {
+  columns = [
+    "volume_quality_common_id"
+  ]
+  referencedTable = "gis"."volume_quality_common"
+  referencedColumns = [
+    "id"
+  ]
+}
+

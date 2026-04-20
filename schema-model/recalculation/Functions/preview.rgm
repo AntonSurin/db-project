@@ -1,0 +1,146 @@
+function "recalculation"."preview(boolean, integer)" {
+  text = """
+
+declare 
+	_period_id	int;
+	_date_begin	date;
+	_date_end	date;
+	_type		int;
+	_diff 		numeric(5,2);
+begin
+
+	create temp table _sublist (sublist_id int);
+
+	select pl.id, pl.date_begin, pl.date_end
+	into _period_id, _date_begin, _date_end
+	from "period".list pl
+	where pl.is_working = true;
+	
+	_type = (select rr."type" from recalculation.root rr where rr.id = _root_id);
+
+	_diff =(case when _type in (0,5) then 0.0 else 0.04 end);
+
+	if (_odn = false)
+		then
+			insert into _sublist
+			select us.id 
+			from utility.sublist us
+			where us.is_odn = false;
+		else
+			insert into _sublist
+			select us.id 
+			from utility.sublist us;
+	end if;
+	
+	return query
+	with cte as
+	(
+		
+		select 
+			 t.root_id
+			,t.period_id
+			,t.house_id
+			,t.flat_id
+			,t.account_id
+			,t.sublist_id
+			,t.date_begin
+			,t.date_end
+			,t."day"
+			,case when _type = 5 then 0.0 else  t.tarif_value end recalc_tarif
+			,case when _type = 5 then 0.0 else  coalesce(p.tarif, 0) end calc_tarif
+			,case when _type = 5 then 0.0 else  coalesce(t.tarif_value, 0) - coalesce(p.tarif, 0) end diff_tarif
+			,case when _type = 5 then 0.0 else  coalesce(t.volume_value, 0) end recalc_volume
+			,case when _type = 5 then 0.0 else  coalesce(p.volume, 0) end calc_volume 
+			,case when _type = 5 then 0.0 else  coalesce(t.volume_value, 0) - coalesce(p.volume, 0) end diff_volume
+			,(coalesce(t."result", 0)) recalc_result
+			,case when _type = 5 then 0.0 else  (coalesce(p.current_calculate, 0)) end calc_result
+			,case 
+				when _type = 5 
+				then 0.0 
+				else  sum(coalesce(p.volume, 0)) 
+					over (partition by t.root_id, t.period_id, t.house_id, t.flat_id, t.account_id, t.sublist_id) - sum(coalesce(t.volume_value, 0)) 
+					over (partition by t.root_id, t.period_id, t.house_id, t.flat_id, t.account_id, t.sublist_id) 
+			end as sum_volume
+			,sum(coalesce(p.current_calculate, 0)) 
+					over (partition by t.root_id, t.period_id, t.house_id, t.flat_id, t.account_id, t.sublist_id) - sum(coalesce(t."result", 0)) 
+					over (partition by t.root_id, t.period_id, t.house_id, t.flat_id, t.account_id, t.sublist_id) 
+			as sum_result
+			,t.account_parent_id
+		from recalculation.list_preview t
+			left join 	(
+							select pb.*, pl.date_begin, pl.date_end
+							from payment.balance pb
+								inner join "period".list pl on pl.id = pb.period_id
+						) p on t.period_id = p.period_id
+							and t.account_id = p.account_id 
+							and t.sublist_id = p.sublist_id 
+							and t.date_begin = p.date_begin
+		where t.root_id = _root_id
+	) 
+
+		select 
+			 c.root_id
+			,c.period_id
+			,c.house_id
+			,c.flat_id
+			,c.account_id
+			,ai.street_name || ' ' || ai.house_number || ' ' || coalesce(ai.korpus, '') as adress
+			,ai.flat_book_name
+			,ai.flat_name
+			,ai.account_name
+			,c.sublist_id
+			,us."name" as sublist_name
+			,c.date_begin
+			,c.date_end
+			,c."day"
+			,c.calc_tarif
+			,c.recalc_tarif
+			,c.diff_tarif
+			,c.calc_volume
+			,c.recalc_volume
+			,c.diff_volume
+			,c.calc_result
+			,c.recalc_result
+			,c.recalc_result - c.calc_result as diff_result
+			,c.account_parent_id
+		from cte c
+			inner join adress.light_info ai on ai.account_id = c.account_id
+			inner join utility.sublist us on us.id = c.sublist_id
+			inner join _sublist s on s.sublist_id = c.sublist_id
+		where (sum_result not between -_diff and _diff) 
+			or (abs(sum_volume) > 0.00001 and us."type" = 1)
+		order by ai.order_id, ai.account_order_id;
+		
+		 drop table if exists _sublist;
+		
+end;
+"""
+  returnType = TABLE(root_id integer, period_id integer, house_id integer, flat_id integer, account_id integer, adress text, flat_book_name character varying, flat_name character varying, account_name character varying, sublist_id integer, sublist_name character varying, date_begin date, date_end date, day smallint, calc_tarif numeric, recalc_tarif numeric, diff_tarif numeric, calc_volume numeric, recalc_volume numeric, diff_volume numeric, calc_result numeric, recalc_result numeric, diff_result numeric, account_parent_id integer)
+  arguments = <
+    {
+      name = _odn
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _root_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 08.07.2016
+ description:	формирование предпросмотра перерасчета
+ Modify date: 02.10.2023
+ Modify:      Юркин Е.Ю. - при сохранении отсеиваются данные, результат которых находится в промежутке от -0.04 до 0.04 
+							(кроме типов "перерасчет по тарифу", "перерасчет по сумме")
+ =============================================
+"""
+}
+

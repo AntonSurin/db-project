@@ -1,0 +1,56 @@
+table "bank"."document_exchange_info" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_bank_document_exchange_info"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('bank.document_exchange_info_id_seq'::regclass)
+    }
+    column "session_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "created_at" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "file_name" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "document_start_date" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "document_end_date" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "document_created_date" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "countings" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "bank"."document_exchange_info"."fk_bank_document_exchange_info_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,43 @@
+table "parametr"."catalog" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_directory"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('parametr.catalog_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "counter" {
+      type = boolean
+    }
+    column "pl_table" {
+      type = character varying(255)
+    }
+    column "p_table" {
+      type = character varying(255)
+    }
+    column "couter_table" {
+      type = character varying(255)
+    }
+    column "direct_table" {
+      type = character varying(255)
+    }
+    column "p_table_id" {
+      type = character varying(50)
+    }
+    column "parent_table" {
+      type = character varying(50)
+    }
+  )
+}
+

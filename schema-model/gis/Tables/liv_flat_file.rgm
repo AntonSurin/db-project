@@ -1,0 +1,61 @@
+table "gis"."liv_flat_file" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_liv_flat_file"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.liv_flat_file_id_seq'::regclass)
+    }
+    column "contract_id" {
+      type = integer
+    }
+    column "charter_id" {
+      type = integer
+    }
+    column "is_for_members" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "description" {
+      type = character varying(200)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "hash" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "gis"."liv_flat_file"."fk_liv_flat_file_liv_flat_charter" {
+  columns = [
+    "charter_id"
+  ]
+  referencedTable = "gis"."liv_flat_charter"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "gis"."liv_flat_file"."fk_liv_flat_file_liv_flat_contract" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "gis"."liv_flat_contract"
+  referencedColumns = [
+    "id"
+  ]
+}
+

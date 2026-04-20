@@ -1,0 +1,46 @@
+table "documents"."charter_protocol" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_charter_protocol"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.charter_protocol_id_seq'::regclass)
+    }
+    column "charter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "protocol_type" {
+      type = integer
+      null = NOT NULL
+    }
+    column "purchase_number" {
+      type = character varying(255)
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "description" {
+      type = character varying(500)
+    }
+  )
+}
+
+foreignKey "documents"."charter_protocol"."fk_doc_chart_protocol_doc_chart_chart_id" {
+  columns = [
+    "charter_id"
+  ]
+  referencedTable = "documents"."charter"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

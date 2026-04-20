@@ -1,0 +1,82 @@
+procedure "utility"."sublist_house_delete(jsonb)" {
+  text = """
+
+declare 
+	_date_begin date;
+begin
+
+	_date_begin = (select date_begin from "period".list where is_working = true);
+	
+	drop table if exists _table;
+	
+	create temp table _table (id int not null primary key);
+	
+	insert into _table
+	select usp.id 
+	from jsonb_populate_recordset(null::special.objects, _sublist_providers) s
+		inner join utility.sublist_provider usp on usp.id = s.object_id
+	where usp.date_begin >= _date_begin
+	union all
+	select sp.id 
+	from jsonb_populate_recordset(null::special.objects, _sublist_providers) s
+		inner join utility.sublist_provider usp on usp.id = s.object_id
+		inner join utility.sublist_provider sp on sp.sublist_id = usp.sublist_id + 10 and sp.provider_id = usp.provider_id 
+												and sp.territory_id = usp.territory_id and sp.house_id = usp.house_id 
+		where sp.date_begin >= _date_begin and usp.sublist_id in (22,24,27);
+	
+	delete 
+	from tarif.house_tarif th
+		using _table t, utility.sublist_provider usp,  tarif.list tl
+	where th.date_begin >= _date_begin
+			and usp.id = t.id
+			and usp.house_id = th.house_id
+			and tl.id = th.tarif_id		
+			and usp.sublist_id = tl.sublist_id
+			and usp.provider_id = tl.provider_id;
+	
+	delete 
+	from utility.documents ud
+		using _table t 
+	where t.id = ud.sublist_provider_id;
+	
+	delete
+	from utility.contragent_group_sublist uc
+		using _table t 
+	where t.id = uc.sublist_provider_id;
+
+	delete
+	from utility.sublist_provider us
+		using _table t 
+	where t.id = us.id;
+	
+	delete 
+	from tarif.list tl
+	where not exists (
+						select th.id 
+						from tarif.house_tarif th
+						where th.tarif_id = tl.id
+					);
+	
+	drop table if exists _table;
+
+end;
+"""
+  arguments = <
+    {
+      name = _sublist_providers
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Modify Author: Юркин Е.Ю.
+ Modify date: 16.04.2024
+ Modify description: Автоматическое удаление поставщиков превышения платы
+ =============================================
+"""
+}
+

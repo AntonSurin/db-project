@@ -1,0 +1,35 @@
+table "gis"."debt_address" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_debt_address"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.debt_address_id_seq'::regclass)
+    }
+    column "address" {
+      type = character varying(300)
+      null = NOT NULL
+    }
+    column "address_details" {
+      type = character varying(50)
+    }
+    column "fias_house_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "flat_id" {
+      type = integer
+    }
+  )
+}
+

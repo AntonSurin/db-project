@@ -1,0 +1,42 @@
+table "gis"."doi_person" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_doi_person"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.doi_person_id_seq'::regclass)
+    }
+    column "surname" {
+      type = character varying(60)
+    }
+    column "first_name" {
+      type = character varying(60)
+    }
+    column "patronymic" {
+      type = character varying(60)
+    }
+    column "snils" {
+      type = character(12)
+    }
+    column "type_doc_guid" {
+      type = uuid
+    }
+    column "series_doc" {
+      type = character varying(20)
+    }
+    column "number_doc" {
+      type = character varying(30)
+    }
+    column "issue_date_doc" {
+      type = timestamp(6) without time zone
+    }
+  )
+}
+

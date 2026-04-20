@@ -1,0 +1,81 @@
+table "gis"."kp_fund_size_info_account" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_kp_fund_size_info_account"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.kp_fund_size_info_account_id_seq'::regclass)
+    }
+    column "fund_size_info_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "account_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "start_balance" {
+      type = numeric(18,2)
+      null = NOT NULL
+    }
+    column "end_balance" {
+      type = numeric(18,2)
+      null = NOT NULL
+    }
+    column "accrued_contribution" {
+      type = numeric(13,2)
+      null = NOT NULL
+    }
+    column "accrued_penalty" {
+      type = numeric(13,2)
+      null = NOT NULL
+    }
+    column "paid_contribution" {
+      type = numeric(13,2)
+      null = NOT NULL
+    }
+    column "paid_penalty" {
+      type = numeric(13,2)
+      null = NOT NULL
+    }
+    column "start_balance_gis" {
+      type = numeric(18,2)
+    }
+    column "end_balance_gis" {
+      type = numeric(18,2)
+    }
+    column "accrued_contribution_gis" {
+      type = numeric(13,2)
+    }
+    column "accrued_penalty_gis" {
+      type = numeric(13,2)
+    }
+    column "paid_contribution_gis" {
+      type = numeric(13,2)
+    }
+    column "paid_penalty_gis" {
+      type = numeric(13,2)
+    }
+  )
+}
+
+foreignKey "gis"."kp_fund_size_info_account"."fk_kp_fund_size_info_account_kp_fund_size_info_house" {
+  columns = [
+    "fund_size_info_id"
+  ]
+  referencedTable = "gis"."kp_fund_size_info_house"
+  referencedColumns = [
+    "id"
+  ]
+}
+

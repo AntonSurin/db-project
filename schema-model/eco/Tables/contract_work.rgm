@@ -1,0 +1,25 @@
+table "eco"."contract_work" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contract_work"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.contract_work_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "value" {
+      type = text
+    }
+  )
+}
+

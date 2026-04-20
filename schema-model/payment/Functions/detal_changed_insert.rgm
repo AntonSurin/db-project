@@ -1,0 +1,46 @@
+function "payment"."detal_changed_insert()" {
+  text = """
+
+begin
+	
+	if  ((select count(1) from (select distinct period_id from inserted) q) > 1)
+		then
+			raise exception 'Вставка деталей из разных периодов запрещена';
+	end if;
+			
+	merge into payment.balance as targets
+	using (
+		select i.period_id, i.sublist_id, aa.house_id, aa.flat_id, i.account_id, i."sum", aa.parent_id
+		from (
+			select period_id, account_id, sublist_id, sum("sum") as "sum"
+			from inserted
+			group by period_id, account_id, sublist_id
+		) i
+		inner join adress.account aa on aa.id = i.account_id
+	)
+	as sources(period_id, sublist_id, house_id, flat_id, account_id, "sum", account_parent_id)
+	on (targets.account_id = sources.account_id
+		and targets.sublist_id = sources.sublist_id 
+		and targets.period_id = sources.period_id)
+	when matched then
+		update set
+			pay = coalesce(targets.pay, 0) + coalesce(sources."sum", 0)
+	when not matched then
+		insert(period_id, sublist_id, house_id, flat_id, account_id, pay, account_parent_id)
+		values(sources.period_id, sources.sublist_id, sources.house_id, sources.flat_id, sources.account_id, sources."sum", sources.account_parent_id);
+
+	return new;
+			
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  Trigger [Payment].[Detal_Changed]    
+ Script Date: 01.11.2022 11:10:30
+"""
+}
+

@@ -1,0 +1,60 @@
+table "sms"."batch" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_batch"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('sms.batch_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "message" {
+      type = character varying(360)
+      null = NOT NULL
+    }
+    column "date_created" {
+      type = date
+      null = NOT NULL
+    }
+    column "preliminary_cost" {
+      type = numeric(9,2)
+    }
+    column "date_send" {
+      type = date
+    }
+    column "sms_count" {
+      type = integer
+    }
+    column "cost" {
+      type = numeric(9,2)
+    }
+    column "success" {
+      type = integer
+    }
+    column "error" {
+      type = integer
+      default = 0
+    }
+    column "status" {
+      type = smallint
+    }
+    column "is_translit" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+

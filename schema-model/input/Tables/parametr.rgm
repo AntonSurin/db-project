@@ -1,0 +1,42 @@
+table "input"."parametr" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_input_parametr"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('input.parametr_id_seq'::regclass)
+    }
+    column "parametr_name" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "formula" {
+      type = character varying(4000)
+    }
+    column "sublist_id" {
+      type = integer
+    }
+  )
+}
+
+trigger "input"."parametr"."transporate" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = input.transporate
+  functionArguments = [
+  ]
+  table = "input"."parametr"
+  constraint = False
+  newTableReference = inserted
+}
+

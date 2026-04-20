@@ -1,0 +1,51 @@
+table "documents"."contract_detail" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_contract_detail"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.contract_detail_id_seq'::regclass)
+    }
+    column "contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "detail_object" {
+      type = integer
+      null = NOT NULL
+    }
+    column "from_day" {
+      type = integer
+    }
+    column "from_is_next_month" {
+      type = boolean
+    }
+    column "to_day" {
+      type = integer
+      null = NOT NULL
+    }
+    column "to_is_next_month" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "documents"."contract_detail"."fk_doc_contr_detail_doc_contr_contr_id" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "documents"."contract"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,277 @@
+procedure "calculation"."tool(boolean, integer, jsonb)" {
+  text = """
+
+declare  
+		_period_id 			int; 
+		_date_end 			date; 
+		_date_begin 		date;	
+		_is_input 			bool;
+		_parametr_id 		int;
+		_parametr_reg_id 	int;
+		_houses 			jsonb;
+		_root_id 			int;
+		_sublist 			jsonb;
+begin
+		
+	if exists (select 1
+			   from pg_proc pg
+					inner join pg_namespace ns on ns."oid" = pg.pronamespace 
+				where lower(proname) = 'custom_tool' and lower(ns.nspname) = 'calculation') 
+		then 
+			begin
+				call calculation.custom_tool (_odn, _session_id, _account);
+				return;
+			end;
+	end if;
+	
+	if not exists(select * from jsonb_populate_recordset(null::account.list, _account) a limit 1) 
+		then
+			begin
+				raise exception 'Остутствуют лицевые счета для расчета. Если вы применяли фильтр по типу помещений, убедитесь, что в выбранных домах имеются помещения с выбранным типом.';
+				return;
+			end;
+	end if; 
+
+	select id, date_begin, date_end 
+	into _period_id, _date_begin, _date_end 
+	from "period".list 
+	where is_working = true;
+
+	create temp table _calc_sublist (sublist_id int);
+
+	if (_odn = false)
+		then 
+			begin
+				insert into _calc_sublist (sublist_id)
+				select id 
+				from utility.sublist
+				where is_odn = false and type != 4 and id not in (6, 7);
+			end;	
+		else 
+			begin
+				insert into _calc_sublist (sublist_id)
+				select id 
+				from utility.sublist
+				where id not in (6, 7);
+			end;
+	end if;
+
+	delete 
+	from calculation.account_sublist as ca
+	using _calc_sublist as s 
+		,jsonb_populate_recordset(null::account.list, _account) as  a 
+	where s.sublist_id = ca.sublist_id and a.account_id = ca.account_parent_id;
+	
+	alter table calculation.account_sublist disable trigger insert_account_sublist_edit;
+	alter table calculation.account_sublist disable trigger update_account_sublist_edit;
+
+	if exists(select * from utility.contragent_group)
+		then
+			insert into calculation.account_sublist (account_id, account_parent_id, house_id, sublist_id, value, "date")
+			select aa.id, aa.parent_id, aa.house_id, uc.sublist_id, true, _date_begin
+			from utility.contragent_group_sublist uc
+				inner join adress.account aa on aa.group_id = uc.group_id and aa.house_id = uc.house_id
+				inner join jsonb_populate_recordset(null::account.list, _account) as a on a.account_id = aa.parent_id
+				inner join _calc_sublist s on s.sublist_id = uc.sublist_id
+			where _date_begin between uc.date_begin and coalesce(uc.date_end, _date_end) 
+									or uc.date_begin between _date_begin and coalesce(uc.date_end, _date_end)
+			group by  aa.id, aa.parent_id, aa.house_id, uc.sublist_id;
+		else 
+			insert into calculation.account_sublist (account_id, account_parent_id, house_id, sublist_id, value, "date")
+			select aa.id, aa.parent_id, aa.house_id, us.sublist_id, true, _date_begin
+			from utility.sublist_provider us
+				inner join adress.account aa on aa.house_id = us.house_id
+				inner join jsonb_populate_recordset(null::account.list, _account) as a on a.account_id = aa.parent_id
+				inner join _calc_sublist s on s.sublist_id = us.sublist_id
+			where _date_begin between us.date_begin  and coalesce(us.date_end, _date_end)	
+									or us.date_begin between _date_begin and coalesce(us.date_end, _date_end)
+			group by aa.id, aa.parent_id, aa.house_id, us.sublist_id;
+	end if;
+
+	alter table calculation.account_sublist enable trigger insert_account_sublist_edit;
+	alter table calculation.account_sublist enable trigger update_account_sublist_edit;
+
+	_parametr_id = (select id from parametr.list  where lower(short_name) = 'code_region');
+	_parametr_reg_id = (select id from parametr.list where lower(short_name) = 't_reg');
+
+	_is_input = (select (case 
+							when array_to_string(xpath('Root/UI/IsUseInput/text()', p.xml_data)::text[] , '') = '' 
+							then false 
+							else array_to_string(xpath('Root/UI/IsUseInput/text()', p.xml_data)::text[], '')::bool 
+						end)
+				 from special.parametr p);				
+
+------ рачет кол-ва зарегистрированных
+
+	with cte as 
+	(
+		select ca.account_id, count(*) as cnt 
+		from contragent.account ca
+			inner join jsonb_populate_recordset(null::account.list, _account) as a on a.account_id = ca.account_id
+			inner join contragent.parametr cp on cp.contragent_account_id = ca.id
+			inner join parametr.book pb on pb.id = cp.book_id
+		where coalesce(reg_date_end, _date_begin) >= _date_begin and pb."number"::int > 0 and cp.parametr_id = _parametr_reg_id
+		group by ca.account_id
+	)
+		
+	update calculation.parametr_transporate as cpp
+		set col_reg = coalesce(c.cnt, 0)
+	from jsonb_populate_recordset(null::account.list, _account) as a 
+		left join cte c on c.account_id = a.account_id
+	where a.account_id = cpp.account_id and coalesce(cpp.col_reg, 0) <> coalesce(cnt, 0);
+
+	_houses = (select jsonb_agg(jsonb_build_object('house_id', house_id))
+			   from (select distinct aa.house_id
+					 from adress.account aa
+					 	join jsonb_populate_recordset(null::account.list, _account) as a on a.account_id = aa.id
+					 ) as f
+			  );
+
+--расчет параметров ввода
+	if (_is_input = true) 
+		then
+			call "input".cp_transporate ();
+	end if;
+	--расчет параметров
+	call calculation.cp_transporate (_houses);
+	call calculation.contragent (_account);
+	call calculation.create_calc (_odn, (case when _is_input = true then true else false end), _account);
+	call calculation.changed_parametr (_period_id, _account, _session_id);
+
+	if exists (select * from recalculation.parametr_for_change)
+		then 
+			begin
+				if exists (select * from recalculation.root where lower("name") = 'перерасчет по изменениию параметров в рабочем периоде' and period_id = _period_id)
+					then
+						begin
+							_root_id = (select id from recalculation.root where "type" = 4 and period_id = _period_id);
+							call recalculation."delete" (_root_id, _account);
+						end;
+					else
+						begin	
+							insert into recalculation.root (name, date, period_id, type, rules, odn, period_begin, period_end, session_id)
+							select name, current_date, _period_id, 4, 1, 0, _period_id, _period_id, null
+							from recalculation.type
+							where id = 4;
+							_root_id  = (select max(id) from recalculation.root);
+						end;
+				end if;
+			
+				 _sublist = (select jsonb_agg(jsonb_build_object('sublist_id', id)) 
+						   	 from utility.sublist);
+	
+				call recalculation.tool (_period_id, _period_id, 4::int2, 1::int2, _sublist, null::int, _session_id);
+				call recalculation.save (_period_id, _period_id, false, _root_id, _account, _sublist, _session_id);
+			end; 
+		else 
+			begin
+				_root_id = (select id from recalculation.root where type = 4 and period_id = _period_id);
+				call recalculation."delete" (_root_id, _account);
+			end; 
+	end if;
+
+------ Обновление кода региона
+
+	create temp table _region (house_id int, code_region int);
+
+	insert into _region
+	select ah.id as house_id, cast(coalesce(nullif(re.code,''),'0') as int) as code_region
+	from adress.house ah
+		inner join jsonb_populate_recordset(null::house.list, _houses) h on h.house_id = ah.id
+		inner join adress.territory te on te.id = ah.territory_id
+		inner join adress.region re on re.id = te.region_id;
+
+	update calculation.parametr_transporate cp
+		set code_region = r.code_region
+	from _region r
+	where r.house_id = cp.house_id and coalesce(cp.code_region,0) <> coalesce(r.code_region,0);
+
+	update parametr.house ph
+		set value = r.code_region
+	from _region r 
+	where r.house_id = ph.house_id
+			and ph.parametr_id = _parametr_id 
+			and ph.date_end is null
+			and coalesce(ph.value,'0')::int <> coalesce(r.code_region,'0')::int;
+
+	------------ временно для перерасчетов
+	delete from calculation.account where session_id = _session_id;
+	insert into calculation.account
+	select a.account_id, _session_id
+	from jsonb_populate_recordset(null::account.list, _account) a;
+	------------------------------
+	
+	if exists(select *
+				from counter.flow cf
+					inner join counter.account ca on ca.counter_id = cf.counter_id
+					inner join jsonb_populate_recordset(null::account.list, _account) c on c.account_id = ca.account_id
+				where cf.c_value <> 0.0 and cf.period_id = _period_id)
+		then
+			begin
+				_sublist='[]';
+	
+				_sublist = (select jsonb_agg(jsonb_build_object('sublist_id', us.id)) 
+							from utility.sublist us
+								inner join utility."type" ut on ut.id = us."type"
+							where us.is_odn = false and (ut.id = 1 or ut.parent_id = 1));
+
+				call recalculation.tool (_period_id, _period_id, 2::int2, 0::int2, _sublist, _session_id);
+			end;
+	end if;	
+	----- очищаем перерасчт по корректировочным показниям которые удалили
+	
+	if exists (select * from recalculation.root where "type" = 2 and period_id = _period_id)
+		then	
+			begin 
+				delete 
+				from recalculation."result" re 
+				where exists (select 1	
+							 	from recalculation.root r 
+									inner join recalculation."result" rr on rr.root_id = r.id
+								left join (select distinct ca.account_id
+											from counter.flow cf
+												inner join counter.account ca on ca.counter_id = cf.counter_id
+											where period_id = _period_id and cf.c_value is not null and cf.c_value <> 0.0) c on c.account_id = rr.account_parent_id
+					 			where r."type" = 2 and r.period_id = _period_id and c.account_id is null
+									and re = rr);
+			end;
+	end if;
+
+	delete from calculation.account where session_id = _session_id;
+
+drop table if exists _calc_sublist;
+drop table if exists _region;
+		
+end 
+"""
+  arguments = <
+    {
+      name = _odn
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _session_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 24.07.2014
+ description:	настройка калькуляции
+ =============================================
+"""
+}
+

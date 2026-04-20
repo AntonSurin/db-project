@@ -1,0 +1,26 @@
+table "report"."table_parametr" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_table_parametr"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.table_parametr_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "object_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+

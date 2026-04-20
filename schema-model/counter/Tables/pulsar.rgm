@@ -1,0 +1,35 @@
+table "counter"."pulsar" {
+  owner = postgres
+  columns = (
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "pulsar_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "counter"."pulsar"."fk__pulsar__counter_i__3a785cdd" {
+  columns = [
+    "counter_id"
+  ]
+  referencedTable = "counter"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "counter"."pulsar_uq__pulsar__f12879c570a96a76" {
+  table = "counter"."pulsar"
+  type = btree
+  columns = <
+    {
+      definition = counter_id
+    }
+
+  >
+  isUnique = True
+}
+

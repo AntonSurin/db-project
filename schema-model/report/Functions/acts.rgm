@@ -1,0 +1,147 @@
+function "report"."acts(jsonb, integer, integer, boolean, integer, boolean)" {
+  text = """
+
+declare 
+	_period_id int;
+begin
+
+	drop table if exists _account;
+	drop table if exists _result;
+
+	create temp table _account(account_id int primary key not null);
+	create temp table _result(account_id int, operation varchar(30), calc numeric(18,2), fine_calc numeric(18,2), pay numeric(18,2), fine_pay numeric(18,2), "date" date);
+
+	_period_id = (select id from "period".list where is_working = true);
+
+	if (_group_id is null)
+		then
+			insert into _account(account_id)
+			select aa.id 
+			from adress.account aa
+				inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id;
+		else 
+			insert into _account(account_id)
+			select aa.id 
+			from adress.account aa
+				inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id
+			where aa.group_id = _group_id;
+	end if;
+
+	insert into _result (account_id, operation, calc, fine_calc, pay, fine_pay, "date")
+	select 
+		 pb.account_parent_id as account_id
+		,'Начислено (' || to_char(pl.date_end,'dd.mm.yyyy') ||')'
+		,sum(pb.current_calculate + pb.recalculate)
+		,nullif(sum(case when pb.sublist_id = 7 then pb.current_calculate + pb.recalculate end), 0.0)
+		,null as pay
+		,null as pay_fine
+		,pl.date_end
+	from payment.balance pb
+		inner join _account a on a.account_id = pb.account_id
+		inner join "period".list pl on pl.id = pb.period_id
+	where pb.period_id between _period_start and case 
+													when _working_calc = false and _period_end = _period_id 
+													then _period_id - 1 
+													else _period_end 
+												end
+	group by pb.account_parent_id, pl.date_end
+
+	union all
+
+	select 
+		 pd.account_parent_id
+		,'Оплачено (' || to_char(pl."date",'dd.mm.yyyy') || ')'
+		,null
+		,null
+		,sum(pd."sum")
+		,nullif(sum(case when sublist_id = 7 then pd."sum" end), 0.0)
+		,pl."date"
+	from payment.list pl 
+		inner join payment.detal pd on pd.payment_id = pl.id
+		inner join _account a on a.account_id = pd.account_id
+	where pl.period_id between _period_start and _period_end and (pl.type_id != 1 or _use_corrective = true)
+	group by pd.account_parent_id, pl."date", pl.id
+
+	union all
+
+	select 
+		pb.account_parent_id
+		,'Сальдо на ' || to_char(pl.date_begin,'dd.mm.yyyy') 
+		,nullif(sum(case when pb.in_balance > 0 	then pb.in_balance end), 0.0)
+		,nullif(sum(case when f.in_balance_fine > 0 then f.in_balance_fine end), 0.0)
+		,nullif(sum(case when pb.in_balance < 0 	then -pb.in_balance end), 0.0)
+		,nullif(sum(case when f.in_balance_fine < 0 then -f.in_balance_fine end), 0.0)
+		,pl.date_begin
+	from payment.balance_group pb
+		inner join _account a on a.account_id = pb.account_id
+		inner join "period".list pl on pl.id = pb.period_id
+		left join (
+						select p.account_id, p.period_id, p.in_balance as in_balance_fine
+						from payment.balance p
+							inner join _account a on a.account_id = p.account_id
+						where p.sublist_id = 7 and p.period_id between _period_start and _period_end
+					) f on f.account_id = pb.account_id and f.period_id = pb.period_id
+	where pb.period_id = _period_start
+	group by pb.account_parent_id, pl.date_begin;
+
+	return query
+	select *
+	from _result;
+
+	drop table if exists _account;
+	drop table if exists _result;
+
+end;
+"""
+  returnType = TABLE(account_id integer, operation character varying, calc numeric, fine_calc numeric, pay numeric, fine_pay numeric, date date)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _period_start
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _working_calc
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _use_corrective
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 25.01.2018
+ description:	отображение данных в актах сверки
+ =============================================
+"""
+}
+

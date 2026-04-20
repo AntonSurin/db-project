@@ -1,0 +1,84 @@
+procedure "parametr"."save_value_flat(jsonb)" {
+  text = """
+
+declare 
+	_flat jsonb;
+begin
+	
+	with cte as 
+	(
+		update parametr.flat pf
+			set value = p.value,
+				date_begin = p.date_begin
+		from jsonb_populate_recordset(null::parametr."change", _parametr) p
+		where pf.parametr_id = p.parametr_id 
+			and pf.flat_id = p.object_id 
+			and cast(coalesce(pf.date_begin, p.date_begin) as date) = cast(p.date_begin as date)
+		returning pf.*
+	)
+	
+	insert into parametr.flat (parametr_id, flat_id, value, date_begin)
+	select p.parametr_id, p.object_id, p.value, p.date_begin
+	from jsonb_populate_recordset(null::parametr."change", _parametr) p
+	where not exists (
+						select * 
+						from cte as pf 
+						where pf.parametr_id = p.parametr_id 
+							and pf.flat_id = p.object_id 
+							and pf.date_begin = p.date_begin 
+					);
+
+	with cte as 
+	(
+		select 
+			pf.id,
+			pf.flat_id, 
+			pf.parametr_id, 
+			pf.value, 
+			pf.date_begin, 
+			pf.date_end,
+			 (lead(pf.date_begin, 1, null) over (partition by pf.parametr_id, pf.flat_id order by pf.flat_id, pf.parametr_id, pf.date_begin)) - 1 as new_date_end
+		from jsonb_populate_recordset(null::parametr."change", _parametr) p
+			inner join parametr.flat pf on pf.flat_id = p.object_id 
+											and pf.parametr_id = p.parametr_id
+	)
+
+	update parametr.flat pf
+		set date_end = new_date_end
+	from cte ct
+	where pf.id = ct.id;	
+
+	if not exists(select * from jsonb_populate_recordset(null::parametr."change", _parametr) p where p.parametr_id in (272, 270, 5, 277, 278, 285))
+		then 
+			return;
+	end if;
+
+	_flat = (
+				select jsonb_agg(jsonb_build_object('object_id', d.object_id ))
+				from (
+						select p.object_id 
+						from _parametr
+						group by p.object_id
+					 ) d
+			);
+
+	call gis.actualize_flat (_flat);
+	
+end
+"""
+  arguments = <
+    {
+      name = _parametr
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  StoredProcedure [Parametr].[SaveValueFlat]    
+ Script Date: 08.11.2023 14:53:52
+"""
+}
+

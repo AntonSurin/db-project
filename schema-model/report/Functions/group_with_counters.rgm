@@ -1,0 +1,141 @@
+function "report"."group_with_counters(integer, jsonb)" {
+  text = """
+
+declare 
+	_date_begin date;
+	_date_end 	date;
+begin
+	
+	select date_begin, date_end 
+	into _date_begin, _date_end
+	from "period".list pl
+	where pl.id = _period_id;
+
+	drop table if exists _account_table;
+
+	create temp table _account_table 
+	(
+		account_id 				int, 
+		sublist_id 				int, 
+		rn 						int, 
+		account_sublist_name 	varchar(150), 
+		account_number 			int2, 
+		account_prev_value 		numeric(13,5), 
+		account_value 			numeric(13,5),
+		unit_name 				varchar(50),	
+		is_transmit 			bool, 
+		must_get 				bool
+	);
+
+	insert into _account_table
+	select 
+		 a.account_id
+		,cl.sublist_id
+		,row_number() over (partition by a.account_id order by a.account_id, cl.sublist_id, cl."number")::int as rn
+		,us."name" as account_sublist_name
+		,cl."number" as account_number
+		,cf.prev_value as account_prev_value
+		,cf.value as account_value
+		,uu."name" as unit_name
+		,case 
+			when coalesce(cl.date_end, (_date_end + 1)) <= _date_end 
+			then false 
+			else true 
+		end as is_transmit
+		,case 
+			when coalesce (g.house_get, false) = true or coalesce(g.account_get, false) = true 
+			then false  --- снимает показания организация и собсвенник не будет передавать через сайт 
+			else true  --- снимает показания собственник и собственник может передать через сайт
+		end  as must_get  
+	from jsonb_populate_recordset(null::account.list, _account) a
+		inner join counter.account ca on ca.account_id = a.account_id
+		inner join counter.list cl on cl.id = ca.counter_id
+		inner join counter.flow cf on cf.counter_id = cl.id
+		inner join utility.sublist us on us.id = cl.sublist_id
+		inner join utility.unit uu on uu.id = cl.unit_id
+		left join  	(
+						select 
+							 sga.account_id
+							,sga.get_value_type as account_get
+							,sgh.get_value_type as house_get
+							,sgi.sublist_id
+						from utility.sublist_group_a_detail sga
+							inner join utility.sublist_group_h_detail sgh on sgh.group_id = sga.group_id and sga.house_id = sgh.house_id
+							inner join utility.sublist_group_info sgi on sgi.group_id = sgh.group_id
+					) g on g.account_id = ca.account_id and g.sublist_id = cl.sublist_id
+	where coalesce(cl.date_end, (_date_end + 1)) > _date_end and cf.period_id = _period_id and cf.flow_type_id != 5;
+
+	return query
+	with cte as 
+	(
+		select
+			pb.account_parent_id as account_id
+			,uc."name" as group_name
+			,row_number() over (partition by pb.account_parent_id order by pb.account_parent_id, uc."name") as rn
+			,sum(case when pb.sublist_id = 7 then coalesce(pb.current_calculate, 0.0) + coalesce(pb.recalculate, 0.0) else 0.0 end) as fine_value
+			,sum(case when pb.sublist_id != 7 then coalesce(pb.current_calculate, 0.0) + coalesce(pb.recalculate, 0.0) else 0.0  end) as "result"
+			,sum(in_balance) - sum(pay) as debt
+		from adress.account aa
+			inner join utility.contragent_group uc on uc.id = aa.group_id		
+			inner join payment.balance pb on pb.account_id = aa.id
+			inner join "period".list pl on pl.id = pb.period_id
+			inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id 
+			inner join 
+					( 
+		 				select ug.group_id, ug.house_id 
+		 				from utility.contragent_group_sublist ug
+		 				where _date_begin between ug.date_begin and coalesce(ug.date_end, _date_end)
+		 				group by ug.group_id, ug.house_id
+		 			) u on u.house_id = aa.house_id and u.group_id = aa.group_id
+		where pb.period_id = _period_id
+		group by aa.group_id, uc."name", pb.account_parent_id
+		having sum(pb.in_balance) - sum(pb.pay) <> 0.0 or sum(pb.current_calculate) <> 0.0  or sum(pb.recalculate) <> 0.0
+	)
+
+	select 
+		coalesce(c.account_id, a.account_id) as account_id
+		,c.group_name
+		,c.fine_value
+		,c."result"
+		,c.debt
+		,a.account_sublist_name
+		,a.account_number
+		,coalesce(a.account_value, a.account_prev_value) as account_value
+	from cte c
+		full join	(
+						select *
+						from _account_table
+						where must_get = true and is_transmit = true
+					) a on a.account_id = c.account_id
+			and a.rn = c.rn;
+
+	drop table if exists _account_table;
+
+end;
+"""
+  returnType = TABLE(account_id integer, group_name character varying, fine_value numeric, result numeric, debt numeric, account_sublist_name character varying, account_number smallint, account_value numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ =============================================
+"""
+}
+

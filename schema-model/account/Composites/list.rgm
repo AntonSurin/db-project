@@ -1,0 +1,9 @@
+composite "account"."list" {
+  owner = postgres
+  fields = (
+    field "account_id" {
+      type = integer
+    }
+  )
+}
+

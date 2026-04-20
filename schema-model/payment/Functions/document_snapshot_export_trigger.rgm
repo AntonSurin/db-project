@@ -1,0 +1,26 @@
+function "payment"."document_snapshot_export_trigger()" {
+  text = """
+
+begin
+
+	insert into payment.document_snapshot_export (document_id)
+	select i.id 
+	from inserted i;
+	return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Трофимов Б.И.
+ Create date: 02.06.21
+ Description:	Вставка в очередь выгрузки снимков документов.
+ =============================================
+"""
+}
+

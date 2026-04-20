@@ -1,0 +1,56 @@
+table "documents"."supply_contract_sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_supply_contract_sublist"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.supply_contract_sublist_id_seq'::regclass)
+    }
+    column "supply_contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "sublist_code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "municipal_resource_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "municipal_resource_code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "start_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "end_date" {
+      type = date
+    }
+  )
+}
+
+foreignKey "documents"."supply_contract_sublist"."fk_supply_contract_sublist_supply_contract" {
+  columns = [
+    "supply_contract_id"
+  ]
+  referencedTable = "documents"."supply_contract"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

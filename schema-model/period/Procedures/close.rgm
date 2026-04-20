@@ -1,0 +1,235 @@
+procedure "period"."close(boolean)" {
+  text = """
+
+declare 
+	_period_id			int;
+	_date_begin			date;
+	_date_end			date;
+	_sql				text = '';
+	_parametr			text = '';
+	_tarif_column		text = '';
+	_volume_column		text = '';
+	_sum_volume_column	text = '';
+	_normativ_column	text = '';
+begin
+	
+	create temp table _recalc	(root_id int);
+	create temp table _document	(document_id int);
+	create temp table _counter	(counter_id int);
+
+	select volume_column, tarif_column, normativ_column, sum_volume_column
+	into _volume_column, _tarif_column, _normativ_column, _sum_volume_column
+	from (
+			select 
+				 string_agg(case when lower(ic.table_name) = 'volume' 		then ', ' || ic.column_name else '' end,'') as volume_column
+				,string_agg(case when lower(ic.table_name) = 'tarif' 		then ', ' || ic.column_name else '' end,'') as tarif_column
+				,string_agg(case when lower(ic.table_name) = 'normativ' 	then ', ' || ic.column_name else '' end,'') as normativ_column
+				,string_agg(case when lower(ic.table_name) = 'sum_volume' 	then ', ' || ic.column_name else '' end,'') as sum_volume_column
+			from information_schema."columns" ic
+			where lower(ic.table_schema) = 'calculation' and lower(ic.table_name) in ('volume', 'tarif', 'normativ', 'sum_volume')
+		) as _column;
+
+	_volume_column 		= substring(_volume_column from 2);
+	_tarif_column 		= substring(_tarif_column from 2);
+	_normativ_column 	= substring(_normativ_column from 2);
+	_sum_volume_column	= substring(_sum_volume_column from 2);
+
+	select pl.id, pl.date_begin, pl.date_end 
+	into _period_id, _date_begin, _date_end
+	from "period".list pl 
+	where pl.is_working = true;
+
+	insert into _recalc
+	select rr.id 
+	from recalculation.root rr 
+	where rr.period_id = _period_id;
+
+	insert into _document
+	select cod.id 
+	from contragent.owner_documents cod 
+	where cod.date_begin >= _date_begin;
+
+	insert into _counter (counter_id)
+	select cl.id 
+	from counter.list cl 
+	where cl.date_begin >= _date_begin;
+
+	-------- открываем счетчики, после procedure [period].[open] у которых вышла дата поверки более 3-х месяцев назад
+	update counter.list cl
+	set active = true,
+		date_end = null
+	from  counter.closed_verification_date cvd 
+	where cvd.counter_id = cl.id and cvd.period_id = _period_id;
+	
+	delete 
+	from counter.closed_verification_date cd
+	where cd.period_id = _period_id;
+
+	--очистка документов
+	delete 
+	from contragent.owner_documents cod 
+	where cod.id in (select d.document_id from _document d);
+
+	--очистка перерасчетов
+	delete from parametr.recalculation pr 				where pr.root_id in (select r.root_id from _recalc r);
+	delete from recalculation.list_preview;
+	delete from recalculation.parametr_transporate rpt	where rpt.root_id in (select r.root_id from _recalc r);
+	delete from recalculation."result" rr 				where rr.root_id in (select r.root_id from _recalc r);
+	delete from recalculation.normativ rn 				where rn.root_id in (select r.root_id from _recalc r);
+	delete from recalculation.tarif rt 					where rt.root_id in (select r.root_id from _recalc r);
+	delete from recalculation.volume rv 				where rv.root_id in (select r.root_id from _recalc r);
+	delete from recalculation.sum_volume rsv 			where rsv.root_id in (select r.root_id from _recalc r);
+	delete from recalculation.root rr 					where rr.id in (select r.root_id from _recalc r);
+		
+	--очистка параметров
+	delete from parametr.house ph where ph.date_begin between _date_begin and _date_end;
+	delete from parametr.flat pf where pf.date_begin between _date_begin and _date_end;
+	delete from parametr.account pa where pa.date_begin between _date_begin and _date_end;
+	delete from calculation.parametr_transporate;
+	delete from calculation.tarif;
+	delete from calculation.normativ;
+	delete from calculation.volume;
+	delete from calculation.sum_volume;
+		
+	update parametr.account pa 
+	set date_end = null
+	where pa.date_end between _date_begin and _date_end;
+
+	update parametr.flat pf 
+	set	date_end = null
+	where pf.date_end between _date_begin and _date_end;
+
+	update parametr.house ph 
+	set	date_end = null
+	where ph.date_end between _date_begin and _date_end;
+
+	_parametr = (
+					select string_agg(', ' || i.column_name, '') 
+					from information_schema."columns" i
+						inner join parametr.list pl on pl.short_name = i.column_name 
+					where lower(i.table_schema) = 'calculation' and lower(i.table_name) = 'parametr_transporate'
+				);
+
+	--очитска счетчиков
+	delete 
+	from counter.verification_history cv
+	using counter.list cl 
+	where cl.id = cv.counter_id and cl.date_begin >= _date_begin;
+			
+	delete from counter.flow cf where cf.period_id = _period_id;
+	delete from counter.flow cf where cf.counter_id in (select c.counter_id from _counter c);
+
+	delete from counter.account ca where ca.counter_id in (select c.counter_id from _counter c);
+	delete from counter.flat cf where cf.counter_id in (select c.counter_id from _counter c);
+	delete from counter.house ch where ch.counter_id in (select c.counter_id from _counter c);
+
+	delete from counter.list cl where cl.date_begin >= _date_begin;
+
+	_sql= _sql ||('
+					insert into calculation.parametr_transporate (house_id, flat_id, account_id, territory_id' || _parametr || ')
+					select house_id, flat_id, account_id, territory_id' || _parametr ||' 
+					from calculation.parametr_transporate_arch
+					where period_id = ' || (_period_id - 1) || ';
+						
+							
+					insert into calculation.normativ(' || _normativ_column || ')
+						select ' || _normativ_column || ' from calculation.normativ_arch
+						where period_id = ' || (_period_id - 1) || ';
+				
+					insert into calculation.tarif(' || _tarif_column || ')
+						select ' || _tarif_column || ' from calculation.tarif_arch
+						where period_id = ' || (_period_id - 1) || ';
+				
+					insert into calculation.volume(' || _volume_column || ')
+						select ' || _volume_column || ' from calculation.volume_arch
+						where period_id = ' || (_period_id - 1) || ';
+				
+					insert into calculation.sum_volume(' || _sum_volume_column || ')
+						select ' || _sum_volume_column || ' from calculation.sum_volume_arch
+						where period_id = ' || (_period_id - 1) 
+					) || ';';
+
+	execute(_sql);
+
+	alter table calculation.account_sublist disable trigger insert_account_sublist_edit;
+
+	delete from calculation.account_sublist;
+
+	insert into calculation.account_sublist (account_id, house_id, account_parent_id, sublist_id, value, "date")
+	select ca.account_id, ca.house_id, ca.account_parent_id, ca.sublist_id, ca.value, ca."date"
+	from calculation.account_sublist_arch ca
+	where ca.period_id = (_period_id - 1);
+
+	alter table calculation.account_sublist enable trigger insert_account_sublist_edit;
+
+	delete from calculation.parametr_transporate_arch cpa 	where cpa.period_id = (_period_id - 1);
+	delete from calculation.normativ_arch cna 				where cna.period_id = (_period_id - 1);
+	delete from calculation.volume_arch cva 				where cva.period_id = (_period_id - 1);
+	delete from calculation.tarif_arch cta 					where cta.period_id = (_period_id - 1);
+	delete from calculation.sum_volume_arch csva 			where csva.period_id = (_period_id - 1);
+	delete from calculation.account_sublist_for_change cfc 	where cfc.period_id = (_period_id - 1);
+	delete from calculation.account_sublist_arch csa 		where csa.period_id = (_period_id - 1);
+		
+
+	update "period".list pl 
+		set is_working = false,
+			is_open = false,
+			date_open = null
+	where pl.id = _period_id;
+
+	update "period".list pl 
+		set is_working = true,
+			is_open = true
+	where pl.id = _period_id - 1;
+
+	--сохранение или очистка платежей
+	if(_save_payments = true)
+		then
+			update "1c".pko pk
+			set period_id = _period_id - 1
+			where pk.period_id = _period_id;
+		else
+			begin
+				delete from "1c".pko pk 			where pk.period_id = _period_id;
+				delete from payment.detal pd 		where pd.payment_id in (select pl.id from payment.list pl where pl.period_id = _period_id);
+				delete from payment.group_detal pg 	where pg.payment_id in (select pl.id from payment.list pl where pl.period_id = _period_id);
+				delete from bank.registry_payment r where r.payment_id in (select pl.id from payment.list pl where pl.period_id = _period_id);
+				delete from payment.list pl 		where pl.period_id = _period_id;
+				delete from bank.registry_batch r 	where r.batch_id in (select pb.id from payment.batch pb where pb.period_id = _period_id);
+				delete from payment.batch pb 		where pb.period_id = _period_id;
+			end;
+	end if;
+
+	-- чистим баланс за закрываемый период
+	delete 
+	from payment.balance pb
+	where pb.period_id = _period_id;
+	
+	drop table if exists _recalc;
+	drop table if exists _document;
+	drop table if exists _counter;
+	
+end
+"""
+  arguments = <
+    {
+      name = _save_payments
+      type = boolean
+      mode = IN
+      default = true
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 05.02.2015
+ modified:	02.04.2019 трофимов б.и. - сохранение платежей по запросу пользователя
+ modified:	25.09.2019 трофимов б.и. - перенес расщепление платежей на клиент
+ description:	закрытие периода
+ =============================================
+"""
+}
+

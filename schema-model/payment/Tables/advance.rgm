@@ -1,0 +1,40 @@
+table "payment"."advance" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_advance_account"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.advance_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "date" {
+      type = date
+    }
+    column "sum" {
+      type = numeric(13,2)
+      null = NOT NULL
+      default = 0
+    }
+  )
+}
+
+foreignKey "payment"."advance"."fk_advance_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+

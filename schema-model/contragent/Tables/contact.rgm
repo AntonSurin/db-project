@@ -1,0 +1,34 @@
+table "contragent"."contact" {
+  primaryKey = {
+    columns = [
+      "contragent_id"
+    ]
+    name = "pk_contact"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "contragent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "phone" {
+      type = character varying(1000)
+    }
+    column "email" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "contragent"."contact"."fk_contact_list" {
+  columns = [
+    "contragent_id"
+  ]
+  referencedTable = "contragent"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

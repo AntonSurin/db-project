@@ -1,0 +1,85 @@
+table "gis"."operations_list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_detail_operations"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.operations_list_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+    }
+    column "type" {
+      type = character varying(50)
+    }
+    column "date_create" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+    }
+    column "date_end" {
+      type = timestamp(3) without time zone
+    }
+    column "parent_id" {
+      type = integer
+    }
+    column "next_id" {
+      type = integer
+    }
+    column "status" {
+      type = integer
+      null = NOT NULL
+    }
+    column "error_text" {
+      type = text
+    }
+    column "path" {
+      type = character varying(250)
+    }
+    column "save_result" {
+      type = boolean
+    }
+    column "path_result" {
+      type = character varying(250)
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "parameters" {
+      type = text
+    }
+    column "organization_setting_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "gis"."operations_list"."fk_operations_list_operations_list" {
+  columns = [
+    "next_id"
+  ]
+  referencedTable = "gis"."operations_list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "gis"."operations_list"."fk_operations_list_operations_list1" {
+  columns = [
+    "parent_id"
+  ]
+  referencedTable = "gis"."operations_list"
+  referencedColumns = [
+    "id"
+  ]
+}
+

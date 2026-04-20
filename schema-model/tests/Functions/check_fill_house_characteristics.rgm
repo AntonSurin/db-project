@@ -1,0 +1,81 @@
+function "tests"."check_fill_house_characteristics(jsonb)" {
+  text = """
+
+begin
+
+	return query
+	with recursive cte as 
+	(
+		select 
+			ph.*, 
+			pl.parent_id, 
+			case 
+				when ph.value is null 
+				then true 
+				else false 
+			end as is_error
+		from parametr.list pl
+			inner join parametr.house ph on ph.parametr_id = pl.id
+		where is_characteristic = true 
+			and pl.parent_id is null 
+			and ph.date_end is null
+	union all
+		select 
+			ph.*, 
+			c.id, 
+			case 
+				when coalesce(c.value, '0') = '0' 
+				then false 
+				else 
+					case  
+						when ph.value is null 
+						then true 
+						else false 
+					end 
+			end
+		from parametr.list pl
+			inner join parametr.house ph on ph.parametr_id = pl.id
+			inner join cte c on c.parametr_id = pl.parent_id and c.house_id = ph.house_id
+		where is_characteristic = true 
+			and pl.parent_id is not null 
+			and ph.date_end is null
+	)
+	
+	select settlement_name || ' ' || short_adress as adress
+	from house.info hi
+	join (
+			select distinct ct.house_id
+			from cte ct
+			where ct.is_error = true
+		) c on c.house_id = hi.house_id
+	where not exists(select ac.account_id from jsonb_populate_recordset(null::account.list, _account) ac ) 
+		or hi.house_id in (
+								select a.account_id
+								from adress.account aa
+									join jsonb_populate_recordset(null::account.list, _account) a on aa.id = a.account_id
+							)
+	order by hi.order_id;
+
+end;
+"""
+  returnType = TABLE(adress text)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:			Глещинский Дмитрий
+ Create date:		20.09.2017
+ Modified date:	10.12.2020, Трофимов Б.И. - добавил фильтр по лс для автоматического запуска тестов
+ Description:		Проверка на корректное заполнение характеристик дома
+ =============================================
+"""
+}
+

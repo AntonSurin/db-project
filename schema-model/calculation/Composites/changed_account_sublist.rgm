@@ -1,0 +1,21 @@
+composite "calculation"."changed_account_sublist" {
+  owner = postgres
+  fields = (
+    field "account_id" {
+      type = integer
+    }
+    field "sublist_id" {
+      type = integer
+    }
+    field "account_parent_id" {
+      type = integer
+    }
+    field "value" {
+      type = boolean
+    }
+    field "date" {
+      type = date
+    }
+  )
+}
+

@@ -1,0 +1,22 @@
+table "law"."status" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_status"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('law.status_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+

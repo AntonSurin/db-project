@@ -1,0 +1,81 @@
+procedure "service"."procedure_runner(integer, jsonb, integer, integer)" {
+  text = """
+
+declare 
+	_sql 				text = '';
+	_parameters 		text = '';
+	_message_text 		text = '';
+	_message_severity 	int;
+begin
+		
+	 _parameters =	( 
+						   case when _house_id is not null then ' ' || _house_id || ',' else '' end
+						|| case when exists(select 1 from jsonb_populate_recordset(null::account.list, _accounts) a) then ' ''' || _accounts::text || '''::jsonb,' else '' end
+						|| case when _contragent_id is not null then ' ' || _contragent_id || ',' else '' end
+					);
+				
+	if(length(_parameters) > 0)
+		then
+			_parameters = left(_parameters, length(_parameters) - 1);
+	end if;
+
+	_sql = (select string_agg('
+				call ' || name || '(' || _parameters || ')', ';')
+			from service."procedure"
+			where type_id = _type_id);
+
+	if (_sql != '')
+		then 
+			begin
+				execute (_sql) ;
+				
+				exception when others 
+					then 
+						get stacked diagnostics
+							_message_text = pg_exception_detail;
+							_message_text ='Ошибка выполнения сервисных процедур: ' || _message_text; 
+						raise notice '%', _message_text;
+			end;
+	end if;
+
+end
+"""
+  arguments = <
+    {
+      name = _type_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _accounts
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _house_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _contragent_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		трофимов б.и.
+ create date: 13.02.19
+ description:	запуск сервисных хранимок
+ =============================================
+"""
+}
+

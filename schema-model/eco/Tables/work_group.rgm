@@ -1,0 +1,33 @@
+table "eco"."work_group" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_eco_work_group"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.work_group_id_seq'::regclass)
+    }
+    column "name" {
+      type = text
+    }
+    column "code" {
+      type = text
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "external_id" {
+      type = uuid
+      null = NOT NULL
+      default = gen_random_uuid()
+    }
+  )
+}
+

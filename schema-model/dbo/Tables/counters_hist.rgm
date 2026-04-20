@@ -1,0 +1,21 @@
+table "dbo"."counters_hist" {
+  owner = postgres
+  columns = (
+    column "account_name" {
+      type = character varying(9)
+    }
+    column "flow" {
+      type = numeric(11,5)
+    }
+    column "period" {
+      type = character varying(4)
+    }
+    column "flow_type" {
+      type = integer
+    }
+    column "counter_id" {
+      type = integer
+    }
+  )
+}
+

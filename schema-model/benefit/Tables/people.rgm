@@ -1,0 +1,54 @@
+table "benefit"."people" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_people_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('benefit.people_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "contragent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "benefit_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "count_benefit" {
+      type = integer
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "date_end" {
+      type = date
+    }
+    column "base" {
+      type = character varying(150)
+    }
+  )
+}
+
+foreignKey "benefit"."people"."fk_people_list" {
+  columns = [
+    "benefit_id"
+  ]
+  referencedTable = "benefit"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+

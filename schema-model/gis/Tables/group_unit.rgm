@@ -1,0 +1,25 @@
+table "gis"."group_unit" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_group_unit"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.group_unit_id_seq'::regclass)
+    }
+    column "name" {
+      type = text
+      null = NOT NULL
+    }
+    column "code_gis" {
+      type = integer
+    }
+  )
+}
+

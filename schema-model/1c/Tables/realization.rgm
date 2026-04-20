@@ -1,0 +1,54 @@
+table "1c"."realization" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_realization"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('"1c".realization_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "realization_guid" {
+      type = uuid
+    }
+    column "contract_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "1c"."realization"."fk_realization_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "1c"."realization"."fk_realization_list" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+

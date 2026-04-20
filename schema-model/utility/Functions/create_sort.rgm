@@ -1,0 +1,34 @@
+function "utility"."create_sort()" {
+  text = """
+
+declare 
+	_sort smallint;
+begin
+
+	_sort = (select  max(sort) from utility.list);
+	_sort = _sort + 1;
+
+	if (_sort is null) 
+		then 
+			_sort = 1;
+	end if;
+		
+	update utility.list 
+		set	sort = _sort 
+	where id = (select max(ul.id) from utility.list ul);
+
+	return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  Trigger Utility.CreateSort    
+ Script Date: 02.11.2022 13:47:08
+"""
+}
+

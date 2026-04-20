@@ -1,0 +1,150 @@
+procedure "account"."create_detail(jsonb, jsonb)" {
+  text = """
+
+declare 
+	_period_id 			int;
+	_default_fine_id 	int;
+	_date 				date;
+begin 
+		   
+	_default_fine_id = (select id from fine.list where is_default = true);
+	_period_id = (select id from "period".list where is_working = true);
+
+	drop table if exists _account_table;	
+
+	create temp table _account_table (house_id int, flat_id int, account_id int, parent_id int);
+
+--	alter table adress.account
+--		disable trigger insert_into_p_account;
+	set session_replication_role = replica;
+	
+	update adress.account as aa
+		set group_id = g.object_id
+	from jsonb_populate_recordset(null::account.list, _account) a 
+		inner join jsonb_populate_recordset(null::special.objects, _groups) g on 1 = 1
+	where a.account_id = aa.id and aa.group_id is null;
+	
+	with cte as 
+	(
+		merge into adress.account as targets
+		using (	
+					select aa.flat_id, aa.name, aa.id as parent_id, g.object_id as group_id, aa.house_id, aa.password_site, aa.order_id
+					from adress.account aa
+						inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.id
+						inner join jsonb_populate_recordset(null::special.objects, _groups) g on true
+				) as sources (flat_id, name, parent_id, group_id, house_id, password_site, order_id)
+		on (
+				coalesce(targets.group_id, sources.group_id) = sources.group_id
+				and targets.parent_id = sources.parent_id
+			)
+		when matched and targets.group_id is null then 
+			update set
+				group_id = sources.group_id
+		when not matched then 
+			insert (flat_id, name, parent_id, group_id, house_id, password_site, order_id)
+			values (sources.flat_id, sources.name, sources.parent_id, sources.group_id, sources.house_id, sources.password_site, sources.order_id)
+		returning merge_action() as ma, sources.house_id, sources.flat_id, targets.id, sources.parent_id
+	)
+
+	insert into _account_table 
+	select house_id, flat_id, id, parent_id
+	from cte
+	where lower(ma) = 'insert';
+
+	set session_replication_role = default;
+--	alter table adress.account
+--		enable trigger insert_into_p_account;
+
+
+	insert into fine.account(account_id, fine_id)
+	select aa.account_id, _default_fine_id
+	from _account_table aa
+	except 
+	select account_id, _default_fine_id
+	from fine.account ;
+
+	insert into payment.balance (period_id, house_id,flat_id,account_id, sublist_id, account_parent_id, normativ, volume, rate_normativ)
+	select
+			 _period_id
+			,aa.house_id
+			,aa.flat_id
+			,aa.account_id
+			,us.id
+			,aa.parent_id
+			,0.0
+			,0.0
+			,0.0
+	from _account_table aa
+		cross join (
+			select 6 as id
+			union all
+			select 7
+					) us
+		left join payment.balance pb on pb.account_id = aa.account_id 
+									and pb.period_id = _period_id 
+									and us.id = pb.sublist_id		
+	where pb.id is null;
+
+	alter table calculation.account_sublist 
+		disable trigger insert_account_sublist_edit;
+	
+	alter table calculation.account_sublist 
+		disable trigger update_account_sublist_edit;
+
+	_date = (select date_begin from "period".list where is_working = true);
+
+	if exists (select * from jsonb_populate_recordset(null::special.objects, _groups) u where u.object_id is not null)
+	then 
+		insert into calculation.account_sublist(account_id, house_id, account_parent_id, sublist_id, value, "date")
+		select aa.id, aa.house_id, aa.parent_id, uc.sublist_id, true, _date
+		from adress.account aa
+			inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id
+			inner join jsonb_populate_recordset(null::special.objects, _groups) g on g.object_id = aa.group_id
+			inner join utility.contragent_group_sublist uc 	on uc.house_id = aa.house_id
+				and uc.group_id = aa.group_id;
+	else		
+		insert into calculation.account_sublist(account_id, house_id, account_parent_id, sublist_id, value, "date")
+		select aa.id, aa.house_id, aa.parent_id, us.id, true, _date
+		from adress.account aa
+			inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id
+			inner join utility.sublist us on 1 = 1
+		where us.id not in (6, 7);
+	end if;
+
+	
+	alter table calculation.account_sublist 
+		enable trigger insert_account_sublist_edit;
+	
+	alter table calculation.account_sublist 
+		enable trigger update_account_sublist_edit;
+	
+	drop table if exists _account_table;
+
+end
+"""
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _groups
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 13.12.2017
+ Description:	Создание детальных лицевых счетов на группы
+				@Account - Список мастер-лицевых счетов, на которых необходимо создать детальные лицевые счета
+ =============================================
+"""
+}
+

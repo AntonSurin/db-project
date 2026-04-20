@@ -1,0 +1,34 @@
+function "utility"."fill_group()" {
+  text = """
+
+declare 
+	_group_id int;
+begin
+	
+	_group_id = (select id from inserted);
+
+    insert into utility.sublist_group_h_detail (group_id, house_id, avg_type, get_value_type)
+	select _group_id, ah.id, true, false
+	from adress.house ah;
+
+
+    insert into utility.sublist_group_a_detail (group_id, house_id, account_id, avg_type, get_value_type)
+	select _group_id, house_id, account_id, true, false
+	from adress.light_info; 
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 28.07.2016
+ Description:	Добавление домов и лицевых счетов к группе
+ =============================================
+"""
+}
+

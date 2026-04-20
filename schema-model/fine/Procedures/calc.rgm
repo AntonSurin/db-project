@@ -1,0 +1,239 @@
+procedure "fine"."calc(jsonb)" {
+  text = """
+
+declare 
+	_date_begin		date;
+	_date_end		date;
+	_period_id		int;
+	_parametr_id	int;
+	_active_period	int;
+begin
+
+	drop table if exists _fine_table; 
+	create temp table _fine_table (account_id int not null primary key, free_days int, account_parent_id int);
+	alter table _fine_table 
+	add constraint _temp_fine_table unique (account_id) include (free_days, account_parent_id);
+
+	drop table if exists _old_payment; 
+	create temp table _old_payment  (account_id int, pay numeric (8,2));
+	alter table _old_payment 
+	add constraint _temp_old_payment unique (account_id, pay); 
+
+	drop table if exists _calendar; 
+	create temp table _calendar  ("date" date);
+	alter table _calendar 
+	add constraint _temp_calendar unique ("date"); 
+
+	drop table if exists _cte1; 
+	create temp table _cte1  (account_id int, period_id int , date_end date, free_days int, sum_for_fine numeric(10,2));
+	alter table _cte1
+	add constraint _temp_cte1 unique (account_id, period_id) include (sum_for_fine, date_end);
+
+	drop table if exists _cte2; 
+	create temp table _cte2 (account_id int, date_begin date, date_end date, sum_for_fine31 numeric(9,2), sum_for_fine60 numeric(9,2), sum_for_fine91 numeric(9,2), pay numeric(9,2));
+	create index _temp_cte2 on _cte2 (account_id) ;
+
+	drop table if exists _fine_history; 
+	create temp table _fine_history (account_id int not null, date_begin date not null, date_end date not null, fine31 numeric (9,8), fine60 numeric(9,8), fine91 numeric(9,8), rate numeric (4,2), account_parent_id int);
+	create index _temp_fine_history on _fine_history (account_id, date_begin desc, date_end) include (fine31, fine60, fine91, rate, account_parent_id);
+
+	_active_period = (select id from "period".list where is_active = true);
+
+	select id, date_begin, date_end
+	into  _period_id, _date_begin, _date_end
+	from "period".list 
+	where is_working = true;
+
+	insert into _fine_table(account_id, free_days, account_parent_id)
+	select fa.account_id, fr.free_days - 1 as free_days, al.parent_id
+	from fine.account fa
+		inner join fine.rate fr on fr.list_id = fa.fine_id
+		inner join adress.account al on al.id = fa.account_id
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = al.parent_id;
+	
+	---- с историей ключевой ставки
+	insert into _fine_history (account_id, date_begin, date_end, fine31, fine60, fine91, rate, account_parent_id)
+	select 
+		fa.account_id, 
+		case when fh.date_begin < _date_begin then _date_begin else fh.date_begin end as date_begin,
+		case when coalesce(fh.date_end, _date_end) >= _date_end then _date_end else fh.date_end end as date_end,
+		round(fh.refinancing_rate / fr.part_refinancing_rate31, 8) as fine31, 
+		round(fh.refinancing_rate / fr.part_refinancing_rate60, 8) as fine60, 
+		round(fh.refinancing_rate / fr.part_refinancing_rate91, 8) as fine91, 
+		fh.refinancing_rate, 
+		al.parent_id
+	from fine.account fa
+		inner join fine.rate fr on fr.list_id = fa.fine_id
+		inner join adress.account al on al.id = fa.account_id
+		inner join fine.history fh on fh.date_begin <= _date_end and coalesce(fh.date_end, _date_end) >= _date_begin
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = al.parent_id
+	where fr.refinancing_rate > 0;
+	
+----------------  удаление предыдущего начисления пени --------------------
+	delete 
+	from fine.calculation fc
+	using _fine_table ft
+	where ft.account_id = fc.account_id and fc.period_id = _period_id;
+	
+	insert into _old_payment
+	select pd.account_id, sum(pd."sum") as sum
+	from payment.list pl 
+		inner join payment.detal pd on pd.payment_id = pl.id
+	where pl.period_id = _period_id and pl."date" < _date_begin
+	group by pd.account_id;
+	
+	with recursive calendar as (
+	select _date_begin as t_date
+	union all
+	select (t_date + 1) as t_date
+	from calendar
+	where (t_date + 1) <= _date_end
+	) 
+	insert into _calendar
+	select t_date 
+	from calendar;
+	
+	insert into _cte1 (account_id, period_id, date_end, free_days, sum_for_fine)
+	select t.account_id, t.period_id, pl.date_end, ft.free_days, t.sum_for_fine
+	from (select pb.account_id, 
+				b.period_id,
+				case   
+					when  ((pb.in_balance - coalesce (op.pay, 0)) - sum (b.calc) over (partition by b.account_id order by b.period_id desc, ord asc )) > 0 
+						then b.calc				
+					when ((b.calc) - (sum (b.calc) over (partition by b.account_id order by b.period_id desc, ord asc ) - (pb.in_balance - coalesce (op.pay, 0)))) > 0 
+						then  ((b.calc) - (sum (b.calc) over (partition by b.account_id order by b.period_id desc, ord asc) - (pb.in_balance - coalesce (op.pay, 0))))
+					else 0.0
+				end sum_for_fine
+			from (select account_id, sum(in_balance) as in_balance
+				  from payment.balance
+				  where period_id = _period_id and (sublist_id <> 7 or in_balance < 0.0)
+				  group by account_id
+				  ) pb
+					inner join 	(select abs(sum(current_calculate) + sum (recalculate)) as calc, pb.account_id, period_id, 1 as ord
+								 from  payment.balance pb
+								 where period_id <_period_id and (sublist_id <> 7 or current_calculate + recalculate < 0.0)
+								 group by pb.period_id,pb.account_id
+								 having abs(sum(current_calculate) + sum (recalculate)) <> 0.0
+					  			 	union all
+								 select sum(in_balance), account_id, _active_period - 1, 2
+								 from payment.balance
+								 where period_id = _active_period and (sublist_id <> 7 or in_balance < 0.0)
+								 group by account_id
+								 having sum (in_balance) > 0.0
+								) b on pb.account_id = b.account_id
+					left join _old_payment op on op.account_id = pb.account_id
+			) t
+		inner join "period".list pl on pl.id = t.period_id 
+		inner join _fine_table ft on ft.account_id = t.account_id
+	where sum_for_fine <>  0.0 and t.period_id <> _period_id - 1;
+		
+	with cte as	
+	(
+	select 
+		c.account_id
+		,cc."date"
+		,sum (case when (cc."date" - (date_end + c.free_days)) between 31  and 60 then sum_for_fine else 0 end) sum_for_fine31
+		,sum (case when (cc."date" - (date_end + c.free_days)) between 61  and 90 then sum_for_fine else 0 end) sum_for_fine60
+		,sum (case when (cc."date" - (date_end + c.free_days)) >= 91 then sum_for_fine else 0 end) sum_for_fine91
+		,coalesce (sum (p."sum") over (partition by c.account_id order by cc."date"), 0.0) as pay
+	from _cte1 c
+		cross join _calendar cc
+		left join (select pd.account_id, sum(pd."sum") as "sum", (pl."date" + 1) as "date"
+	 			   from payment.detal pd
+				   		inner join payment.list pl on pl.id = pd.payment_id
+				   where pl.period_id = _period_id and pl."date" >= _date_begin
+				   group by pd.account_id, pl."date"
+				  ) p on c.account_id = p.account_id and cc."date" = p."date"
+	group by c.account_id, cc."date", p."sum" 
+	)
+	
+	insert into _cte2
+	select account_id, min("date") as date_begin, max("date") as date_end, sum_for_fine31, sum_for_fine60, sum_for_fine91, pay
+	from cte c
+	group by account_id, sum_for_fine31, sum_for_fine60, sum_for_fine91,pay;
+
+	insert into fine.calculation (account_id, period_id, date_begin, date_end, ref_rate, sum_for_fine31, sum_for_fine60, sum_for_fine91, rate31, rate60, rate91, count_day, account_parent_id)
+	select 
+		c.account_id
+		,_period_id as period_id
+		,case when c.date_begin < fh.date_begin then fh.date_begin else c.date_begin end as date_begin
+		,case when c.date_end > fh.date_end then fh.date_end else c.date_end end as date_end
+		,fh.rate
+		,case
+			when sum_for_fine60 + sum_for_fine91 -  c.pay  < 0.0
+			then 
+				case
+					when sum_for_fine31 + sum_for_fine60 + sum_for_fine91 - c.pay > 0.0 
+					then sum_for_fine31 + sum_for_fine60 + sum_for_fine91 - c.pay
+					else  0.0
+				end
+			else sum_for_fine31
+		end as sum_fine31
+		,case
+			when sum_for_fine91 - c.pay < 0.0
+			then 
+				case
+					when sum_for_fine60 + sum_for_fine91 - c.pay > 0.0
+					then sum_for_fine60  + sum_for_fine91 - c.pay 
+					else 0.0
+				 end
+			else sum_for_fine60
+		end as sum_fine60	
+		,case  
+			when sum_for_fine91 - c.pay > 0.0
+			then sum_for_fine91 - c.pay
+			else 0.0
+		end as sum_fine91
+		,fh.fine31
+		,fh.fine60
+		,fh.fine91
+		,(((case when c.date_end > fh.date_end then fh.date_end else c.date_end end) - (case when c.date_begin < fh.date_begin then fh.date_begin else c.date_begin end)) + 1) as days
+		,fh.account_parent_id
+	from _cte2 c
+		inner join _fine_history fh on c.account_id = fh.account_id
+				and (c.date_begin between fh.date_begin and fh.date_end or c.date_end between fh.date_begin and fh.date_end)
+	order by 1,2,3;
+	
+	
+--------- процедура произведения начисления для предприятий. рсо=> коммерчиские предприятия
+	if exists (	select *
+				from fine.account fa 
+					inner join adress.account aa on aa.id = fa.account_id
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id
+				where fa.fine_id = (select id from fine.list where lower(name) = 'предприятия')
+				fetch first 1 rows only)
+		then 
+			call fine.calc_legal (_account);
+	end if;
+
+	drop table if exists _fine_table; 
+	drop table if exists _old_payment; 
+	drop table if exists _calendar; 
+	drop table if exists _cte1; 
+	drop table if exists _cte2; 
+	drop table if exists _fine_history; 
+			
+end
+"""
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков П.Г.
+ Create date: 14,05,2015.
+ Изменено 17.08.2016. Добавлен интервал 30-60 дней для потребителей "Управялющая компания". РСО => УК. Тагже в конце происходи вызов процедуры начислений для предприятий
+ Изменено 10.12.2021.(Сурин) Добавлена отрицательная пеня в расчет. 
+ Modify: 27.09.2022 (Юркин Е.Ю.) - опять добавил что ставки на все даты в месяце попадают
+ Description:	Процедура начисления пени. 
+ =============================================
+"""
+}
+

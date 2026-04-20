@@ -1,0 +1,28 @@
+table "calculation"."tools" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_tools"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('calculation.tools_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "current_date" {
+      type = timestamp(3) without time zone
+    }
+    column "change_date" {
+      type = timestamp(3) without time zone
+    }
+  )
+}
+

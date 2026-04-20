@@ -1,0 +1,45 @@
+table "recalculation"."account" {
+  primaryKey = {
+    columns = [
+      "account_id"
+      "session_id"
+    ]
+    name = "pk_account_2"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "session_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "recalculation"."account"."fk_account_account2" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "recalculation"."account_ix_account_account_id" {
+  table = "recalculation"."account"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = False
+}
+

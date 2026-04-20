@@ -1,0 +1,37 @@
+table "tests"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_tests"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('tests.list_id_seq'::regclass)
+    }
+    column "call_context" {
+      type = integer
+    }
+    column "name" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "proc_name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "warning_text" {
+      type = text
+    }
+    column "is_parameter_need" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+  )
+}
+

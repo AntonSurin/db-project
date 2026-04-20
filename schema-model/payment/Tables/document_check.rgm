@@ -1,0 +1,99 @@
+table "payment"."document_check" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_document_check"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.document_check_id_seq'::regclass)
+    }
+    column "service_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "status" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "upload_number" {
+      type = integer
+    }
+    column "is_first" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_print_check" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "check_type" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "ignored" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "payment"."document_check"."fk_payment_document_check_upload_number" {
+  columns = [
+    "upload_number"
+  ]
+  referencedTable = "payment"."upload_info"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "payment"."document_check_payment_document_check_account_id" {
+  table = "payment"."document_check"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "payment"."document_check_payment_document_check_status_is_first" {
+  table = "payment"."document_check"
+  type = btree
+  columns = <
+    {
+      definition = status
+    }
+
+    {
+      definition = is_first
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    service_guid
+    upload_number
+    is_print_check
+    check_type
+  ]
+}
+

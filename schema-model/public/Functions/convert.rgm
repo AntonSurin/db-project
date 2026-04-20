@@ -1,0 +1,63 @@
+function "public"."convert(character varying, integer)" {
+  text = select cast(field as text);
+  returnType = text
+  arguments = <
+    {
+      name = type
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = field
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+}
+
+function "public"."convert(integer, integer)" {
+  text = select cast(field as integer);
+  returnType = integer
+  arguments = <
+    {
+      name = type
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = field
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+}
+
+function "public"."convert(numeric, numeric)" {
+  text = select cast(field as numeric(30,10));
+  returnType = numeric
+  arguments = <
+    {
+      name = type
+      type = numeric
+      mode = IN
+    }
+
+    {
+      name = field
+      type = numeric
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+}
+

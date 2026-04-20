@@ -1,0 +1,136 @@
+table "calculation"."account_sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_account_sublist_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('calculation.account_sublist_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_parent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "calculation"."account_sublist"."fk_account_sublist_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "calculation"."account_sublist_idx_account_parent_id" {
+  table = "calculation"."account_sublist"
+  type = btree
+  columns = <
+    {
+      definition = account_parent_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    sublist_id
+    value
+    date
+  ]
+}
+
+index "calculation"."account_sublist_idx_account_value" {
+  table = "calculation"."account_sublist"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = value
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    sublist_id
+  ]
+}
+
+index "calculation"."account_sublist_idx_value" {
+  table = "calculation"."account_sublist"
+  type = btree
+  columns = <
+    {
+      definition = value
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    house_id
+    account_parent_id
+    sublist_id
+  ]
+}
+
+trigger "calculation"."account_sublist"."insert_account_sublist_edit" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = calculation.account_sublist_edit
+  functionArguments = [
+  ]
+  table = "calculation"."account_sublist"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "calculation"."account_sublist"."update_account_sublist_edit" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = calculation.account_sublist_edit
+  functionArguments = [
+  ]
+  table = "calculation"."account_sublist"
+  constraint = False
+  newTableReference = inserted
+}
+

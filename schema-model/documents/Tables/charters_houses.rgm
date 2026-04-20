@@ -1,0 +1,43 @@
+table "documents"."charters_houses" {
+  primaryKey = {
+    columns = [
+      "house_id"
+      "charter_id"
+    ]
+    name = "pk_documents_charters_houses"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "charter_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "documents"."charters_houses"."fk_doc_chart_house_house_character_house_id" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+}
+
+foreignKey "documents"."charters_houses"."fk_doc_chart_houses_doc_chart_chart_id" {
+  columns = [
+    "charter_id"
+  ]
+  referencedTable = "documents"."charter"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

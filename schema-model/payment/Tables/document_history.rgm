@@ -1,0 +1,84 @@
+table "payment"."document_history" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__document__3214ec27e09f0d6d"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.document_history_id_seq'::regclass)
+    }
+    column "closed_document_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "closed_by_document_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "payment"."document_history"."fk_document_history_closed_by_payment_document" {
+  columns = [
+    "closed_by_document_id"
+  ]
+  referencedTable = "payment"."document"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."document_history"."fk_document_history_closed_payment_document" {
+  columns = [
+    "closed_document_id"
+  ]
+  referencedTable = "payment"."document"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "payment"."document_history_pay_doc_hist_clos_by_doc_id" {
+  table = "payment"."document_history"
+  type = btree
+  columns = <
+    {
+      definition = closed_by_document_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    closed_document_id
+    sum
+  ]
+}
+
+index "payment"."document_history_pay_doc_hist_clos_doc_id" {
+  table = "payment"."document_history"
+  type = btree
+  columns = <
+    {
+      definition = closed_document_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    closed_by_document_id
+    sum
+  ]
+}
+

@@ -1,0 +1,58 @@
+table "payment"."document_check_detail" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_payment_document_check_detail"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.document_check_detail_id_seq'::regclass)
+    }
+    column "check_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "payment"."document_check_detail"."fk_payment_document_check_detail_check" {
+  columns = [
+    "check_id"
+  ]
+  referencedTable = "payment"."document_check"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "payment"."document_check_detail_pay_doc_check_detail_check_id" {
+  table = "payment"."document_check_detail"
+  type = btree
+  columns = <
+    {
+      definition = check_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    sublist_id
+    sum
+  ]
+}
+

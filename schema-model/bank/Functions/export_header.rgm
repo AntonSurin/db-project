@@ -1,0 +1,68 @@
+function "bank"."export_header(integer, integer, jsonb)" {
+  text = """
+
+begin
+
+	return query
+	select
+		 pl.date_begin as date_begin
+		,pl.date_end as date_end
+		,ol."name" as organization_name
+		,pl."year" as period_year
+		,pl.month_id as period_month
+		,ol.inn
+		,aa.group_id
+		,oc.rs
+		,coalesce(bc.code, '') as code
+		,ah.organization_counting_id as counting_id
+		,sum(pb.current_calc + pb.recalc) as sum_calc
+		,sum(case when pb.in_balance + pb.current_calc + pb.recalc - pb.pay <= 0 then 0 else pb.in_balance + pb.current_calc + pb.recalc - pb.pay end) as sum_calc_with_debt
+		,to_char(current_date, 'ddMMyyyy')::varchar(8) as "current_date"
+		,to_char(current_date, 'dd.MM.yyyy')::varchar(10) as current_date_format
+		,count(*) account_count
+	from payment.balance_group pb 
+		inner join adress.account aa on aa.id = pb.account_id
+		inner join adress.house ah on ah.id = pb.house_id
+		inner join organization.list ol on ol.id = ah.organization_id
+		inner join organization.counting oc on oc.id = ah.organization_counting_id
+		inner join bank.counting bc on bc.counting_id = ah.organization_counting_id
+			and bc.bank_id = _bank_id
+		inner join period.list pl on pl.id = pb.period_id 
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+	where pb.period_id = _period_id
+	group by pl.date_begin, pl.date_end, ol.inn, oc.rs, bc.code, ah.organization_counting_id, aa.group_id, ol."name", pl."year", pl.month_id;
+	
+end;
+"""
+  returnType = TABLE(date_begin date, date_end date, organization_name character varying, period_year integer, period_month smallint, inn character varying, group_id smallint, rs character varying, code character varying, counting_id integer, sum_calc numeric, sum_calc_with_debt numeric, "current_date" character varying, current_date_format character varying, account_count bigint)
+  arguments = <
+    {
+      name = _bank_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ =============================================
+"""
+}
+

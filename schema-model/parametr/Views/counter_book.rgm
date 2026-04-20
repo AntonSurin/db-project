@@ -1,0 +1,20 @@
+view "parametr"."counter_book" {
+  text = """-
+SELECT pb.number,
+    pb.name
+   FROM ((parametr.book pb
+     JOIN parametr.list pl ON ((pb.parametr_id = pl.id)))
+     JOIN parametr.catalog pd ON (((pd.id = 5) AND (lower((pl.short_name)::text) = 'prch'::text) AND (pd.id = pl.catalog_id))));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "number" {
+      type = character varying(5)
+    }
+    column "name" {
+      type = character varying(100)
+    }
+  )
+}
+

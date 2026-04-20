@@ -1,0 +1,93 @@
+view "gis"."contracts" {
+  text = """-
+SELECT dc.id,
+    hc.house_id,
+    hi.fias_house_guid,
+    dc.contract_guid AS guid,
+    1 AS doc_type,
+    'Договор управления'::text AS type_name,
+    dc.date_begin,
+    dc.date_end,
+    gb.description,
+    dc.contract_status AS status,
+    hi.short_adress,
+    dc.number
+   FROM (((documents.contract dc
+     JOIN gis.book gb ON ((gb.id = dc.contract_base_id)))
+     LEFT JOIN documents.contracts_houses hc ON ((hc.contract_id = dc.id)))
+     LEFT JOIN gis.address_info hi ON ((hi.house_id = hc.house_id)))
+UNION
+ SELECT dc.id,
+    hc.house_id,
+    hi.fias_house_guid,
+    dc.guid,
+    0 AS doc_type,
+    'Устав'::text AS type_name,
+    dc.date_begin,
+    dc.date_end,
+    dc.reason AS description,
+    dc.status,
+    hi.short_adress,
+    NULL::character varying AS number
+   FROM ((documents.charter dc
+     LEFT JOIN documents.charters_houses hc ON ((hc.charter_id = dc.id)))
+     LEFT JOIN gis.address_info hi ON ((hi.house_id = hc.house_id)))
+UNION
+ SELECT dc.id,
+    hc.house_id,
+    hi.fias_house_guid,
+    dc.guid,
+    2 AS doc_type,
+    'ДРСО'::text AS type_name,
+    dc.date_begin,
+    dc.date_end,
+    ''::text AS description,
+    dc.status,
+    hi.short_adress,
+    dc.number
+   FROM ((documents.supply_contract dc
+     LEFT JOIN documents.supply_contract_houses hc ON ((hc.contract_id = dc.id)))
+     LEFT JOIN gis.address_info hi ON ((hi.house_id = hc.house_id)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "fias_house_guid" {
+      type = uuid
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "doc_type" {
+      type = integer
+    }
+    column "type_name" {
+      type = text
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+    }
+    column "date_end" {
+      type = timestamp(3) without time zone
+    }
+    column "description" {
+      type = text
+    }
+    column "status" {
+      type = character varying(20)
+    }
+    column "short_adress" {
+      type = text
+    }
+    column "number" {
+      type = character varying
+    }
+  )
+}
+

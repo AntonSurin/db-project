@@ -1,0 +1,38 @@
+function "organization"."info_1c(integer)" {
+  text = """
+
+begin
+	return query
+	select 
+		_period_id as period_id
+		,ol.id as organization_id
+		,ol.inn
+		,ol.kpp
+		,ol.code as code_ls
+		,coalesce(ot.tax_type,0)::int2 as tax_type
+		,coalesce(ot.vat_type,32) as vat_type
+	from organization.list ol 
+		left join organization.tax ot on ot.organization_id = ol.id and ot.period_start_id <= _period_id and coalesce(ot.period_end_id, _period_id) >= _period_id;
+
+end;
+"""
+  returnType = TABLE(period_id integer, organization_id integer, inn character varying, kpp character varying, code_ls character varying, tax_type smallint, vat_type integer)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Е.Ю
+ Create date: 06.04.2025
+ Description:	Отчет данные организации для 1С
+ =============================================
+"""
+}
+

@@ -1,0 +1,47 @@
+table "law"."movement_document" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_movement_document"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('law.movement_document_id_seq'::regclass)
+    }
+    column "folder_id" {
+      type = integer
+    }
+    column "notifyed_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "status_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "doc_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "law"."movement_document"."fk_movement_document_doc" {
+  columns = [
+    "doc_id"
+  ]
+  referencedTable = "law"."docs"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

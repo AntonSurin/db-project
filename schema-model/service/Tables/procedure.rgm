@@ -1,0 +1,39 @@
+table "service"."procedure" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_procedure"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.procedure_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "description" {
+      type = character varying(50)
+    }
+    column "type_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "service"."procedure"."fk_procedure_procedure_type" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "service"."procedure_type"
+  referencedColumns = [
+    "id"
+  ]
+}
+

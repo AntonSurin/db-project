@@ -1,0 +1,69 @@
+function "report"."get_signature(jsonb, integer)" {
+  text = """
+
+
+	with cte as 
+	(
+		select 
+			 os.id as signature_id
+			,os.order_id as signature_order_id
+			,coalesce(ovt."name", ot."name") as title_name
+			,coalesce(ove.short_name, oe.short_name) as employee_name 
+			,he.house_id
+			,case when ove.short_name is not null then ove.phone else oe.phone end as employee_phone
+			/*	данные в родительном падеже	*/
+			,case when ove.short_name is not null then ove.genitive_short_name else oe.genitive_short_name end as genitive_short_name
+			,case when ove.short_name is not null then ove.genitive_full_name else oe.genitive_full_name end as genitive_full_name
+			,case when ove.short_name is not null then ovt.genitive_name else ot.genitive_name end as genitive_title_name
+		from organization.signature os
+			left join organization.employee oe on oe."type" = os.id
+			left join organization.title ot on ot.id = oe.title_id
+			left join (
+						select he.house_id, he.employee_id
+						from house.employee he
+							inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = he.house_id
+						) he  on he.employee_id = oe.id
+	
+			left join (
+						select o.full_name, h.signature_id, h.employee_id, h.house_id
+						from house.signature h 
+							inner join jsonb_populate_recordset(null::house.list, _house) hs on hs.house_id = h.house_id
+							inner join organization.employee o on o.id = h.employee_id
+						where o.id = _user_id
+					) hs on hs.signature_id = os.id and hs.house_id = he.house_id	
+			left join organization.employee ove on ove.id = hs.employee_id
+			left join organization.title ovt on ovt.id = ove.title_id  
+	)
+
+	select c.*
+	from cte c
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = c.house_id;
+
+"""
+  returnType = TABLE(signature_id integer, signature_order_id integer, title_name text, employee_name text, house_id integer, employee_phone text, genitive_short_name text, genitive_full_name text, genitive_title_name text)
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _user_id
+      type = integer
+      mode = IN
+      default = 999
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: 03.05.2018
+ description:	сбор подписантов
+ =============================================
+"""
+}
+

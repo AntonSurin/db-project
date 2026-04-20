@@ -1,0 +1,43 @@
+function "payment"."fine_1c(integer)" {
+  text = """
+
+begin
+
+	return query
+	select
+		_period_id as period_id
+		,ai.work_id
+		,ai.account_name
+		,fc.date_begin as fine_begin
+		,fc.date_end as fine_end
+		,pl.date_begin as period_begin
+		,pl.date_end as period_end
+		,case when fc.date_end = pl.date_end then (fc.sum_for_fine31 + fc.sum_for_fine60 + fc.sum_for_fine91) else 0 end as debt
+		,fc.fine
+		,fc.count_day
+	from fine.calculation fc
+		inner join adress.info ai on ai.account_id = fc.account_id
+		inner join period.list pl on pl.id = fc.period_id
+		where pl.id = _period_id and fc.fine != 0;
+end;
+"""
+  returnType = TABLE(period_id integer, work_id integer, account_name character varying, fine_begin date, fine_end date, period_begin date, period_end date, debt numeric, fine numeric, count_day integer)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Е.Ю
+ Create date: 17.04.2025
+ Description:	Отчет начисления пени по периоду для 1С
+ =============================================
+"""
+}
+

@@ -1,0 +1,34 @@
+table "law"."file" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_file"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('law.file_id_seq'::regclass)
+    }
+    column "entity_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "file_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "file_name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+

@@ -1,0 +1,26 @@
+table "adress"."post" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_post"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.post_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "index" {
+      type = character varying(6)
+      null = NOT NULL
+    }
+  )
+}
+

@@ -1,0 +1,27 @@
+view "fine"."in_balance" {
+  text = """-
+SELECT pb.period_id,
+    sum(pb.in_balance) AS in_balance,
+    cl.id AS contragent_id
+   FROM (((contragent.list cl
+     JOIN contragent.contract cc ON ((cc.contragent_id = cl.id)))
+     JOIN contragent.contract_account ca ON ((ca.contract_id = cc.id)))
+     JOIN payment.balance pb ON ((pb.account_parent_id = ca.account_id)))
+  WHERE (pb.sublist_id <> 7)
+  GROUP BY pb.period_id, cl.id;
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "period_id" {
+      type = integer
+    }
+    column "in_balance" {
+      type = numeric
+    }
+    column "contragent_id" {
+      type = integer
+    }
+  )
+}
+

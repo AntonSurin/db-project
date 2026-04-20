@@ -1,0 +1,94 @@
+function "report"."counter(jsonb, jsonb, boolean)" {
+  text = """
+
+declare 
+	_period_id int;
+begin
+
+	_period_id = (select pl.id from period.list pl where pl.is_working = true);
+
+	return query
+	select 
+		ai.house_id
+		,ai.flat_book_id
+		,ai.short_name
+		,(ai.flat_book_short_name || ' ' || ai.flat_name) as flat_name
+		,(
+			select string_agg(trim(cl.short_name) , ', ')
+			from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+			where ca.account_id = ai.account_id and ca.is_responsible = true and od.date_end is null 
+		) as fio
+		,ai.account_id
+		,ai.flat_id
+		,ai.account_name
+		,us."name" as sublist_name
+		,us.id as sublist_id
+		,cl.id as counter_id
+		,format('№%s',cl."number") as "number"
+		,cf.prev_value as p_value
+		,cf.value as value
+		,cl.serial_number
+		,case when _use_access = true then coalesce(p.value::int2, 0) else 0 end access_number
+		,(cl.verification_date + (interval '1 year' * cl.verification_interval))::date as next_date
+		,ai.order_id
+		,ai.flat_order_id
+	from adress.info ai  
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = ai.account_id
+		inner join calculation.parametr_transporate cpt on cpt.account_id = ai.account_id
+		inner join counter.account ca on ca.account_id = ai.account_id
+		inner join counter.list cl on cl.id = ca.counter_id
+		inner join jsonb_populate_recordset(null::report.sublist, _sublist) s on s.sublist_id = cl.sublist_id
+		inner join utility.sublist us on us.id = cl.sublist_id
+		inner join counter.flow cf on cf.counter_id = cl.id
+		left join 
+		(
+			select pf.flat_id, pf.value 
+			from parametr.flat pf 
+				inner join parametr.list pl on pl.id = pf.parametr_id
+			where lower(pl.short_name) = 'n_pod' 
+				and coalesce(date_end, current_date) = (
+														select max(coalesce(date_end, current_date)) 
+														from parametr.flat p where p.flat_id = pf.flat_id
+														)
+		) p on p.flat_id = ai.flat_id 
+	where cl.active = true 
+		and cpt.is_closed = 1
+		and cf.period_id = _period_id;
+	
+end;
+"""
+  returnType = TABLE(house_id integer, flat_book_id smallint, short_name text, flat_name text, fio text, account_id integer, flat_id integer, account_name character varying, sublist_name character varying, sublist_id integer, counter_id integer, number text, p_value numeric, value numeric, serial_number character varying, access_number integer, next_date date, order_id integer, flat_order_id integer)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _sublist
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _use_access
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 25.07.2016
+ Description:	Список счетчиков для отчета PivotCounter
+ =============================================
+"""
+}
+

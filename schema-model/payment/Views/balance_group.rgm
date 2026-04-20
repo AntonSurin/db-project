@@ -1,0 +1,93 @@
+view "payment"."balance_group" {
+  text = """-
+SELECT count(*) AS count_big,
+    account_id,
+    account_parent_id,
+    house_id,
+    period_id,
+    sum(in_balance) AS in_balance,
+    sum(current_calculate) AS current_calc,
+    sum(recalculate) AS recalc,
+    sum(pay) AS pay,
+    sum((((COALESCE(in_balance, 0.0) + COALESCE(current_calculate, 0.0)) + COALESCE(recalculate, 0.0)) - COALESCE(pay, 0.0))) AS out_balance
+   FROM payment.balance pb
+  GROUP BY account_id, account_parent_id, period_id, house_id;
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  comment = """-
+	Макарцев А. / Юркин Е.
+	16.09.2021
+	Представление характеристик дома для ГИС
+"""
+  columns = (
+    column "count_big" {
+      type = bigint
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "account_parent_id" {
+      type = integer
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "period_id" {
+      type = integer
+    }
+    column "in_balance" {
+      type = numeric
+    }
+    column "current_calc" {
+      type = numeric
+    }
+    column "recalc" {
+      type = numeric
+    }
+    column "pay" {
+      type = numeric
+    }
+    column "out_balance" {
+      type = numeric
+    }
+  )
+}
+
+index "payment"."clx_account_period" {
+  view = "payment"."balance_group"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = period_id
+      sortOrder = DESC
+    }
+
+  >
+  isUnique = True
+}
+
+index "payment"."idx_period_id" {
+  view = "payment"."balance_group"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+      sortOrder = DESC
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    in_balance
+    current_calc
+    recalc
+    pay
+    account_id
+  ]
+}
+

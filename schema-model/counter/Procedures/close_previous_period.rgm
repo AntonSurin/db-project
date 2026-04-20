@@ -1,0 +1,101 @@
+procedure "counter"."close_previous_period(integer)" {
+  text = """
+
+declare 
+		_sublist_id 	int;
+		_period_id 		int;
+		_date_begin 	date;
+		_date_end 		date;
+		_account_id 	int;
+		_short_name 	varchar(50);
+begin
+
+	select date_begin, date_end, id 
+	into _date_begin, _date_end, _period_id
+	from "period".list 
+	where is_working = true;
+	
+	select account_id, cl.sublist_id, pl.short_name
+	into _account_id, _sublist_id, _short_name
+	from counter.list cl 
+		inner join counter.account ca on ca.counter_id = cl.id
+		inner join parametr.sublist ps on ps.sublist_id = cl.sublist_id
+		inner join parametr.list pl on pl.id = ps.parametr_id
+	where cl.id = _counter_id and ps.catalog_id = 1;
+
+	create temp table _close_counter_id (counter_id int, verification_interval int, verification_date date, failure_date date, sublist_id int, account_id int, value numeric(13,5), c_value numeric(13,5), flow_type_id int2, flow_date date, close_type varchar(50));
+	
+	insert into _close_counter_id
+	select cl.id as counter_id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, ca.account_id, cf.value, cf.c_value, cf.flow_type_id, cf.date, 'закрытие вручную предыдущим периодом' as close_type
+	from counter.list cl
+	inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+	left join counter.account ca on ca.counter_id = cl.id
+	where cl.id = _counter_id;
+
+	delete 
+	from counter.flow 
+	where counter_id = _counter_id and period_id = _period_id;
+
+	update counter.list cl
+		set
+			active = false,
+			date_end = _date_begin - 1
+	where cl.id = _counter_id;
+
+	merge into counter.closed_verification_date as targets
+	using (select 
+			counter_id
+			,_period_id as period_id
+			,verification_interval
+			,verification_date
+			,failure_date
+			,sublist_id
+			,account_id
+			,value
+			,c_value
+			,flow_type_id
+			,flow_date
+			,close_type
+		from _close_counter_id)
+	as sources (counter_id, period_id, verification_interval, verification_date, failure_date, sublist_id, account_id, value, c_value, flow_type_id, flow_date, close_type)
+	on (targets.counter_id = sources.counter_id)
+	when matched then
+		update set
+			period_id = sources.period_id,
+			verification_interval = sources.verification_interval,
+			verification_date = sources.verification_date,
+			failure_date = sources.failure_date,
+			sublist_id = sources.sublist_id,
+			account_id = sources.account_id,
+			value = sources.value,
+			c_value = sources.c_value,
+			flow_type_id = sources.flow_type_id,
+			flow_date = sources.flow_date,
+			close_type = sources.close_type
+	when not matched then
+		insert (counter_id, period_id, verification_interval, verification_date, failure_date, sublist_id, account_id, value, c_value, flow_type_id, flow_date, close_type)
+		values (sources.counter_id, sources.period_id, sources.verification_interval, sources.verification_date, sources.failure_date, sources.sublist_id, sources.account_id, sources.value, sources.c_value, sources.flow_type_id, sources.flow_date, sources.close_type);
+
+	drop table if exists _close_counter_id ;
+
+end
+"""
+  arguments = <
+    {
+      name = _counter_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 02.02.2016
+ description:	закрытие счетчиком последним днем предыдущего периода
+ =============================================
+"""
+}
+

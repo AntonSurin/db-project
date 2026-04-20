@@ -1,0 +1,87 @@
+function "report"."certificate_of_completion_group(integer, jsonb, jsonb, integer)" {
+  text = """
+
+begin
+	
+	create temp table _house_filter (house_id int);
+
+	if exists(select * from jsonb_populate_recordset(null::house.list, _house) h) 
+		then
+			insert into _house_filter 
+			select h.house_id
+			from jsonb_populate_recordset(null::house.list, _house) h;
+		else 
+			insert into _house_filter
+			select al.house_id
+			from contragent.account ca
+				inner join jsonb_populate_recordset(null::special.objects, _contragent) c on c.object_id = ca.contragent_id
+				inner join adress.light_info al on al.account_id = ca.account_id
+			group by al.house_id;
+	end if;
+
+	return query
+	select 
+		cl.id as person_id
+		,'Итого: ' || us."name" as sublist_name
+		,coalesce(sum(pb.volume), 0) as volume
+		,sum(pb.current_calculate) as calc
+		,sum(pb.recalculate) as recalc 
+	from contragent.list cl 
+		inner join jsonb_populate_recordset(null::special.objects, _contragent) c on c.object_id = cl.id
+		inner join contragent.account ca on ca.contragent_id = cl.id
+		inner join contragent.owner_documents od on od.contragent_account_id = ca.id
+		inner join payment.balance pb on pb.account_parent_id = ca.account_id
+		inner join adress.account aa on aa.id = pb.account_id
+		inner join _house_filter h on h.house_id = pb.house_id
+		inner join utility.sublist us on us.id = pb.sublist_id
+		inner join utility.list ul on ul.id = us.list_id
+	where cl."type" = true 
+		and pb.period_id = _period_id 
+		and od.date_end is null 
+		and pb.print = 1
+		and coalesce(aa.group_id, 0) = coalesce(_group_id, 0)
+	group by cl.id, pb.sublist_id, ul."name", us."name";
+
+	drop table if exists _house_filter;
+	
+end;
+"""
+  returnType = TABLE(person_id integer, sublist_name text, volume numeric, calc numeric, re_calc numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _contragent
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.
+ Create date: 01.10.
+ Description:	Суммарная таблица в акте выполненных работ для Юр лиц
+ =============================================
+"""
+}
+

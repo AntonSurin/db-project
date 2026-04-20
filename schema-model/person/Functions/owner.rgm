@@ -1,0 +1,43 @@
+function "person"."owner(integer)" {
+  text = """
+
+begin
+	
+	_name =	(
+				select string_agg(cl.full_name , ',')
+				from contragent.list cl
+					inner join contragent.account ca on ca.contragent_id = cl.id
+					inner join contragent.owner_documents od on od.contragent_account_id = ca.id
+				where account_id = _account_id
+					and ca.is_responsible = true 
+					and od.date_end is null
+			);
+
+end;
+"""
+  returnType = text
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _name
+      type = text
+      mode = OUT
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 19.12.2014
+ Description:	Список собственников квартиры
+ =============================================
+"""
+}
+

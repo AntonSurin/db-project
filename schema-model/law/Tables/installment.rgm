@@ -1,0 +1,37 @@
+table "law"."installment" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_installment"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('law.installment_id_seq'::regclass)
+    }
+    column "folder_id" {
+      type = integer
+    }
+    column "date" {
+      type = date
+    }
+    column "sum" {
+      type = numeric(15,2)
+    }
+  )
+}
+
+foreignKey "law"."installment"."fk_installment_folder" {
+  columns = [
+    "folder_id"
+  ]
+  referencedTable = "law"."folder"
+  referencedColumns = [
+    "id"
+  ]
+}
+

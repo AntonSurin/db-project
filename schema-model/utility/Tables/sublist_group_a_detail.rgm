@@ -1,0 +1,99 @@
+table "utility"."sublist_group_a_detail" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sublist_group_a_detail"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.sublist_group_a_detail_id_seq'::regclass)
+    }
+    column "group_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "avg_type" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "get_value_type" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "utility"."sublist_group_a_detail"."fk_sublist_group_a_detail_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."sublist_group_a_detail"."fk_sublist_group_a_detail_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."sublist_group_a_detail"."fk_sublist_group_a_detail_sublist_group" {
+  columns = [
+    "group_id"
+  ]
+  referencedTable = "utility"."sublist_group"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "utility"."sublist_group_a_detail_idx_group_all" {
+  table = "utility"."sublist_group_a_detail"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = group_id
+    }
+
+    {
+      definition = house_id
+    }
+
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    get_value_type
+    avg_type
+  ]
+}
+

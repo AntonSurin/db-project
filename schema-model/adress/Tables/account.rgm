@@ -1,0 +1,149 @@
+table "adress"."account" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_client_account"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.account_id_seq'::regclass)
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(12)
+      null = NOT NULL
+    }
+    column "password_site" {
+      type = integer
+    }
+    column "old_name" {
+      type = character varying(20)
+    }
+    column "gis_name" {
+      type = uuid
+    }
+    column "order_id" {
+      type = smallint
+    }
+    column "parent_id" {
+      type = integer
+    }
+    column "group_id" {
+      type = smallint
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "adress"."account"."fk_client_account_apartment" {
+  columns = [
+    "flat_id"
+  ]
+  referencedTable = "adress"."flat"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+index "adress"."account_idx_parent_house" {
+  table = "adress"."account"
+  type = btree
+  columns = <
+    {
+      definition = parent_id
+    }
+
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    flat_id
+    order_id
+    name
+    group_id
+  ]
+}
+
+index "adress"."account_ix_account_id_apart" {
+  table = "adress"."account"
+  type = btree
+  columns = <
+    {
+      definition = flat_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    name
+    password_site
+  ]
+}
+
+index "adress"."account_ix_adress_account_house_id" {
+  table = "adress"."account"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "adress"."account_ix_name" {
+  table = "adress"."account"
+  type = btree
+  columns = <
+    {
+      definition = name
+    }
+
+    {
+      definition = parent_id
+    }
+
+    {
+      definition = group_id
+    }
+
+  >
+  isUnique = True
+  includeColumns = [
+    flat_id
+    house_id
+  ]
+}
+
+trigger "adress"."account"."insert_into_p_account" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = adress.insert_into_p_account
+  functionArguments = [
+  ]
+  table = "adress"."account"
+  constraint = False
+  newTableReference = _inserted
+}
+

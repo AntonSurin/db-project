@@ -1,0 +1,30 @@
+function "bank"."export_field()" {
+  text = """
+
+begin
+	
+	return query
+	select ic.column_name::varchar(50), true as group_field
+	from information_schema.columns ic
+	where lower(ic.table_schema) = 'bank' and lower(ic.table_name) = 'export_header' 
+	union
+	select ic.column_name::varchar(50), false as group_field
+	from information_schema.columns ic
+	where lower(ic.table_schema) = 'bank' and lower(ic.table_name) = 'export';
+
+end;
+"""
+  returnType = TABLE(name character varying, group_field boolean)
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:	
+ create date:
+ description:	
+ =============================================
+"""
+}
+

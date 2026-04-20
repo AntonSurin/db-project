@@ -1,0 +1,159 @@
+procedure "adress"."new_house(date, integer, integer, integer, integer, integer)" {
+  text = """
+
+declare 
+	_period_begin 	date;
+	_account_id 	int;
+begin
+
+	_period_begin = (select date_begin from "period".list where is_working = true);
+
+	if (_house_id is not null and _start_flat is not null and _end_flat is not null)
+		then 
+			begin
+				if (coalesce(_house_id, 0) = 0)
+					then 
+						_house_id = (select max(ID) from adress.house);
+				end if;
+	
+				create temp table _table_house (id int);
+
+				with recursive cte as 
+				(
+					select _start_flat as value
+					union all
+					select value + 1
+					from cte
+					where value < _end_flat
+				)
+				,cte2 as 
+				(
+					insert into adress.flat (house_id, flat_book_id, "name") 
+					select _house_id, _flat_book_id, cast(value as varchar(10)) 
+					from cte
+					on conflict do nothing 
+					returning id
+				)
+				
+				insert into _table_house
+				select id
+				from cte2;
+	
+				if (_date_begin != _period_begin)
+					then 
+						begin
+							alter table parametr.account disable trigger update_account_parametr_transporate;
+							alter table parametr.account disable trigger insert_account_parametr_transporate;
+						
+							update parametr.account pa 
+								set
+									value = '0',
+									date_end = _date_begin - 1
+							from adress.account aa 
+								inner join _table_house t on t.id = aa.flat_id
+							where aa.id = pa.account_id and pa.parametr_id = 1362 and aa.parent_id is null;
+	
+							insert into parametr.account (parametr_id, account_id, value, date_begin)
+							select 1362, aa.id, '1', _date_begin 
+							from adress.account aa
+								inner join _table_house t on t.id = aa.flat_id
+							where aa.parent_id is null;
+						
+							alter table parametr.account enable trigger update_account_parametr_transporate;
+							alter table parametr.account enable trigger insert_account_parametr_transporate;
+						
+						end;
+				end if;
+			end;
+	end if;
+
+	----------создание дома без квартир
+	if(_house_id is not null and _start_flat is null and _end_flat is null)
+		then
+			begin
+				
+				merge into parametr.house as targets
+				using(
+						select _house_id, pl.id as parametrid, pl.default_value as value, _date_begin 
+					 	from parametr.list pl 
+					 	where catalog_id = 3 
+							and not exists(select * from parametr.sublist ps where ps.parametr_id = pl.id and ps.catalog_id = pl.catalog_id)
+					)
+				as sources(house_id, parametr_id, value, date_begin)
+				on(
+						targets.house_id = sources.house_id 
+					and targets.parametr_id = sources.parametr_id 
+					and targets.date_end is null
+					)
+				when matched then
+					update set
+						value = targets.value
+				when not matched then 
+					insert(parametr_id, house_id, value, date_begin)
+					values(sources.parametr_id, sources.house_id, sources.value, _date_begin);
+				
+				call gis.actualize_house('[]');
+	
+			end;
+	end if;
+	
+	_flats_count = (select count(1) from _table_house);
+
+	drop table if exists _table_house;
+
+end
+"""
+  arguments = <
+    {
+      name = _date_begin
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _house_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _start_flat
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _end_flat
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _flat_book_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _flats_count
+      type = integer
+      mode = INOUT
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		ооо жилфондсервис
+ create date: 07.02.2014
+ description:	добавление/изменение дома и квартир
+ =============================================
+"""
+}
+

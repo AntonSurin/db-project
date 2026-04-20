@@ -1,0 +1,134 @@
+table "house"."account" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_account_6"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('house.account_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "close_reason_id" {
+      type = integer
+    }
+    column "close_date" {
+      type = timestamp(3) without time zone
+    }
+    column "description" {
+      type = character varying(500)
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_guid" {
+      type = uuid
+    }
+    column "account_name" {
+      type = character varying(20)
+    }
+    column "unique_number" {
+      type = character varying(10)
+    }
+    column "service_id" {
+      type = character varying(13)
+    }
+    column "creation_date" {
+      type = timestamp(3) without time zone
+    }
+    column "living_persons_number" {
+      type = integer
+    }
+    column "total_square" {
+      type = numeric(18,2)
+    }
+    column "residential_square" {
+      type = numeric(18,2)
+    }
+    column "heated_area" {
+      type = numeric(18,2)
+    }
+    column "share_percent" {
+      type = numeric(18,2)
+    }
+    column "is_special_kp" {
+      type = boolean
+      default = false
+    }
+    column "is_close_account" {
+      type = boolean
+    }
+    column "contract_version_guid" {
+      type = uuid
+    }
+    column "organization_setting_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "house"."account"."fk_house_account_gis_book_close_reason_id" {
+  columns = [
+    "close_reason_id"
+  ]
+  referencedTable = "gis"."book"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "house"."account"."fk_house_account_gis_organization_settings" {
+  columns = [
+    "organization_setting_id"
+  ]
+  referencedTable = "gis"."organization_settings"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "house"."account"."fk_house_account_house_flat_flat_id" {
+  columns = [
+    "flat_id"
+  ]
+  referencedTable = "house"."flat"
+  referencedColumns = [
+    "flat_id"
+  ]
+  onDelete = CASCADE
+}
+
+index "house"."account_ix_close_reason_id" {
+  table = "house"."account"
+  type = btree
+  columns = <
+    {
+      definition = close_reason_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "house"."account_ix_flat_id" {
+  table = "house"."account"
+  type = btree
+  columns = <
+    {
+      definition = flat_id
+    }
+
+  >
+  isUnique = False
+}
+

@@ -1,0 +1,96 @@
+table "payment"."document_history_detail" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__document__3214ec27418ee434"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.document_history_detail_id_seq'::regclass)
+    }
+    column "history_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "source_sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "payment"."document_history_detail"."fk_doc_history_detail_source_sublist_utility_sublist" {
+  columns = [
+    "source_sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."document_history_detail"."fk_document_history_detail_adress_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."document_history_detail"."fk_document_history_detail_payment_document_history" {
+  columns = [
+    "history_id"
+  ]
+  referencedTable = "payment"."document_history"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "payment"."document_history_detail"."fk_document_history_detail_utility_sublist" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "payment"."document_history_detail_pay_doc_hist_detail_hist_id" {
+  table = "payment"."document_history_detail"
+  type = btree
+  columns = <
+    {
+      definition = history_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    sublist_id
+    sum
+  ]
+}
+

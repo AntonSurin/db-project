@@ -1,0 +1,106 @@
+table "period"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('period.list_id_seq'::regclass)
+    }
+    column "month_id" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "name_month" {
+      type = character varying(8)
+      null = NOT NULL
+    }
+    column "year" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+      null = NOT NULL
+    }
+    column "day_in_month" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "is_active" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "is_working" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "is_open" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "date_open" {
+      type = timestamp(3) without time zone
+    }
+    column "is_visible" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+  )
+}
+
+index "period"."list_idx_active" {
+  table = "period"."list"
+  type = btree
+  columns = <
+    {
+      definition = is_active
+    }
+
+  >
+  isUnique = False
+}
+
+index "period"."list_non_clustered_index_20150428_195250" {
+  table = "period"."list"
+  type = btree
+  columns = <
+    {
+      definition = is_working
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    date_begin
+    date_end
+  ]
+}
+
+index "period"."list_non_clustered_index_20150428_195327" {
+  table = "period"."list"
+  type = btree
+  columns = <
+    {
+      definition = id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    date_begin
+    date_end
+  ]
+}
+

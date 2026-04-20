@@ -1,0 +1,80 @@
+function "report"."count_reg_and_cpr(integer, jsonb)" {
+  text = """
+
+declare 
+	_is_working bool;
+begin
+
+	  _is_working = (select pl.is_working from "period".list pl where pl.id = _period_id);
+
+	 return query
+	 select 
+		 ai.account_id
+		,ai.settlement_name as city
+		,ai.street_book_name as street_type
+		,ai.street_name as street
+		,ai.house_number as house
+		,ai.korpus as korpus
+		,ai.house_id
+		,ai.flat_book_name || ' ' || ai.flat_name as flat_type
+		,(
+			select string_agg(coalesce(full_name, ''), ', ')
+			from contragent.account ca
+				inner join contragent.list cl on ca.contragent_id = cl.id
+			where ca.is_responsible = true and ca.account_id = ai.account_id
+		)  as fio
+		,ai.account_name as account_name
+		,coalesce (case when _is_working = true then coalesce(cp.osq,0) - coalesce(cp.nsq,0) else coalesce(cpa.osq,0) - coalesce(cpa.nsq,0) end,0) as sq
+		,coalesce (case when _is_working = true then coalesce(cp.cpr,0) - coalesce(cp.cbp,0) - coalesce(cp.br1,0) else coalesce(cpa.cpr,0) - coalesce(cpa.cbp,0) - coalesce(cpa.br1,0) end,0) as cnt_cpr
+		,coalesce(pp.count_ctr,0)::int as cnt_cpr_ls
+		,coalesce (case when _is_working = true then coalesce(cp.count_owners,0) else  coalesce(cpa.count_owners,0) end,0)::int as cnt_owners
+		,coalesce (case when _is_working = true then coalesce(cp.col_reg,0) else  coalesce(cpa.col_reg,0) end,0)::int as cnt_reg
+	from adress.light_info ai 
+		inner join jsonb_populate_recordset(null::house.list, _house) hh on hh.house_id = ai.house_id
+		inner join calculation.parametr_transporate cp on cp.account_id = ai.account_id
+		left join  calculation.parametr_transporate_arch cpa on cpa.account_id = ai.account_id and cpa.period_id = _period_id
+		left join (
+					select ca.account_id,count(ca.contragent_id) as count_ctr
+					from contragent.account ca
+						inner join contragent.list cl on ca.contragent_id = cl.id
+						inner join contragent.parametr cp on cp.contragent_account_id = ca.id
+						inner join parametr.book pbb on pbb.id = cp.book_id
+					where cp.parametr_id = 1383 
+						and pbb."number" in (
+												select pb."number" 
+												from parametr.book pb 
+												where pb.parametr_id in (1383) 
+													and lower(pb."name") in ('временное','постоянное','постоянно','временно','без регистрации')
+											) 
+					group by ca.account_id
+				) pp on pp.account_id = ai.account_id
+	order by ai.order_id, ai.account_order_id;
+
+end;
+"""
+  returnType = TABLE(account_id integer, city text, street_type character varying, street character varying, house character varying, korpus character varying, house_id integer, flat_type text, fio text, account_name character varying, sq numeric, cnt_cpr integer, cnt_cpr_ls integer, cnt_owners integer, cnt_reg integer)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел	
+ Create date: 2017-05-09
+ Description:	Отчет по проживающим/зарегитсрированным
+ =============================================
+"""
+}
+

@@ -1,0 +1,27 @@
+table "input"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list_10"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('input.list_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "name" {
+      type = character varying(50)
+    }
+  )
+}
+

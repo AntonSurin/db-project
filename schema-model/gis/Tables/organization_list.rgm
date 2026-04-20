@@ -1,0 +1,36 @@
+table "gis"."organization_list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_organization_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.organization_list_id_seq'::regclass)
+    }
+    column "organization_id" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "org_ppa_guid" {
+      type = uuid
+    }
+    column "name" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "address" {
+      type = character varying(255)
+    }
+    column "is_active" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+

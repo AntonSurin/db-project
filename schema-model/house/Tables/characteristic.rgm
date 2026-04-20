@@ -1,0 +1,135 @@
+table "house"."characteristic" {
+  primaryKey = {
+    columns = [
+      "house_id"
+    ]
+    name = "pk_house_characteristic"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "status_id" {
+      type = smallint
+    }
+    column "time_zone_id" {
+      type = smallint
+    }
+    column "house_type" {
+      type = smallint
+    }
+    column "house_management_type" {
+      type = smallint
+    }
+    column "fias_house_guid" {
+      type = uuid
+    }
+    column "unique_number" {
+      type = character varying(50)
+    }
+    column "year_begin" {
+      type = smallint
+    }
+    column "year_of_construction" {
+      type = smallint
+    }
+    column "floor_count_min" {
+      type = smallint
+    }
+    column "floor_count_max" {
+      type = smallint
+    }
+    column "floor_underground_count" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "is_culture" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "document_type" {
+      type = smallint
+    }
+    column "cadastral_number" {
+      type = character varying(40)
+    }
+    column "oktmo" {
+      type = character varying(15)
+    }
+    column "is_upload" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "modification_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "area" {
+      type = numeric(18,2)
+      null = NOT NULL
+    }
+    column "living_area" {
+      type = numeric(18,2)
+    }
+    column "non_residential_area" {
+      type = numeric(18,2)
+    }
+    column "common_propery_water" {
+      type = numeric(18,2)
+    }
+    column "common_propery_el" {
+      type = numeric(18,2)
+    }
+    column "living_count_flat" {
+      type = smallint
+    }
+    column "non_residential_count_flat" {
+      type = smallint
+    }
+    column "used_special_cap_repair" {
+      type = boolean
+      default = false
+    }
+    column "is_export" {
+      type = boolean
+      default = true
+    }
+    column "is_k_pin_epd" {
+      type = boolean
+    }
+    column "fias" {
+      type = uuid
+    }
+    column "overhaul_protocol_gis" {
+      type = uuid
+    }
+  )
+}
+
+index "house"."characteristic_ix_status_id" {
+  table = "house"."characteristic"
+  type = btree
+  columns = <
+    {
+      definition = status_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "house"."characteristic_ix_time_zone_id" {
+  table = "house"."characteristic"
+  type = btree
+  columns = <
+    {
+      definition = time_zone_id
+    }
+
+  >
+  isUnique = False
+}
+

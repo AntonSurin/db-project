@@ -1,0 +1,26 @@
+table "adress"."house_type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sprav_type_house"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = smallint
+      null = NOT NULL
+      default = nextval('adress.house_type_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(30)
+      null = NOT NULL
+    }
+    column "short_name" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+  )
+}
+

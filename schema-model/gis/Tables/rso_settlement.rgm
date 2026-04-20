@@ -1,0 +1,85 @@
+table "gis"."rso_settlement" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_rso_settlement"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.rso_settlement_id_seq'::regclass)
+    }
+    column "contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "status_gis" {
+      type = integer
+      null = NOT NULL
+    }
+    column "reason_of_annulment" {
+      type = character varying(200)
+    }
+    column "name_file" {
+      type = character varying(200)
+    }
+    column "description_file" {
+      type = character varying(200)
+    }
+    column "guid_file" {
+      type = uuid
+    }
+    column "hash_file" {
+      type = character varying(200)
+    }
+    column "credted" {
+      type = numeric(10,2)
+    }
+    column "receipt" {
+      type = numeric(10,2)
+    }
+    column "debts" {
+      type = numeric(10,2)
+    }
+    column "overpayment" {
+      type = numeric(10,2)
+    }
+    column "paid" {
+      type = numeric(10,2)
+    }
+    column "credted_gis" {
+      type = numeric(10,2)
+    }
+    column "receipt_gis" {
+      type = numeric(10,2)
+    }
+    column "debts_gis" {
+      type = numeric(10,2)
+    }
+    column "overpayment_gis" {
+      type = numeric(10,2)
+    }
+    column "paid_gis" {
+      type = numeric(10,2)
+    }
+  )
+}
+
+foreignKey "gis"."rso_settlement"."fk_rso_settlement_rso_contract" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "gis"."rso_contract"
+  referencedColumns = [
+    "id"
+  ]
+}
+

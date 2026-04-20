@@ -1,0 +1,36 @@
+function "tests"."check_date_begin_parametr(jsonb)" {
+  text = """
+
+
+	select distinct aa."name" as account_name, pl."name" as parametr_name, pl.short_name
+	from parametr.account pa
+		join parametr.list pl on pl.id = pa.parametr_id
+		join adress.account aa on aa.id = pa.account_id
+		join "period".list pli on pa.date_end between pli.date_begin  and pli.date_end
+	where pli.is_working = true 
+		and pa.date_begin > pa.date_end 
+		and (not exists(select a.account_id from jsonb_populate_recordset(null::account.list, _account) a) or pa.account_id in (select ac.account_id from jsonb_populate_recordset(null::account.list, _account) ac));
+
+"""
+  returnType = TABLE(account_name character varying, parametr_name character varying, short_name character varying)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:			Казакова Светлана
+ Create date:		18.10.2017
+ Modified date:	10.12.2020, Трофимов Б.И. - добавил фильтр по лс для автоматического запуска тестов
+ Modified date:	18.01.2020, Сурин А. - добавил ограничение рабочего периода
+ Description:		Проверка корректной даты начала параметров  
+ =============================================
+"""
+}
+

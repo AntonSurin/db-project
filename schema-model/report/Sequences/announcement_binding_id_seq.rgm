@@ -1,0 +1,12 @@
+sequence "report"."announcement_binding_id_seq" {
+  type = bigint
+  increment = 1
+  minValue = 1
+  maxValue = 9223372036854775807
+  start = 1
+  cache = 1
+  cycle = NO CYCLE
+  ownedBy = "report"."announcement_binding"."id"
+  owner = postgres
+}
+

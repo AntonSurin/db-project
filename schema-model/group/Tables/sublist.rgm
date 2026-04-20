@@ -1,0 +1,51 @@
+table "group"."sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sub_list_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('"group".sublist_id_seq'::regclass)
+    }
+    column "group_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "group"."sublist"."fk_sub_list_list" {
+  columns = [
+    "group_id"
+  ]
+  referencedTable = "group"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "group"."sublist"."fk_sub_list_sub_list1" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

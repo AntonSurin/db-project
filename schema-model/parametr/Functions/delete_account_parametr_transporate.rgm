@@ -1,0 +1,44 @@
+function "parametr"."delete_account_parametr_transporate()" {
+  text = """
+
+begin
+
+set session_replication_role = replica;
+
+	with cte as 
+	(
+		select 
+			pf.id,
+			pf.account_id,
+			pf.parametr_id, 
+			pf.date_end,
+			(lead(pf.date_begin, 1, null) over (partition by pf.account_id, pf.parametr_id order by pf.account_id, pf.parametr_id, pf.date_begin) - interval '1 day') as new_date_end
+	from parametr.account pf 
+	where pf.parametr_id in (select distinct d.parametr_id from deleted d)
+		and account_id in (select distinct dd.account_id from deleted dd)
+	)
+
+	update parametr.account pa 
+		set date_end = ct.new_date_end
+	from cte ct
+	where ((ct.date_end is null or ct.date_end <> ct.new_date_end) 
+		or ct.new_date_end is null)
+		and ct.id = pa.id;
+
+set session_replication_role = default;
+
+	return null;		
+    
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  Trigger [Parametr].[DeleteAccountParametrTransporate]    
+ Script Date: 24.10.2022 15:12:00 
+"""
+}
+

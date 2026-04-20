@@ -1,0 +1,107 @@
+function "gis"."statistics_pd(integer)" {
+  text = """
+
+declare 
+	_group 				bool;
+	_period_id 			int;
+	_work_period 		bool;
+	_default_group_id 	int;
+	_date_end 			date;
+begin
+
+	_group 				=	(select case when (select min("group_id") from documents.payment_document) <> 0 then false else true end);
+	_period_id 			=	(select id from "period".list where is_working = true);
+	_work_period 		=   (case when (select id from "period".list where is_working = true) = _period then true else false end);
+	_default_group_id 	= 	(select coalesce(min(id), 1) from utility.contragent_group);
+	_date_end = (select date_end from "period".list where id = _period);
+
+	drop table if exists _account_pd;
+
+	create temp table _account_pd (account_id int, value varchar(200) null);
+	create index ix_area on _account_pd (account_id);
+
+	insert into _account_pd (account_id, value)
+	select account_id, value
+	from parametr.account
+	where parametr_id = 359
+		and value = '0'
+		and date_begin <= _date_end
+		and (date_end is null or date_end >= _date_end);
+	
+	return query
+	select   
+			 pbg.period_id
+			,aa.parent_id
+			,ai.short_name as adress
+			,ai.flat_book_name
+			,coalesce(hf.cadaster_flat_name, hf."number") as flat_name
+			,ai.account_name
+			,case 
+				when pd.state = 0 then 'Создан'
+				when pd.state = 2 then 'Отозван'
+				when pd.state = 4 then 'Ошибка'
+				when pd.state = 5 then 'Выставляется'
+				when pd.state = 6 then 'В процессе отзыва'
+				when pd.state is null then 'Не выгружен'
+				else 'Неизвестный статус'
+			end::varchar(18) as status_pd
+			,uc."name" as group_name
+			,case when pa.value = '0' then 'Закрыт' else 'Открыт' end::varchar(6) as status_account
+			,pl.date_begin as date_start_period
+			,hf.cadaster_flat_name
+			,case when ct.value = '0' then 'нет' else 'да' end::varchar(3) as is_upload_gis_ls
+	from adress.info ai
+		inner join house.flat hf on ai.flat_id = hf.flat_id
+		inner join house.characteristic hc on hc.house_id = ai.house_id
+		inner join adress.account aa on aa.parent_id = ai.account_id 
+				and (case when _group = true then coalesce(aa."group_id", _default_group_id) else _default_group_id end) = coalesce(aa."group_id", _default_group_id)
+		inner join 
+		(
+					select cpa.period_id, cpa.account_id, cpa.osq, cpa.nsq, cpa.house_id, cpa.is_closed
+					from calculation.parametr_transporate_arch cpa
+					where is_closed = 1 and cpa.period_id = _period and (coalesce(osq, 0) - coalesce(nsq, 0)) > 0
+					union all
+					select _period_id as period_id, cp.account_id, cp.osq, cp.nsq, cp.house_id, cp.is_closed
+					from calculation.parametr_transporate cp
+					where cp.is_closed = 1 and _work_period = true and (coalesce(cp.osq, 0) - coalesce(cp.nsq, 0)) > 0
+		) cp on cp.account_id = ai.account_id
+		inner join payment.balance_group pbg on pbg.account_id = aa.id and pbg.period_id = cp.period_id
+		inner join "period".list pl on pl.id = pbg.period_id
+		left join documents.payment_document pd on pd.account_id = cp.account_id 
+				and pd.period_id = cp.period_id
+				and (select case when _group = true then coalesce(pd."group_id", _default_group_id) else _default_group_id end) = (select case when _group = true then coalesce(pd."group_id", _default_group_id) else coalesce(aa."group_id", _default_group_id) end)
+		left join utility.contragent_group uc on uc.id = aa."group_id"
+		left join parametr.account pa on pa.account_id = cp.account_id 
+				and pa.parametr_id = 1362
+				and pa.date_begin = (select max(date_begin) from parametr.account paa where paa.account_id = pa.account_id and paa.parametr_id = pa.parametr_id)
+		left join _account_pd ct on ct.account_id = ai.account_id
+	where hc.is_export = true
+		and (pbg.current_calc <> 0 or pbg.recalc <> 0) 
+		and coalesce(pd.state, 0) not in (1, 3)
+	order by ai.order_id, ai.flat_order_id, ai.account_order_id, pbg.period_id;
+
+
+	drop table if exists _account_pd;
+
+end;
+"""
+  returnType = TABLE(period_id integer, parent_id integer, adress text, flat_book_name character varying, flat_name character varying, account_name character varying, status_pd character varying, group_name character varying, status_account character varying, date_start_period date, cadaster_flat_name character varying, is_upload_gis_ls character varying)
+  arguments = <
+    {
+      name = _period
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Антон
+ Create date: 10-11-2022
+ Description:	Отчет (статистика выгрузки) платежных документов
+ =============================================
+"""
+}
+

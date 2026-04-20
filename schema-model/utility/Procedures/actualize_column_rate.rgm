@@ -1,0 +1,59 @@
+procedure "utility"."actualize_column_rate()" {
+  text = """
+
+declare 
+	_sql text = '';
+begin
+
+	_sql = (
+				select  string_agg('
+								alter table calculation.normativ add n_' 		|| us.short_name || ' numeric(9, 5) null;
+								alter table calculation.normativ_arch add n_' 	|| us.short_name || ' numeric(9, 5) null;
+								alter table recalculation.normativ add n_' 		|| us.short_name || ' numeric(9, 5) null;'
+									,'')
+				from utility.sublist us 
+				where not exists (
+									select *
+									from information_schema."columns"
+									where lower(table_schema) = 'calculation' 
+										and lower(table_name) = 'normativ' 
+										and lower(column_name) = 'n_' || lower(us.short_name)
+								) and exists(select * from normativ.list where sublist_id = us.id and date_end is null)
+			);
+
+	_sql = (
+				select  '
+					alter table calculation.normativ add r_' || us.short_name || ' numeric(5, 2) null;
+					alter table calculation.normativarch add r_' || us.short_name || ' numeric(5, 2) null;
+					alter table recalculation.normativ add r_' || us.short_name || ' numeric(5, 2) null;'
+				from utility.sublist us 
+				where not exists (
+									select *
+									from information_schema.columns 
+									where lower(table_schema) = 'calculation' 
+										and lower(table_name) = 'normativ' 
+										and lower(column_name) = 'r_' || lower(us.short_name)
+								) and exists(select * from normativ.list nl where nl.sublist_id = us.id and nl.date_end is null)
+			);
+
+	raise notice '%', _sql;
+
+	if (coalesce(_sql, '') != '') 
+		then
+			execute (_sql);
+	end if;
+end
+"""
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 13.12.2017
+ description:	создание колонок норматива и коэффициента трансформации
+ =============================================
+"""
+}
+

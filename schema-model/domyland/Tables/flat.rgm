@@ -1,0 +1,35 @@
+table "domyland"."flat" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_flat"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.flat_id_seq'::regclass)
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "domyland_id" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "status" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "is_upload" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+  )
+}
+

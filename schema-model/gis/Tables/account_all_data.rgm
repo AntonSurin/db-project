@@ -1,0 +1,81 @@
+table "gis"."account_all_data" {
+  primaryKey = {
+    columns = [
+      "account_id"
+    ]
+    name = "pk_account_all_data"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "creation_date" {
+      type = timestamp(3) without time zone
+    }
+    column "residential_square" {
+      type = numeric(25,4)
+    }
+    column "heated_area" {
+      type = numeric(25,4)
+    }
+    column "total_square" {
+      type = numeric(25,4)
+    }
+    column "living_persons_number" {
+      type = integer
+    }
+    column "share_percent" {
+      type = numeric(18,2)
+    }
+    column "is_divided" {
+      type = boolean
+    }
+    column "is_legal" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "org_version_guid" {
+      type = uuid
+    }
+    column "surname" {
+      type = character varying(256)
+    }
+    column "first_name" {
+      type = character varying(256)
+    }
+    column "patronymic" {
+      type = character varying(256)
+    }
+    column "sex" {
+      type = character varying(2)
+    }
+    column "date_of_birth" {
+      type = timestamp(6) without time zone
+    }
+    column "doc_type_code" {
+      type = character varying(20)
+    }
+    column "doc_type_guid" {
+      type = uuid
+    }
+    column "series" {
+      type = character varying(45)
+    }
+    column "number" {
+      type = character varying(45)
+    }
+    column "isue_date" {
+      type = timestamp(6) without time zone
+    }
+    column "snils" {
+      type = character varying(11)
+    }
+    column "account_reason_list_str" {
+      type = character varying(1000)
+    }
+  )
+}
+

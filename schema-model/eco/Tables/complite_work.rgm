@@ -1,0 +1,98 @@
+table "eco"."complite_work" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_eco_complite_work"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.complite_work_id_seq'::regclass)
+    }
+    column "act_of_complite_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "organization_work_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "month" {
+      type = integer
+      null = NOT NULL
+    }
+    column "freq" {
+      type = integer
+    }
+    column "amount" {
+      type = numeric(18,3)
+    }
+    column "price" {
+      type = numeric(18,4)
+    }
+    column "is_unplanned" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_unplanned_gis" {
+      type = boolean
+    }
+    column "code_work_gis" {
+      type = character varying(50)
+    }
+    column "guid_work_gis" {
+      type = uuid
+    }
+    column "guid_work_plan_gis" {
+      type = uuid
+    }
+    column "freq_gis" {
+      type = integer
+    }
+    column "amount_gis" {
+      type = numeric(18,3)
+    }
+    column "price_gis" {
+      type = numeric(18,4)
+    }
+    column "total_cost_gis" {
+      type = numeric(18,4)
+    }
+    column "is_exist_gis" {
+      type = boolean
+    }
+    column "is_add_gis" {
+      type = boolean
+    }
+    column "freq_plan_gis" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "eco"."complite_work"."fk_eco_complite_work_eco_act_of_complite_act_of_complite_id" {
+  columns = [
+    "act_of_complite_id"
+  ]
+  referencedTable = "eco"."act_of_complite"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "eco"."complite_work"."fk_eco_complite_work_eco_organization_work_id" {
+  columns = [
+    "organization_work_id"
+  ]
+  referencedTable = "eco"."organization_work"
+  referencedColumns = [
+    "id"
+  ]
+}
+

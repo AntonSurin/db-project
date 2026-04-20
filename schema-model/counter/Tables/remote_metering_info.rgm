@@ -1,0 +1,21 @@
+table "counter"."remote_metering_info" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_remote_metering_info"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('counter.remote_metering_info_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(2000)
+    }
+  )
+}
+

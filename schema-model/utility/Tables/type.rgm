@@ -1,0 +1,74 @@
+table "utility"."type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_type_3"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = smallint
+      null = NOT NULL
+      default = nextval('utility.type_id_seq'::regclass)
+    }
+    column "parent_id" {
+      type = smallint
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "is_visible" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+    column "is_summary" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "order_id" {
+      type = smallint
+    }
+  )
+}
+
+foreignKey "utility"."type"."fk_type_type" {
+  columns = [
+    "parent_id"
+  ]
+  referencedTable = "utility"."type"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."type"."fk_type_type1" {
+  columns = [
+    "id"
+  ]
+  referencedTable = "utility"."type"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "utility"."type_idx_parent_id" {
+  table = "utility"."type"
+  type = btree
+  columns = <
+    {
+      definition = parent_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    name
+    is_visible
+    is_summary
+  ]
+}
+

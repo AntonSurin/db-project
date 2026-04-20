@@ -1,0 +1,223 @@
+procedure "utility"."transfer_sublist_tariffs(integer, integer)" {
+  text = """
+
+declare 
+	_date_begin 			date;
+	_date_end 				date;
+	_previous_date_begin 	timestamp;
+	_provider_owner_id 		int default null::int;
+	err_code 				text;
+	msg_text 				text;
+	exc_context 			text;
+begin
+	begin
+		--формируется список услуг, по которым есть вх.сальдо или перерасчеты или платежи
+		drop table if exists _sublist_have_debt;
+		create temp table _sublist_have_debt (sublist_id int, house_id int, territory_id int);
+
+		insert into _sublist_have_debt (house_id, sublist_id, territory_id)
+		select pb.house_id, pb.sublist_id, ah.territory_id
+		from payment.balance pb
+			inner join adress.house ah on ah.id = pb.house_id
+		where pb.period_id = _period_id
+				and (pb.re_calculate <> 0
+					or pb.in_balance <> 0
+					or pb.pay <> 0)
+				and pb.sublist_id not in (6,7)
+		group by pb.house_id, pb.sublist_id, ah.territory_id;
+
+		--формируется список новых поставщиков по группе
+		_date_begin = (	
+						select date_begin
+						from "period".list 
+						where id = _period_id
+						);
+
+		select date_begin, date_end
+		into _previous_date_begin, _date_end
+		from "period".list
+		where id = _period_id - 1;
+
+		_provider_owner_id = (
+								select up.id
+								from organization.list ol
+									inner join utility.provider up on ol.inn = up.inn
+								where ol.is_owner = true
+								limit 1
+							);
+
+		if (_provider_owner_id is null) 
+			then
+				_provider_owner_id = (
+										select id 
+										from utility.provider
+										limit 1
+									);
+		end if;
+	
+		drop table if exists _sublist_provider_for_insert;
+		create temp table _sublist_provider_for_insert (id int, territory_id int, provider_id int, sublist_id int, house_id int, date_begin date, date_end date);
+
+		insert into _sublist_provider_for_insert (id, territory_id, provider_id, sublist_id, house_id, date_begin, date_end)
+		select	usp.id
+				,coalesce(usp.territory_id, hb.territory_id)
+				,coalesce(usp.provider_id, _provider_owner_id)
+				,coalesce(usp.sublist_id, hb.sublist_id)
+				,coalesce(usp.house_id, hb.house_id)
+				,case when usp.sublist_id is null then _previous_date_begin else usp.date_begin end
+				,case when usp.sublist_id is null then _previous_date_begin else usp.date_end end
+		from utility.sublist_provider usp
+			left join utility.contragent_group_sublist ugs on ugs.sublist_provider_id = usp.id
+			full join _sublist_have_debt hb on hb.sublist_id = usp.sublist_id and hb.house_id = usp.house_id
+		where ugs.id is null
+			and (usp.date_end is null or usp.date_end >= _date_begin);
+
+		drop table if exists _sublist_have_debt;
+
+		--использую merge т.к. необходимо было старое и новое значение id для sublist_provider
+		drop table if exists _new_sublist_provider;
+		create temp table _new_sublist_provider (id int, territory_id int, provider_id int, sublist_id int, house_id int, date_begin date, date_end date, old_id int);
+
+		with cte as 
+		(
+			insert into utility.sublist_provider as up (sublist_id, provider_id, territory_id, house_id, date_begin, date_end)
+			select ui.sublist_id, ui.provider_id, ui.territory_id, ui.house_id,
+				case 
+					when _date_begin >= ui.date_begin and ui.id is not null 
+					then _date_begin 
+					else ui.date_begin 
+				end as date_begin
+				,ui.date_end
+			from _sublist_provider_for_insert ui
+			returning 
+					up.id, 
+					up.territory_id, 
+					up.provider_id, 
+					up.sublist_id, 
+					up.house_id, 
+					up.date_begin, 
+					up.date_end
+		)
+		insert into _new_sublist_provider
+		select ct.*, ui.id
+		from cte ct
+			inner join _sublist_provider_for_insert ui on 	ui.sublist_id = ct.sublist_id and 
+															ui.provider_id = ct.provider_id and 
+															ui.territory_id = ct.territory_id and
+															ui.house_id = ct.house_id;
+
+		--обновляем дату окончания действия поставщика по услуге
+		update utility.sublist_provider as usp
+			set date_end = 	case 
+								when _date_begin > usp.date_begin 
+								then _date_end 
+								else usp.date_begin  
+							end
+		from _sublist_provider_for_insert sp
+		where sp.id = usp.id;
+
+		--привязка поставщиков услуг к группе
+		insert into utility.contragent_group_sublist (sublist_provider_id, group_id, sublist_id, house_id, date_begin, date_end)
+		select us.id, _new_group_id, us.sublist_id, us.house_id,  us.date_begin, us.date_end
+		from _new_sublist_provider us;
+
+		--перенос документов
+		create temp table _utility_documents_id (object_id int);
+
+		insert into _utility_documents_id
+		select ud.id
+		from utility.documents ud
+			inner join  _new_sublist_provider  sl on sl.old_id = ud.sublist_provider_id
+		where ud.period_end is null
+			or ud.period_end >= _period_id;
+
+		insert into utility.documents (sublist_provider_id, document_id, period_begin, period_end)
+		select sl.id, ud.document_id, ud.period_begin, ud.period_end 
+		from _utility_documents_id id
+			inner join utility.documents ud on ud.id = id.object_id
+			inner join _new_sublist_provider sl on sl.old_id = ud.sublist_provider_id;
+
+		update utility.documents ud
+			set period_end = _period_id - 1
+		from _utility_documents_id id
+		where ud.id= id.object_id;
+
+		--перенос тарифов
+		drop table if exists _house_tarif_id;
+		create temp table _house_tarif_id (id int);
+		
+		insert into _house_tarif_id
+		select thl.id
+		from tarif.list tl
+			inner join _new_sublist_provider nsp on nsp.provider_id = tl.provider_id
+													and nsp.sublist_id = tl.sublist_id
+													and nsp.territory_id = tl.territory_id
+			inner join tarif.house_tarif thl on thl.tarif_id = tl.id
+		where thl.date_end is null
+			or thl.date_end >= _date_begin
+			or nsp.old_id is not null;
+
+		insert into tarif.house_tarif (house_id, tarif_id, "number", date_begin, date_end)
+		select thl.house_id
+			  ,thl.tarif_id
+			  ,thl.number
+			  ,case when _date_begin >= date_begin then _date_begin else date_begin end
+			  ,thl.date_end
+		from tarif.house_tarif thl
+			 inner join _house_tarif_id  ht on thl.id = ht.id;
+
+		update tarif.house_tarif thl
+			set date_end = 	case 
+								when _date_begin > thl.date_begin 
+								then _date_end  
+								else thl.date_begin 
+							end 
+		from _house_tarif_id  ht
+		where thl.id = ht.id;
+
+		drop table if exists _sublist_have_debt;
+		drop table if exists _house_tarif_id;
+		drop table if exists _new_sublist_provider;
+		drop table if exists _sublist_provider_for_insert;
+		drop table if exists _utility_documents_id;
+
+		exception 
+			when others
+				then 
+	
+					get stacked diagnostics
+	    			err_code = returned_sqlstate,
+					msg_text = message_text,
+	    			exc_context = pg_context;
+	
+	   				raise notice 'error code: % message text: % context: %', 
+	   				err_code, msg_text, exc_context;
+	end;
+	
+end
+"""
+  arguments = <
+    {
+      name = _new_group_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:	Макарова Е.А.
+ Create date: 24.09.2020
+ Description:	Процедура для переноса тарифов в группу
+ =============================================
+"""
+}
+

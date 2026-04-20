@@ -1,0 +1,27 @@
+table "gis"."version" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_gis_version"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.version_id_seq'::regclass)
+    }
+    column "service" {
+      type = text
+    }
+    column "method" {
+      type = text
+    }
+    column "version" {
+      type = text
+    }
+  )
+}
+

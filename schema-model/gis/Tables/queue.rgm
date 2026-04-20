@@ -1,0 +1,33 @@
+table "gis"."queue" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_queue"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.queue_id_seq'::regclass)
+    }
+    column "object_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type" {
+      type = integer
+      null = NOT NULL
+    }
+    column "organization_setting_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+    }
+  )
+}
+

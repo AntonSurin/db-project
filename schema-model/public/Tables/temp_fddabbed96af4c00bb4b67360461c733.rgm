@@ -1,0 +1,12 @@
+table "public"."temp_fddabbed96af4c00bb4b67360461c733" {
+  owner = postgres
+  columns = (
+    column "temporary_identity" {
+      type = uuid
+    }
+    column "id" {
+      type = integer
+    }
+  )
+}
+

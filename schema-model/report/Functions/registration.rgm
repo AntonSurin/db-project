@@ -1,0 +1,134 @@
+function "report"."registration(integer, integer, boolean)" {
+  text = """
+
+declare 
+	_sql 		text = ''; 
+begin
+
+	_sql = (
+			select string_agg(d.t, '')
+			from	(
+						select '
+							,max(case when cp.parametr_id = ' || id || ' then ' 
+							|| case 
+								when  short_name = 't_prop' 
+								then 'coalesce (pb.name,''не проживает'')' 
+								else 'pb.name' 
+							   end 
+							|| ' end)::varchar(100) as ' || short_name as t
+						from parametr.list
+						where catalog_id = 6 and type_id = 2
+						order by id
+					) as d
+			);
+
+	_sql = '
+	with cte as 
+	(
+		select 
+			 ca.account_id
+			,ca.contragent_id
+			,al.account_name
+			,al.settlement_name
+			,al.street_book_name
+			,al.street_name
+			,al.flat_book_name
+			,al.flat_name
+			,cl.full_name || case when ci.date_death is not null then '' (умер '' || to_char(ci.date_death, ''dd.mm.yyyy'') || '')'' else '''' end as fio
+			,cl.type
+			,ac.phone
+			,dk.name as kind_name
+			,di.name as is_by_name
+			,co.series
+			,co.number
+			,co.share
+			,co.date_begin
+			,co.date_end
+			,co.is_common_owner
+			,ca.reg_date_begin
+			,ca.reg_date_end
+			,ci.date_birth
+			,ci.date_death
+			,ci.place_birth
+			,ci.before_living_place
+			,case 
+				when sex is null then null
+				else 
+					case 
+						when sex = 1 then ''мужской'' 
+						else ''женский'' 
+					end
+			end::varchar(7) as sex
+			' || _sql || '
+			,(case when co.id is not null and coalesce(co.date_end, current_date) >= current_date then true else false end) as is_owner
+			,(case 
+				when coalesce(ca.reg_date_end, (current_date + 1)) > current_date 
+					and ca.reg_date_begin <= current_date 
+				then true
+				else false
+			  end
+			) as is_active
+		from contragent.account ca
+			inner join adress.light_info al on al.account_id = ca.account_id
+			inner join contragent.list cl on cl.id = ca.contragent_id
+			inner join contragent.contact ac on ac.contragent_id = cl.id
+			inner join contragent.info ci on ci.contragent_id = cl.id 
+			inner join contragent.parametr cp on cp.contragent_account_id = ca.id
+			left join parametr.book pb on  pb.id = cp.book_id
+			left join contragent.owner_documents co on co.contragent_account_id = ca.id
+				and co.date_begin in ' || 
+			case 
+				when _show_all_documents = false then ' (select max(date_begin) from contragent.owner_documents where contragent_account_id = co.contragent_account_id)'
+				else '(select date_begin from contragent.owner_documents where contragent_account_id = co.contragent_account_id and coalesce(co.date_end, current_date) >= current_date)'
+			end || '
+			left join documents.kind dk on dk.id = co.kind_id
+			left join documents.is_by di on di.id = co.is_by_id
+		where ca.account_id = ' || _account_id || 
+		 'group by ca.account_id, al.account_name, al.settlement_name, al.street_book_name, al.street_name, al.flat_book_name, al.flat_name, cl.full_name, ac.phone, co.id, dk.name, di.name, co.series, co.number, ca.reg_date_begin, ca.reg_date_end, ci.date_birth, co.date_end, co.is_common_owner, ci.date_death, ci.place_birth, ci.before_living_place, sex, co.date_begin, co.date_end, co.share, ca.contragent_id, cl.type
+	)
+	
+	
+	select *
+		,(case when coalesce(t_reg, ''не зарегистрирован'') = ''не зарегистрирован'' or coalesce(reg_date_end,''2100-01-01'') <= current_date then false else true end ) as is_registr
+	from cte
+	order by is_owner desc';
+
+	return query
+	execute (_sql);
+
+end;
+"""
+  returnType = TABLE(account_id integer, contragent_id integer, account_name character varying, settlement_name text, street_book_name character varying, street_name character varying, flat_book_name character varying, flat_name character varying, fio text, type boolean, phone jsonb, kind_name character varying, is_by_name character varying, series character varying, number character varying, share character varying, date_begin date, date_end date, is_common_owner boolean, reg_date_begin date, reg_date_end date, date_birth date, date_death date, place_birth character varying, before_living_place character varying, sex character varying, rs character varying, t_prop character varying, t_reg character varying, t_status character varying, el_lgot_type character varying, is_owner boolean, is_active boolean, is_registr boolean)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _show_all_documents
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 23.01.2017
+ Description:	Формирование процедуры для отображения списка собсвенников и проживающих
+ Modyfied date: Процедура полностью переписана
+ =============================================
+"""
+}
+

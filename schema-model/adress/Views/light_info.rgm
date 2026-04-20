@@ -1,0 +1,148 @@
+view "adress"."light_info" {
+  text = """-
+SELECT af.house_id,
+    aa.flat_id,
+    aa.id AS account_id,
+    af.flat_book_id,
+    ast.type_id AS settlement_type_id,
+    astr.street_book_id,
+    astr.settlement_id,
+    ah.street_id,
+    asb.short_name AS street_book_name,
+    astr.name AS street_name,
+    ah.number AS house_number,
+    ah.inner_city_district_id,
+    acd.name AS inner_city_district,
+    ak.short_name AS house_kind_name,
+    ah.korpus,
+    afb.short_name AS flat_book_name,
+    afb.name AS flat_book_full_name,
+    af.name AS flat_name,
+    aa.name AS account_name,
+    aa.old_name AS old_account_name,
+    (((ap.short_name)::text || ' '::text) || (ast.name)::text) AS settlement_name,
+    ah.order_id,
+    aa.order_id AS account_order_id,
+    aa.parent_id AS account_parent_id
+   FROM (((((((((adress.house ah
+     JOIN adress.street astr ON ((astr.id = ah.street_id)))
+     JOIN adress.street_book asb ON ((asb.id = astr.street_book_id)))
+     JOIN adress.flat af ON ((af.house_id = ah.id)))
+     JOIN adress.flat_book afb ON ((afb.id = af.flat_book_id)))
+     JOIN adress.account aa ON ((aa.flat_id = af.id)))
+     JOIN adress.settlement ast ON ((ast.id = astr.settlement_id)))
+     JOIN adress.settlement_type ap ON ((ap.id = ast.type_id)))
+     JOIN adress.house_kind ak ON ((ak.id = ah.house_kind_id)))
+     JOIN adress.inner_city_district acd ON ((acd.id = ah.inner_city_district_id)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+    }
+    column "flat_id" {
+      type = integer
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "flat_book_id" {
+      type = smallint
+    }
+    column "settlement_type_id" {
+      type = integer
+    }
+    column "street_book_id" {
+      type = integer
+    }
+    column "settlement_id" {
+      type = integer
+    }
+    column "street_id" {
+      type = integer
+    }
+    column "street_book_name" {
+      type = character varying(30)
+    }
+    column "street_name" {
+      type = character varying(200)
+    }
+    column "house_number" {
+      type = character varying(10)
+    }
+    column "inner_city_district_id" {
+      type = integer
+    }
+    column "inner_city_district" {
+      type = character varying(100)
+    }
+    column "house_kind_name" {
+      type = character varying(20)
+    }
+    column "korpus" {
+      type = character varying(10)
+    }
+    column "flat_book_name" {
+      type = character varying(10)
+    }
+    column "flat_book_full_name" {
+      type = character varying(20)
+    }
+    column "flat_name" {
+      type = character varying(30)
+    }
+    column "account_name" {
+      type = character varying(12)
+    }
+    column "old_account_name" {
+      type = character varying(20)
+    }
+    column "settlement_name" {
+      type = text
+    }
+    column "order_id" {
+      type = integer
+    }
+    column "account_order_id" {
+      type = smallint
+    }
+    column "account_parent_id" {
+      type = integer
+    }
+  )
+}
+
+index "adress"."clx_house_light_info" {
+  view = "adress"."light_info"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = True
+}
+
+index "adress"."idx_house_id" {
+  view = "adress"."light_info"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    flat_id
+    account_id
+    flat_book_id
+    flat_book_full_name
+    flat_name
+    account_name
+    account_order_id
+  ]
+}
+

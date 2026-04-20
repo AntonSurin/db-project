@@ -1,0 +1,822 @@
+function "report"."invoice_sub_report_mass2017(integer, jsonb, integer, integer, boolean, boolean, boolean)" {
+  text = """
+
+declare 
+	_date_begin 	date = (select date_begin from "period".list where id = _period_id);
+	_date_end   	date = (select date_end   from "period".list where id = _period_id);
+	_period_history int;
+begin			
+	
+	create temp table _account_table (account_id int);	
+	create temp table _flow_type (account_id int, sublist_id int, flow_type varchar(3));	
+	create table _level (type_id int not null, level int, l1 varchar(100),l2 varchar(100),l3 varchar(100), l1_order_id int, 
+		l2_order_id int, l3_order_id int);
+	create temp table _benefits (sublist_id int, account_id int, benefit_result  numeric(9,2), percent_housing int2);
+	create temp table _temp_table 
+	(
+		 account_id 		integer
+		,sublist_id			int
+		,sublist_name 		character varying
+		,flow_type 			varchar(3)
+		,normativ 			numeric
+		,rate_normativ 		numeric
+		,unit_name 			character varying
+		,volume 			numeric
+		,tarif 				numeric
+		,current_calculate 	numeric
+		,over_calc 			numeric
+		,recalculate 		numeric
+		,penalty_result 	numeric
+		,l1 				varchar
+		,l2 				varchar
+		,l3 				varchar
+		,l1_order_id		varchar
+		,l2_order_id		varchar
+		,l3_order_id		varchar
+		,"level" 			integer
+		,"number" 			integer
+		,is_visible 		bool
+		,benefit_result 	numeric
+	);
+
+	if (_group_id is null)
+		then 
+			begin
+				insert into _account_table
+				select aa.id
+				from adress.account aa
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id;
+			end ;
+		else
+			begin
+				insert into _account_table
+				select aa.id
+				from adress.account aa
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id 
+				where aa.groupid = _group_id;
+			end;
+	end if;
+
+	insert into _flow_type
+	select 
+		 pb.account_id
+		,pb.sublist_id
+		,case 
+			when t.flow_type_id = 3 then '3'
+			when t.flow_type_id is not null and t.flow_type_id <> 4 then '2'
+			when t.flow_type_id = 4 then '5'
+			when (us.is_counter = true 
+					and t.flow_type_id is null 
+					and not exists (
+									select * 
+									from counter.house ch 
+										inner join counter.list cl on cl.id = ch.counter_id
+									where cl.active = true and cl.is_calculation = true 
+									  	and pb.sublist_id = cl.sublist_id and ch.house_id = pb.house_id
+								   )							 
+					and exists (
+								select * 
+								from normativ.list nl
+								where nl.sublist_id = pb.sublist_id and nl.territory_id = ah.territory_id 
+									and (nl.date_begin between _date_begin and _date_end 
+									or coalesce(nl.date_end , '9999-12-31') between _date_begin and _date_end 
+									or _date_begin between nl.date_begin and coalesce(nl.date_end , '9999-12-31')
+									or _date_end between nl.date_begin and coalesce(nl.date_end , '9999-12-31'))
+								)
+				) 
+					or (pb.volume <> 0.0 and pb.volume % nullif(pb.normativ * coalesce(pb.rate_normativ , 1.0), 0) = 0) 
+					then '1'
+			when us.is_odn = true or (flow_type_id is null 
+									and exists (
+												select * 
+												from counter.house ch 
+													inner join counter.list cl on cl.id = ch.counter_id
+												where cl.active = true and cl.is_calculation = true 
+													and pb.sublist_id = cl.sublist_id and ch.house_id = pb.house_id)
+								  				) then '4'
+		end as flow_type
+	from payment.balance pb
+		inner join _account_table a on a.account_id = pb.account_id
+		inner join adress.house ah on ah.id = pb.house_id 
+		inner join utility.sublist us on us.id = pb.sublist_id
+        inner join utility."type" ut on ut.id = us."type" 
+		left join (
+					select cf.sublist_id, 
+						  max(cf.flow_type_id) as flow_type_id, 
+						  ca.account_id as account_id
+					from counter.flow cf
+						inner join counter.account ca on ca.counter_id = cf.counter_id
+					where cf.period_id = _period_id and cf.flow_type_id <> 5
+					group by cf.sublist_id , ca.account_id
+				   ) t  on t.account_id = pb.account_parent_id and t.sublist_id = pb.sublist_id 
+	where pb.print = 1 and pb.period_id = _period_id 
+		and (ut.id = 1 or coalesce(ut.parent_id ,0) = 1)
+		and us.id not in (22, 32, 24, 34, 27, 37)
+
+	union all
+	
+	select 
+	  	 pb.account_id
+		,pb.sublist_id
+		,case 
+			when pb.rate_normativ > 1.0 and pbr.current_calculate > 0 then '1'
+			when t.flow_type_id = 3 then '3'
+			when t.flow_type_id is not null and t.flow_type_id <> 4 then '2'
+			when t.flow_type_id = 4 then '5'
+			when (us.is_counter = true 
+					and flow_type_id is null 
+					and not exists	(
+										select * 
+										from counter.house ch 
+											inner join counter.list cl on cl.id = ch.counter_id 
+										where active = true and is_calculation = true and pb.sublist_id = cl.sublist_id and ch.house_id = pb.house_id
+									)
+					and exists	(
+									select * 
+									from normativ.list nl
+									where nl.sublist_id = pb.sublist_id and nl.territory_id = ah.territory_id 
+									and (nl.date_begin between _date_begin and _date_end
+										or coalesce(nl.date_end, '9999-12-31'::date) between _date_begin and _date_end
+										or _date_begin between nl.date_begin and coalesce(nl.date_end, '9999-12-31'::date)
+										or _date_end between nl.date_begin and coalesce(nl.date_end, '9999-12-31'::date))
+								)
+				) 
+					or (pb.volume <> 0.0 and pb.volume % nullif(pb.normativ * coalesce(pb.rate_normativ, 1.0), 0) = 0) 
+					then '1'
+			when us.is_odn = true 
+					or (flow_type_id is null 
+						and exists	(
+										select * 
+										from counter.house ch 
+											inner join counter.list cl on cl.id = ch.counter_id 
+										where active = true and is_calculation = true and pb.sublist_id = cl.sublist_id and ch.house_id = pb.house_id
+									)
+				  		) 
+				then '4'
+		end as flow_type
+	from payment.balance pb
+		inner join _account_table a on a.account_id = pb.account_id
+		inner join adress.house ah on ah.id = pb.house_id
+		inner join utility.sublist us on us.id = pb.sublist_id
+	    inner join utility."type" ut on ut.id = us."type"
+		left join	(
+						select 
+							cf.sublist_id, 
+							max(cf.flow_type_id) as flow_type_id, 
+							ca.account_id
+						from counter.flow cf
+							inner join counter.account ca on ca.counter_id = cf.counter_id
+						where cf.period_id = _period_id  and cf.flow_type_id <> 5
+						group by cf.sublist_id, ca.account_id
+					) t  on t.account_id = pb.account_parent_id and t.sublist_id = pb.sublist_id 
+		left join payment.balance pbr on pbr.account_id = pb.account_id and pb.period_id = pbr.period_id and pbr.sublist_id = (us.id + 10)
+	where pb.print = 1 
+		and pb.period_id = _period_id
+		and (ut.id = 1 or coalesce(ut.parent_id ,0) = 1)
+		and us.id in (22, 24, 27);
+
+	if exists (select 1 from _flow_type ft where ft.sublist_id in (8,9,10) limit 1)
+		then
+			begin
+
+				update _flow_type f 
+					set f.flow_type = ft.flow_type
+				from _flow_type ft
+				where f.account_id = ft.account_id and ft.sublist_id = 27 and f.sublist_id in (8,31);
+				
+				update _flow_type f 
+					set f.flow_type = ft.flow_type
+				from _flow_type ft
+				where f.account_id = ft.account_id and ft.sublist_id = 42 and f.sublist_id in (9,33);
+
+				update _flow_type f 
+					set f.flow_type = ft.flow_type
+				from _flow_type ft
+				where f.account_id = ft.account_id and ft.sublist_id = 28 and f.sublist_id in (10,36);
+
+			end;
+	end if;
+	
+	with recursive cte as 
+	(
+	  	select 
+			ut1.id as id,
+			2 as "level",
+			ut."name" as l1,
+			ut1."name" as l2,
+			cast(null as varchar) as l3,
+			ut.order_id as l1_order_id,
+			ut1.order_id as l2_order_id,
+			cast(null as int) as l3_order_id
+		from utility."type" ut
+			inner join utility."type" ut1 on ut1.parent_id = ut.id
+		where ut.parent_id is null
+		union all
+		select 
+			ut.id ,
+			c."level" + 1,
+			c.l1,
+			c.l2,
+			case when c."level" = 2 then ut."name" else null end,
+			c.l1_order_id,
+			c.l2_order_id,
+			case when c.level = 2 then ut.order_id else cast(null as int) end as l3_order_id
+		from utility."type" ut
+			inner join cte c on c.id = ut.parent_id
+		where ut.parent_id is not null
+	)
+	, cte2 as 
+	(
+		select c.id, c."level", c.l1, c.l2, c.l3, c.l1_order_id, c.l2_order_id, c.l3_order_id
+		from cte c
+		union all
+		select id, 1, "name",null, null, order_id, null, null
+		from utility."type" 
+		where parent_id is null	
+	)
+	
+	insert into _level
+	select * 
+	from cte2;
+
+	if _use_benefits <> 0
+		then
+			insert into _benefits (sublist_id, account_id, benefit_result, percent_housing)
+			select bc.sublist_id, bc.account_id, sum(bc.benefit_result) as benefit_result, max(percent_housing) as percent_housing
+			from benefit.calculation bc 
+				inner join _account_table a on a.account_id = bc.account_id
+				inner join benefit.list bl on bl.id = bc.benefit_id
+			where bc.period_id = _period_id
+			group by bc.sublist_id, bc.account_id, bc.period_id ;
+	end if;
+
+	_period_history = (select max(period_id) from utility.history);
+	
+	if _period_history is null
+			and not exists (select * from utility.sublist where id in (18,19) and is_odn = true)
+		    and exists (select * from utility.sublist where id = 12)
+	   	then
+			begin
+				with penalty as 
+				(
+					select rr.account_id, rr.sublist_id, sum(rr.diff_result) as penalty_result
+					from recalculation."result" rr
+						inner join recalculation.root r on r.id = rr.root_id
+						inner join _account_table a on a.account_id = rr.account_id
+					where r.period_id = _period_id and r."type" = 9
+					group by rr.account_id, rr.sublist_id
+				) 
+				, mass as 
+				(	
+					select 
+						pb.account_parent_id as account_id
+						,pb.sublist_id
+						,us."name" as sublist_name
+						,case
+							when pb.sublist_id = 41 and coalesce((select ufa.is_origin 
+																from utility.formula ufa
+																where ufa.formula_type = 3 and ufa.date_begin <= _date_begin and coalesce(ufa.date_end,_date_end) >= _date_end 
+																	and ufa.sublist_id= 41 and (ufa.formula)~~*'%gv_oi_gkal%' 
+																	and ((ufa.formula) !~~*'%h_ras_gv%' or (ufa.formula!~~*'%h_gkal%')) and ufa.is_origin = true
+																),false) = true
+							then '5'		
+							when pb.sublist_id not in (38) 
+							then f.flow_type 
+							else null
+						end as flow_type
+						,case 
+							when _show_all_normativ = true 
+							then nullif(pb.normativ, 0.0) 
+							else  
+								case 
+									when pb.sublist_id not in (11,12,13,14,18,19,38) 
+									then nullif(pb.normativ, 0.0) 
+								else null 
+							end 
+						 end as normativ 
+						,case 
+							when _show_over_calc = true and pb.normativ > 0.0 and pb.rate_normativ > 0.0 and pb.sublist_id not in (11,12,13,14,18,19,38,41,61) 
+							then 
+								case 
+									when f.flow_type = '1' 
+									then pb.rate_normativ 
+									else null 
+								end 
+							else null 
+						 end as rate_normativ
+						,uu."name" as unit_name
+						,pb.volume 
+						,pb.tarif as tarif
+						,pb.current_calculate as current_calculate
+						,case 
+							when _show_over_calc = true and f.flow_type = '1' and pb.sublist_id not in (11,12,13,14,18,19,38,41,61) 
+							then pb.current_calculate - (pb.current_calculate/nullif(pb.rate_normativ ,0)) 
+							else null 
+						end as over_calc
+						,pb.recalculate - case when _show_penalty = false then 0 else coalesce (p.penalty_result, 0) end as recalculate
+						,case when _show_penalty = false then null else -p.penalty_result end as penalty_result
+						,t.l1
+						,t.l2
+						,t.l3
+						,t.l1_order_id
+						,t.l2_order_id
+						,t.l3_order_id
+						,t."level"
+						,us."number"
+						,ut.is_visible
+						,case 
+							when _show_penalty = true
+							then 
+								case 
+									when b.benefit_result> 0.5 * pb.current_calculate and b.percent_housing <= 50 then 0.50 * pb.current_calculate
+									when b.benefit_result <= 0.5 * pb.current_calculate and b.percent_housing <= 50 then b.benefit_result
+									else b.benefit_result * b.percent_housing / 100.00
+								end
+							else b.benefit_result
+						end as benefit_result
+					from payment.balance pb
+						inner join _account_table a on a.account_id = pb.account_id 
+						inner join utility.sublist us on us.id = pb.sublist_id
+						inner join utility.unit uu on uu.id = us.unit_id 
+						inner join _level t on t.type_id = us."type" 
+						inner join utility."type" ut on ut.id = us."type" 
+						left join _flow_type f on f.account_id = pb.account_id 
+											 and f.sublist_id = pb.sublist_id
+						left join _benefits b on b.account_id = pb.account_id 
+											 and b.sublist_id = pb.sublist_id
+						left join penalty p on p.account_id = pb.account_id 
+											 and p.sublist_id = pb.sublist_id
+					where pb.period_id = _period_id and pb.print = 1 and pb.sublist_id not in (6, 7, 12, 18, 19)
+				
+					union all
+				
+					select 
+						pb.account_parent_id as account_id
+						,pb.sublist_id
+						,gv_oi."name" as sublist_name
+						,null as flow_type
+						,case 
+							 when _show_all_normativ = true 
+							 then nullif(pb.normativ, 0.0) 
+							 else null 
+						 end as normativ 
+						,null as rate_normativ
+						,uu."name" as unit_name
+						,pb.volume 
+						,pb.tarif as tarif
+						,pb.current_calculate as current_calculate
+						,null as over_calc
+						,pb.recalculate - case when _show_penalty = false then 0 else coalesce(p.penalty_result, 0) end as recalculate
+						,case when _show_penalty = false then null else -p.penalty_result end as penalty_result
+						,t.l1
+						,t.l2
+						,t.l3
+						,t.l1_order_id
+						,t.l2_order_id
+						,t.l3_order_id
+						,t."level"
+						,gv_oi."number" 
+						,ut.is_visible as is_visible
+						,case 
+							 when _use_benefits = '1' 
+							 then 
+								 case 
+									 when b.benefit_result > 0.5 * pb.current_calculate and b.percent_housing <= 50 then 0.50 * pb.current_calculate
+									 when b.benefit_result <= 0.5 * pb.current_calculate and b.percent_housing <= 50 then b.benefit_result
+									 else b.benefit_result * b.percent_housing / 100.00
+								 end
+							 else b.benefit_result
+						 end as benefit_result
+					from payment.balance pb
+						inner join _account_table a on a.account_id = pb.account_id 
+						inner join utility.sublist us on us.id = pb.sublist_id
+						inner join utility.sublist gv_oi on gv_oi.id = 12
+						inner join utility.unit uu on uu.id = us.unit_id 
+						inner join _level t on t.type_id = us."type" 
+						inner join utility."type" ut on ut.id = us."type" 
+						left join _flow_type f on f.account_id = pb.account_id 
+							and f.sublist_id = pb.sublist_id
+						left join _benefits b on b.account_id = pb.account_id 
+							and b.sublist_id = pb.sublist_id
+						left join penalty p on p.account_id = pb.account_id 
+							and p.sublist_id = pb.sublist_id
+					where pb.period_id = _period_id and pb.print = 1 and pb.sublist_id in (12, 18, 19)
+				)
+				
+				insert into _temp_table
+				select 		
+					 ms.account_id::int
+					,ms.sublist_id::int
+					,ms.sublist_name::character varying
+					,('(' || max(ms.flow_type) || ')')::varchar(3)          as flow_type 
+					,max(ms.normativ)::numeric                    			as normativ 
+					,max(ms.rate_normativ)::numeric                  		as rate_normativ
+					,max(ms.unit_name)::character varying 	                as unit_name 
+					,max(coalesce(ms.volume,0))::numeric              		as volume 
+					,sum(coalesce(ms.tarif,0))::numeric               		as tarif
+					,sum(coalesce(ms.current_calculate,0))::numeric   		as current_calculate
+					,nullif(sum(coalesce(ms.over_calc,0)),0)::numeric 		as over_calc
+					,sum(coalesce(ms.recalculate,0))::numeric            	as recalculate
+					,nullif(sum(coalesce(ms.penalty_result,0)),0)::numeric 	as penalty_result
+					,max(ms.l1)::varchar	                             	as l1 
+					,max(ms.l2)::varchar	                             	as l2 
+					,max(ms.l3)::varchar	                             	as l3
+					,max(ms.l1_order_id)::varchar								as l1_order_id
+					,max(ms.l2_order_id)::varchar								as l2_order_id
+					,max(ms.l3_order_id)::varchar								as l3_order_id 
+					,max(ms."level")::int	                            	as "level"
+					,max(ms."number")::int                             		as "number"
+					,ms.is_visible::bool 									as is_visible
+					,nullif(sum(ms.benefit_result),0)::numeric           	as benefit_result	
+				from mass ms
+				group by ms.account_id, ms.sublist_name, ms.is_visible, ms.sublist_id;
+			end;
+		else
+			begin	
+				with penalty as 
+				(
+					select rr.account_id, rr.sublist_id, sum(rr.diff_result) as penalty_result
+					from recalculation."result" rr
+						inner join recalculation.root r on r.id = rr.root_id
+						inner join _account_table a on a.account_id = rr.account_id
+					where r.period_id = _period_id and r."type" = 9
+					group by rr.account_id, rr.sublist_id
+				)
+				, mass as 
+				(
+					select 
+						pb.account_parent_id as account_id
+						,pb.sublist_id
+						,us."name" as sublist_name
+						,case
+							when pb.sublist_id = 41 
+								and coalesce((	select uf.is_origin 
+												from utility.formula uf
+												where uf.formula_type = 3 
+													and uf.date_begin <= _date_begin 
+													and coalesce(uf.date_end,_date_end) >= _date_end 
+													and uf.sublist_id = 41 
+													and lower(uf.formula) like '%gv_oi_gkal%' 
+													and (lower(uf.formula) not like '%h_ras_gv%' or lower(uf.formula) not like '%h_gkal%') 
+													and uf.is_origin = true),false) = true then '5'		
+							when pb.sublist_id not in (38) then f.flow_type 
+							else null
+						end as flow_type
+						,case 
+							when _show_all_normativ = true
+							then nullif(pb.normativ, 0.0) 
+							else  
+								case 
+									when pb.sublist_id not in (11,12,13,14,18,19,38) 
+									then nullif(pb.normativ, 0.0) 
+								else null 
+							end 
+						 end as normativ 
+						,case 
+							when _show_over_calc = true and pb.normativ > 0.0 and pb.rate_normativ > 0.0 and pb.sublist_id not in (11,12,13,14,18,19,38,41,61) 
+							then 
+								case 
+									when f.flow_type = '1' 
+									then pb.rate_normativ 
+									else null 
+								end 
+							else null 
+						 end as rate_normativ
+						,uu."name" as unit_name
+						,pb.volume
+						,pb.tarif as tarif
+						,pb.current_calculate as current_calculate
+						,case when _show_over_calc = true and f.flow_type = '1' and pb.sublist_id not in (11,12,13,14,18,19,38,41,61) then pb.current_calculate - (pb.current_calculate/nullif(pb.rate_normativ,0)) else null end as over_calc
+						,pb.recalculate - case when _show_penalty = false then 0 else coalesce(p.penalty_result, 0) end as recalculate
+						,case when _show_penalty = false then null else -p.penalty_result end as penalty_result
+						,t.l1
+						,t.l2
+						,t.l3
+						,t.l1_order_id
+						,t.l2_order_id
+						,t.l3_order_id
+						,t."level"
+						,us."number"
+						,ut.is_visible
+						,case 
+							when _use_benefits = 1 
+							then 
+								case 
+									when b.benefit_result > 0.5 * pb.current_calculate and b.percent_housing <= 50 then 0.50 * pb.current_calculate
+									when b.benefit_result <= 0.5 * pb.current_calculate and b.percent_housing <= 50 then b.benefit_result
+									else b.benefit_result * b.percent_housing / 100.00
+								end
+							else b.benefit_result
+						end as benefit_result
+					from payment.balance pb
+						inner join _account_table a on a.account_id = pb.account_id
+						inner join utility.sublist us on us.id = pb.sublist_id
+						inner join utility.unit uu on uu.id = us.unit_id
+						inner join _level t on t.type_id = us."type"
+						inner join utility."type" ut on ut.id = us."type"
+						left join utility.history uh on uh.sublist_id = pb.sublist_id
+						left join _flow_type f on f.account_id = pb.account_id and f.sublist_id = pb.sublist_id
+						left join _benefits b on b.account_id = pb.account_id and b.sublist_id = pb.sublist_id
+						left join penalty p on p.account_id = pb.account_id and p.sublist_id = pb.sublist_id
+					where pb.period_id = _period_id and pb.print = 1 and pb.sublist_id not in (6, 7, 22, 24, 27, 32, 34, 37) and _period_id >= coalesce(uh.period_id,_period_id)
+				
+					union all
+				
+					select 
+						pb.account_parent_id as account_id
+						,pb.sublist_id
+						,us."name" as sublist_name
+						,f.flow_type
+						,nullif(pb.normativ, 0.0) as normativ 
+						,case 
+							when _show_over_calc = true and pb.normativ > 0.0 and pb.rate_normativ > 0.0 
+							then 
+								case 
+									when f.flow_type = '1' 
+									then pb.rate_normativ 
+									else null 
+								end 
+							else null 
+						 end as rate_normativ
+						,uu."name" as unit_name
+						,pb.volume
+						,pb.tarif as tarif
+						,pb.current_calculate + coalesce(pbr.current_calculate,0) as current_calculate
+						,case when _show_over_calc = true and f.flow_type = '1' then pbr.current_calculate else null end as over_calc
+						,pb.recalculate + coalesce(pbr.recalculate,0) - case when _show_penalty = false then 0 else coalesce(p.penalty_result, 0) + coalesce(pr.penalty_result, 0) end as recalculate
+						,case when _show_penalty = false then null else -(coalesce(p.penalty_result, 0) + coalesce(pr.penalty_result, 0)) end as penalty_result
+						,t.l1
+						,t.l2
+						,t.l3
+						,t.l1_order_id
+						,t.l2_order_id
+						,t.l3_order_id
+						,t."level"
+						,us."number"
+						,ut.is_visible
+						,case 
+							when _use_benefits = 1 
+							then 
+								case 
+									when b.benefit_result > 0.5 * (pb.current_calculate + coalesce(pbr.current_calculate,0)) and b.percent_housing <= 50 then 0.50 * (pb.current_calculate + coalesce(pbr.current_calculate,0))
+									when b.benefit_result <= 0.5 * (pb.current_calculate + coalesce(pbr.current_calculate,0)) and b.percent_housing <= 50 then b.benefit_result
+									else b.benefit_result * b.percent_housing / 100.00
+								end
+							else b.benefit_result
+						end as benefit_result
+					from payment.balance pb
+						inner join _account_table a on a.account_id = pb.account_id
+						inner join utility.sublist us on us.id = pb.sublist_id
+						inner join utility.unit uu on uu.id = us.unit_id
+						inner join _level t on t.type_id = us."type"
+						inner join utility."type" ut on ut.id = us."type"
+						left join utility.history uh on uh.sublist_id = pb.sublist_id
+						left join _flow_type f on f.account_id = pb.account_id and f.sublist_id = pb.sublist_id
+						left join _benefits b on b.account_id = pb.account_id and b.sublist_id = pb.sublist_id
+						left join penalty p on p.account_id = pb.account_id and p.sublist_id = pb.sublist_id
+						left join payment.balance pbr on pbr.account_id = pb.account_id and pbr.period_id = pb.period_id and pbr.sublist_id = (pb.sublist_id + 10)
+						left join penalty pr on pr.account_id = pb.account_id and pr.sublist_id in (32, 66)
+					where pb.period_id = _period_id and pb.print = 1 and pb.sublist_id in (22, 24, 27) and _period_id >= coalesce(uh.period_id,_period_id)
+				
+					union all
+				
+					select 
+						pb.account_parent_id as account_id
+						,pb.sublist_id
+						,uh."name" as sublist_name
+						,case
+							when pb.sublist_id = 41 and coalesce((select uf.is_origin from utility.formula uf where uf.formula_type = 3 and uf.date_begin <= _date_begin and coalesce(uf.date_end,_date_end) >= _date_end 
+								and uf.sublist_id = 41 and uf.formula ~~* '%gv_oi_gkal%' and (uf.formula !~~* '%h_ras_gv%' or uf.formula !~~* '%h_gkal%') and uf.is_origin = true),false) = true
+							then '5'		
+							when pb.sublist_id not in (38) 
+							then f.flow_type 
+							else null
+						end as flow_type
+						,case 
+							when _show_all_normativ = true
+							then nullif(pb.normativ, 0.0) 
+							else  
+								case 
+									when pb.sublist_id not in (11,12,13,14,18,19,38) 
+									then nullif(pb.normativ, 0.0) 
+								else null 
+							end 
+						 end as normativ 
+						,case 
+							when _show_over_calc = true and pb.normativ > 0.0 and pb.rate_normativ > 0.0 and pb.sublist_id not in (11,12,13,14,18,19,38,41,61) 
+							then 
+								case 
+									when f.flow_type = '1' 
+									then pb.rate_normativ 
+									else null 
+								end 
+							else null 
+						 end as rate_normativ
+						,uu."name" as unit_name
+						,pb.volume
+						,pb.tarif as tarif
+						,pb.current_calculate as current_calculate
+						,case when _show_over_calc = true and f.flow_type = '1' and pb.sublist_id not in (11,12,13,14,18,19,38,41,61) then pb.current_calculate - (pb.current_calculate/nullif(pb.rate_normativ,0)) else null end as over_calc
+						,pb.recalculate - case when _show_penalty = false then 0 else coalesce(p.penalty_result, 0) end as recalculate
+						,case when _show_penalty = false then null else -p.penalty_result end as penalty_result
+						,t.l1
+						,t.l2
+						,t.l3
+						,t.l1_order_id
+						,t.l2_order_id
+						,t.l3_order_id
+						,t."level"
+						,uh."number"
+						,uh.is_visible
+						,case 
+							when _use_benefits = 1 
+							then 
+								case 
+									when b.benefit_result > 0.5 * pb.current_calculate and b.percent_housing <= 50 then 0.50 * pb.current_calculate
+									when b.benefit_result <= 0.5 * pb.current_calculate and b.percent_housing <= 50 then b.benefit_result
+									else b.benefit_result * b.percent_housing / 100.00
+								end
+							else b.benefit_result
+						end as benefit_result
+					from payment.balance pb
+						inner join _account_table a on a.account_id = pb.account_id
+						inner join utility.history uh on uh.sublist_id = pb.sublist_id
+						inner join utility.unit uu on uu.id = uh.unit_id
+						inner join _level t on t.type_id = uh."type"
+						left join _flow_type f on f.account_id = pb.account_id 
+							and f.sublist_id = pb.sublist_id
+						left join _benefits b on b.account_id = pb.account_id 
+							and b.sublist_id = pb.sublist_id
+						left join penalty p on p.account_id = pb.account_id 
+							and p.sublist_id = pb.sublist_id
+					where pb.period_id = _period_id and pb.print = 1 and pb.sublist_id not in (6, 7, 12, 18, 19) and _period_id < coalesce(uh.period_id,_period_id)
+				
+					union all
+				
+					select 
+						pb.account_parent_id as account_id
+						,pb.sublist_id
+						,gv_oi."name" as sublist_name
+						,null as flow_type
+						,case 
+							 when _show_all_normativ = true
+							 then nullif(pb.normativ, 0.0) 
+							 else null 
+						 end as normativ 
+						,null as rate_normativ
+						,uu."name" as unit_name
+						,pb.volume
+						,pb.tarif as tarif
+						,pb.current_calculate as current_calculate
+						,null as over_calc
+						,pb.recalculate - case when _show_penalty = false then 0 else coalesce(p.penalty_result, 0) end as recalculate
+						,case when _show_penalty = false then null else -p.penalty_result end as penalty_result
+						,t.l1
+						,t.l2
+						,t.l3
+						,t.l1_order_id
+						,t.l2_order_id
+						,t.l3_order_id
+						,t."level"
+						,gv_oi."number"
+						,uh.is_visible
+						,case 
+							 when _use_benefits = 1 
+							 then 
+								 case 
+									 when b.benefit_result > 0.5 * pb.current_calculate and b.percent_housing <= 50 then 0.50 * pb.current_calculate
+									 when b.benefit_result <= 0.5 * pb.current_calculate and b.percent_housing <= 50 then b.benefit_result
+									 else b.benefit_result * b.percent_housing / 100.00
+								 end
+							 else b.benefit_result
+						 end as benefit_result
+					from payment.balance pb
+						inner join _account_table a on a.account_id = pb.account_id
+						inner join utility.history uh on uh.sublist_id = pb.sublist_id
+						inner join utility.history gv_oi on gv_oi.sublist_id = 12
+						inner join utility.unit uu on uu.id = uh.unit_id
+						inner join _level t on t.type_id = uh."type"
+						left join _flow_type f on f.account_id = pb.account_id 
+							and f.sublist_id = pb.sublist_id
+						left join _benefits b on b.account_id = pb.account_id 
+							and b.sublist_id = pb.sublist_id
+						left join penalty p on p.account_id = pb.account_id 
+							and p.sublist_id = pb.sublist_id
+					where pb.period_id = _period_id and pb.print = 1 and pb.sublist_id in (12, 18, 19) and _period_id < coalesce(uh.period_id,_period_id)
+				)
+			
+				insert into _temp_table
+				select 
+					 s.account_id::int
+					,s.sublist_id
+					,s.sublist_name::character varying
+					,max(s.flow_type)::int2
+					,max(s.normativ)::numeric
+					,max(s.rate_normativ)::numeric
+					,max(s.unit_name)::character varying
+					,max(coalesce(s.volume,0))::numeric
+					,sum(coalesce(s.tarif,0))::numeric
+					,sum(coalesce(s.current_calculate,0))::numeric
+					,nullif(sum(coalesce(s.over_calc,0)),0)::numeric
+					,sum(coalesce(s.recalculate,0))::numeric
+					,nullif(sum(coalesce(s.penalty_result,0)),0)::numeric
+					,max(s.l1)::varchar
+					,max(s.l2)::varchar
+					,max(s.l3)::varchar
+					,max(s.l1_order_id)::varchar
+					,max(s.l2_order_id)::varchar
+					,max(s.l3_order_id)::varchar
+					,max(s."level")::int
+					,max(s."number")::int
+					,s.is_visible::bool
+					,nullif(sum(s.benefit_result),0)::numeric
+				from mass s
+				group by s.account_id, s.sublist_name, s.is_visible, s.sublist_id;
+			
+			end;
+	end if;
+	
+	return query
+	select *
+	from _temp_table;
+
+	drop table _account_table;
+	drop table _flow_type;
+	drop table _level;
+	drop table _benefits;
+	drop table _temp_table;
+
+end;
+"""
+  returnType = TABLE(account_id integer, sublist_id integer, sublist_name character varying, flow_type character varying, normativ numeric, rate_normativ numeric, unit_name character varying, volume numeric, tarif numeric, current_calculate numeric, over_calc numeric, recalculate numeric, penalty_result numeric, l1 character varying, l2 character varying, l3 character varying, l1_order_id character varying, l2_order_id character varying, l3_order_id character varying, level integer, number integer, is_visible boolean, benefit_result numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _use_benefits
+      type = integer
+      mode = IN
+      default = 0
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _show_all_normativ
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+    {
+      name = _show_penalty
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+    {
+      name = _show_over_calc
+      type = boolean
+      mode = IN
+      default = true
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Дмитрий
+ Create date: 20.01.2017
+ Description:	Таблица с начислениями для книжной квитанции А4
+ Modifyed date: 11.01.2018
+ Description: Добавлено разделение по группам
+ Modifyed date: 06.11.2018
+ Description: Добавлена возможность отображения всех нормативов (ООО БУК)
+ Modifyed date: 24.01.2020
+ Description: Выделены и схлопнуты услуги Ком.ресурс горяч.вода на сод.общ.им.
+ Modifyed date: 29.01.2020
+ Description: Отключен вывод типа начисления/норматива/коэффициента по Отоплению, коэффициента по Нагреву
+ Modifyed date: 16.02.2023
+ Description: Ранее была добавлена история названия и единиц услуги. Теперь вывод размера превышения платы из отдельных услуг
+ =============================================
+ 
+"""
+}
+

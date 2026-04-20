@@ -1,0 +1,90 @@
+table "parametr"."book" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_book"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('parametr.book_id_seq'::regclass)
+    }
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "number" {
+      type = character varying(5)
+    }
+    column "order_number" {
+      type = integer
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "parametr"."book"."fk_book_list" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+index "parametr"."book_ix_book_parametr_id" {
+  table = "parametr"."book"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "parametr"."book_non_clustered_index_20150416_172217" {
+  table = "parametr"."book"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+    {
+      definition = number
+    }
+
+    {
+      definition = name
+    }
+
+  >
+  isUnique = True
+}
+
+trigger "parametr"."book"."number_book" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = ROW
+  function = parametr.number_book
+  functionArguments = [
+  ]
+  table = "parametr"."book"
+  constraint = False
+  newTableReference = inserted
+}
+

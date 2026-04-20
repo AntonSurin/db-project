@@ -1,0 +1,30 @@
+composite "partner"."data_from_1c" {
+  owner = postgres
+  fields = (
+    field "period_id" {
+      type = integer
+    }
+    field "provider_id" {
+      type = integer
+    }
+    field "guid" {
+      type = uuid
+    }
+    field "period_begin" {
+      type = integer
+    }
+    field "document_name" {
+      type = character varying(150)
+    }
+    field "house_id" {
+      type = integer
+    }
+    field "sum" {
+      type = numeric(18,2)
+    }
+    field "is_split" {
+      type = boolean
+    }
+  )
+}
+

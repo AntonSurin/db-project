@@ -1,0 +1,41 @@
+table "domyland"."payment_documents" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_payment_documents"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.payment_documents_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(18,2)
+    }
+    column "status" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "calculate_upload_status" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+

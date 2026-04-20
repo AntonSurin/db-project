@@ -1,0 +1,111 @@
+procedure "recalculation"."delete(integer, jsonb)" {
+  text = """
+
+declare 
+	_period_begin 	int;
+	_period_end 	int;
+begin
+
+	select period_id, "period".get_work_period_id() 
+	into _period_begin, _period_end
+	from recalculation.root 
+	where id = _root_id;
+
+	if exists(select 1 from jsonb_populate_recordset(null::account.list, _account) limit 1)
+		then
+			begin
+				delete 
+				from recalculation.parametr_transporate rp
+				using jsonb_populate_recordset(null::account.list,_account) a
+				where rp.root_id = _root_id and rp.account_id = a.account_id;
+
+				delete 
+				from recalculation.list_preview 
+				where root_id = _root_id;
+		
+				delete 
+				from recalculation."result" 
+				using jsonb_populate_recordset(null::account.list, _account) a
+				where root_id = _root_id and account_parent_id = a.account_id;
+
+				delete 
+				from recalculation.tarif t
+				using jsonb_populate_recordset(null::account.list, _account) a
+				where root_id = _root_id and t.account_id = a.account_id;
+
+				delete 
+				from recalculation.normativ n
+				using jsonb_populate_recordset(null::account.list, _account) a
+				where root_id = _root_id and n.account_id = a.account_id;
+
+				delete 
+				from recalculation.volume v
+				using jsonb_populate_recordset(null::account.list, _account) a
+				where root_id = _root_id and v.account_id = a.account_id;
+	
+				delete 
+				from recalculation.sum_volume sv
+				using jsonb_populate_recordset(null::account.list, _account) a
+				where root_id = _root_id and sv.account_id = a.account_id;
+
+				delete 
+				from fine.recalculation fr
+				using jsonb_populate_recordset(null::account.list, _account) a 
+				where a.account_id = fr.account_parent_id and fr.root_id = _root_id;
+							
+				if not exists(select 1 from recalculation."result" where root_id = _root_id)
+					then
+						begin
+							delete 
+							from parametr.recalculation 
+							where root_id = _root_id;
+						
+							delete from recalculation.root where id = _root_id and "type" != 4;
+						end;
+				end if;
+			end;					
+		else
+			begin
+				delete from recalculation.parametr_transporate 	where root_id = _root_id;
+				delete from recalculation.list_preview 			where root_id = _root_id;
+				delete from recalculation."result" 				where root_id = _root_id;
+				delete from parametr.recalculation 				where root_id = _root_id;
+				delete from recalculation.tarif					where root_id = _root_id;
+				delete from recalculation.normativ 				where root_id = _root_id;
+				delete from recalculation.volume 				where root_id = _root_id;
+				delete from recalculation.sum_volume 			where root_id = _root_id;
+				delete from recalculation.root 					where id = _root_id;
+
+				if (_period_begin != _period_end)
+					then			
+						call calculation.calc_in_balance (_period_begin, _period_end, _account);
+				end if;	
+			end;
+	end if;
+end
+"""
+  arguments = <
+    {
+      name = _root_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 22.08.2014
+ Description:	Удаление перерасчета
+ =============================================
+"""
+}
+

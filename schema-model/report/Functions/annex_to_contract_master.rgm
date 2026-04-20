@@ -1,0 +1,37 @@
+function "report"."annex_to_contract_master(jsonb)" {
+  text = """
+
+
+	select 
+		hi.house_id
+		,hi.settlement_name
+		,hi.short_adress
+		,ot.short_name as organization_type
+		,ol.short_name as organization_name
+		,hi.order_id
+	from house.info hi
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = hi.house_id
+		inner join organization.list ol on ol.id = hi.work_id
+		inner join organization."type" ot on ot.id = ol.type_id;
+	
+"""
+  returnType = TABLE(house_id integer, settlement_name text, short_adress text, organization_type text, organization_name text, order_id integer)
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ =============================================
+"""
+}
+

@@ -1,0 +1,39 @@
+table "documents"."kind" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_vid"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.kind_id_seq'::regclass)
+    }
+    column "type_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(250)
+      null = NOT NULL
+    }
+    column "genitive_name" {
+      type = character varying(250)
+    }
+  )
+}
+
+foreignKey "documents"."kind"."fk_vid_type" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "documents"."type"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,120 @@
+procedure "parametr"."is_calculation(text)" {
+  text = """
+
+declare 
+	_parametr_added text = '';
+	_table_alter 	text;
+	_error_message 	text;
+begin
+	
+	create temp table _parametr (parametr_id int, short_name varchar(20), catalog_id int not null, system_type varchar(50)); 
+	create temp table _fill_parametr (object_id int, parametr_id int, value varchar(200), date_begin date);
+
+	begin 
+		
+		insert into _parametr (parametr_id, short_name, catalog_id, system_type)
+		select distinct 
+			 pl.id as parametr_id
+			,pl.short_name
+			,pl.catalog_id
+			,pt.system_type || 
+				case 
+					when pl.len is not null and pl."precision" is null then '(' || pl.len || ')'
+					when pl.len is not null and pl."precision" is not null then '(' || pl.len || ',' || pl."precision" || ')'
+					else ''
+				end as system_type
+		from regexp_split_to_table((' "' ||_formula || '" '), '\W+') p
+			inner join parametr.list pl on lower(pl.short_name) = lower(p)
+			inner join parametr."type" pt on pt.id = pl.type_id
+		where pl.catalog_id <= 3 
+			and pl.short_name not in 
+									(
+										select column_name /*, data_type, is_nullable*/
+										from information_schema."columns"
+										where lower(table_name) = 'parametr_transporate'
+											and lower(table_schema) = 'calculation'
+									)
+		group by pl.id, pl.short_name, pl.catalog_id, pt.system_type, pl.len, pl."precision", pl.type_id;
+	
+		update parametr.list pl
+			set is_calculation = true
+		from _parametr p 
+		where p.parametr_id = pl.id;
+
+		_parametr_added = (select _parametr_added || '"' || short_name || '" ' || system_type|| ' null, ' from _parametr pl);
+
+		if (_parametr_added is not null and _parametr_added <> '') 
+			then
+				begin
+					_parametr_added = substring(_parametr_added, 0, length(_parametr_added) - 0) || ';'; 
+		
+					_table_alter = '
+					alter table calculation.parametr_transporate add ' || _parametr_added;
+					execute(_table_alter);
+				
+					_table_alter = '
+					alter table recalculation.parametr_transporate add ' || _parametr_added;
+					execute(_table_alter);
+				
+					_table_alter = '
+					alter table calculation.parametr_transporate_arch add ' || _parametr_added;
+					execute(_table_alter);
+		
+					_table_alter = '';
+					
+					_table_alter = (
+										select string_agg('
+										update calculation.parametr_transporate cp 
+											set
+											' || p.short_name || ' = cast(value as ' || system_type || ')
+										from  ' || pc.p_table || ' pa 
+										where pa.' || p_table_id || ' = cp.' || p_table_id || '  
+												and pa.parametr_id = ' || p.parametr_id || ' 
+												and pa.date_begin = (
+																		select max(l.date_begin) 
+																		from ' || pc.p_table || ' as l 
+																		where l.' || p_table_id || ' = pa.' || p_table_id || ' 
+																			and l.parametr_id = pa.parametr_id
+																	);'
+															, '')				
+										from _parametr p
+											inner join parametr."catalog" pc on pc.id = p.catalog_id
+									);
+		
+					execute(_table_alter);
+				end;
+		end if;
+	
+	exception when others 
+		then 
+			get stacked diagnostics
+				_error_message = pg_exception_context;
+	
+			raise exception '%', _error_message;
+	end; 
+	
+	drop table if exists _parametr; 
+	drop table if exists  _fill_parametr;
+			
+			
+end
+"""
+  arguments = <
+    {
+      name = _formula
+      type = text
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 10.08.2015
+ description:	обновление is_calculation в parametr.list
+ =============================================
+"""
+}
+

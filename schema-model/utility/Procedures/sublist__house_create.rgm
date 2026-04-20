@@ -1,0 +1,196 @@
+procedure "utility"."sublist__house_create(integer, integer, date, date, integer, integer, jsonb, integer, integer)" {
+  text = """
+
+declare 
+	_message text;
+begin
+
+	drop table if exists __house;
+	create temp table __house (house_id int not null primary key);
+
+	insert into __house
+	select h.house_id 
+	from jsonb_populate_recordset(null::house.list, _house) h;
+
+	if exists(
+				select * 
+				from utility.sublist_provider us
+					inner join __house h on h.house_id = us.house_id
+				where us.sublist_id = _sublist_id 
+					and us.provider_id = _provider_id
+					and ((_date_begin between us.date_begin and coalesce(us.date_end, _date_end,'9999-12-31'))
+						or (_date_begin < us.date_begin and coalesce(_date_end, '9999-12-31') >= us.date_begin))
+			)
+		then
+			begin
+				raise exception 'Невозможно привязать услугу и поставщика к одному или нескольким домам, т.к. у выбранных домов уже существует привязка услуги и поставщика за указанный период';	
+				return;
+			end;
+	end if;
+
+	begin
+
+		drop table if exists __house_territory;
+		create temp table __house_territory (house_id int not null primary key, territory_id int);
+
+		insert into __house_territory
+		select ah.id, ah.territory_id 
+		from adress.house ah
+			inner join __house h on h.house_id = ah.id;
+
+		drop table if exists _table;
+		create temp table _table (id int not null primary key);
+
+		with cte as 
+		(
+			insert into utility.sublist_provider(sublist_id, provider_id, territory_id, house_id, date_begin, date_end)
+			select _sublist_id, _provider_id, territory_id, house_id, _date_begin, _date_end
+			from __house_territory
+			where _sublist_id not in (32,34,37)
+			returning id
+		)
+		insert into _table
+		select id
+		from cte;	
+		
+		with cte as 
+		( 
+			insert into utility.sublist_provider(sublist_id, provider_id, territory_id, house_id, date_begin, date_end)
+			select _sublist_id + 10, _provider_id, h.territory_id, h.house_id, _date_begin, _date_end
+			from __house_territory h
+			inner join utility.sublist us on us.id = _sublist_id+10
+				left join utility.sublist_provider sp on sp.sublist_id = _sublist_id + 10 
+														and sp.provider_id = _provider_id 
+														and sp.territory_id = h.territory_id 
+														and sp.house_id = h.house_id 
+														and sp.date_end is null
+			where _sublist_id in (22,24,27) and sp.id is null
+			returning id
+		)
+		insert into _table
+		select id
+		from cte;	
+
+		with cte as 
+		( 
+			insert into utility.sublist_provider(sublist_id, provider_id, territory_id, house_id, date_begin, date_end)
+			select _sublist_id, _provider_id, h.territory_id, h.house_id, _date_begin, _date_end
+			from __house_territory h
+			inner join utility.sublist_provider sp on sp.sublist_id = _sublist_id-10 and sp.provider_id = _provider_id and sp.territory_id = h.territory_id and sp.house_id = h.house_id and sp.date_end is null
+			where _sublist_id in (32,34,37) 
+		returning id
+		)
+		insert into _table
+		select id
+		from cte;	
+
+		if (_document_id is not null)
+			then
+				begin
+					insert into utility.documents (sublist_provider_id, document_id, period_begin, period_end)
+					select id, _document_id, _period_begin, _period_end 
+					from _table;
+		
+					update utility.documents ud2 
+						set	period_end = ud.period_begin - 1 
+					from utility.documents ud
+						inner join _table t on t.id = ud.sublist_provider_id
+					where ud2.period_end is null and ud2.sublist_provider_id = ud.sublist_provider_id and ud2.period_begin < ud.period_begin;
+				end;
+		end if;
+
+		if (_group_id is not null)
+			then
+				begin
+					insert into utility.contragent_group_sublist(sublist_provider_id, group_id, sublist_id, house_id, date_begin, date_end)
+					select us.id, _group_id, us.sublist_id, us.house_id,  us.date_begin, us.date_end
+					from _table t
+						inner join utility.sublist_provider us on us.id = t.id;
+				end;
+		end if;
+
+	drop table if exists _table;
+	drop table if exists __house_territory;
+	drop table if exists __house;
+
+	exception 
+	when others
+		then
+			get stacked diagnostics
+				_message = message_text;
+
+			raise notice '%', _message using errcode = '0F000';
+
+		end;
+
+end;
+"""
+  arguments = <
+    {
+      name = _sublist_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _provider_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _date_begin
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _date_end
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _document_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Modify Author: Юркин Е.Ю.
+ Modify date: 16.04.2024
+ Modify description: Автоматическое создание поставщиков превышения платы
+ =============================================
+"""
+}
+

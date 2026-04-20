@@ -1,0 +1,68 @@
+table "utility"."formula_result" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_formula_result"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.formula_result_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "formula" {
+      type = text
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "utility"."formula_result"."fk_formula_result_sublist" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "utility"."formula_result_idx_period" {
+  table = "utility"."formula_result"
+  type = btree
+  columns = <
+    {
+      definition = sublist_id
+    }
+
+    {
+      definition = type
+    }
+
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    formula
+  ]
+}
+

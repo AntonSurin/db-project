@@ -1,0 +1,56 @@
+view "adress"."owners" {
+  text = """-
+SELECT ai.house_id,
+    ai.short_name_adress,
+    ai.flat_name,
+    ai.flat_book_id,
+    ai.account_name,
+    ai.old_account_name,
+    ai.account_id,
+    ( SELECT string_agg(TRIM(BOTH FROM cl.full_name), ', '::text) AS string_agg
+           FROM ((contragent.list cl
+             JOIN contragent.account ca ON ((ca.contragent_id = cl.id)))
+             JOIN contragent.owner_documents od ON ((ca.id = od.contragent_account_id)))
+          WHERE ((ca.account_id = ai.account_id) AND (ca.is_responsible = true) AND (od.date_end IS NULL))) AS fio,
+    ai.flat_id,
+    (pa.value)::integer AS is_closed
+   FROM (adress.info ai
+     JOIN parametr.account pa ON ((pa.account_id = ai.account_id)))
+  WHERE ((pa.parametr_id = 1362) AND (pa.date_end IS NULL) AND (ai.account_parent_id IS NULL));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+    }
+    column "short_name_adress" {
+      type = text
+    }
+    column "flat_name" {
+      type = character varying(30)
+    }
+    column "flat_book_id" {
+      type = smallint
+    }
+    column "account_name" {
+      type = character varying(12)
+    }
+    column "old_account_name" {
+      type = character varying(20)
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "fio" {
+      type = text
+    }
+    column "flat_id" {
+      type = integer
+    }
+    column "is_closed" {
+      type = integer
+    }
+  )
+}
+

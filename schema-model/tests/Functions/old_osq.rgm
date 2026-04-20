@@ -1,0 +1,146 @@
+function "tests"."old_osq(jsonb)" {
+  text = """
+
+begin
+
+	if exists (	
+				select * 
+				from calculation.account_sublist cs 
+					inner join utility.sublist us on us.id = cs.sublist_id 
+				where list_id = 1022
+			)
+			and
+			(
+				select count(*)
+				from information_schema.columns
+				where lower(table_schema) = 'calculation' and lower(table_name) = 'parametr_transporate' and lower(column_name) in ('osq','nsq','pl_dop','n_pl_dop')
+			) = 4
+		then	
+			begin
+			
+				if exists (select * from jsonb_populate_recordset(null::account.list, _account))
+					then
+						begin
+
+							return query
+							with ao as
+							(
+								select p.account_id, 
+								sum((case when p.value = '1' then 1 else 0 end) * ((case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end-case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end) + 1)) as account_open
+								from parametr.account p
+									inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = p.account_id
+									inner join period.list pl on pl.is_working = true
+								where parametr_id = 1362 
+									and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+									and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+								group by p.account_id
+							), s as
+							(
+								select cp.flat_id, 
+								sum((case when cp.is_closed = 1 then 0 else 1 end) * (case when pa.parametr_id in (277, 313) then coalesce(cast(value as numeric(15,2)),0.0) else -coalesce(cast(value as numeric(15,2)),0.0) end)) as old_sq
+									from parametr.account pa
+									inner join period.list pl on pl.is_working = true
+									inner join ao on ao.account_id = pa.account_id
+									inner join calculation.parametr_transporate cp on cp.account_id = pa.account_id
+									where pa.parametr_id in (277, 285, 313, 314)
+										and pa.date_begin <= pl.date_begin and coalesce(pa.date_end,pl.date_begin) >= pl.date_begin
+										and ao.account_open > 0 and cp.house_open > ao.account_open
+									group by cp.flat_id
+							), c as 
+							(
+								select flat_id, sum((case when cp.is_closed = 1 then 1 else 0 end) * (coalesce(osq,0.0) - coalesce(nsq,0.0) + coalesce(pl_dop,0.0) - coalesce(n_pl_dop,0.0))) as new_sq
+								from ao
+								inner join calculation.parametr_transporate cp on cp.account_id = ao.account_id
+								where ao.account_open > 0 and cp.house_open > ao.account_open
+								group by flat_id
+							)
+						
+							select distinct 'wrn'::varchar(3) as severity, ow.short_name_adress,
+									(	select string_agg(aa.name , ', ')
+										from adress.account aa
+										inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.id
+										where aa.flat_id = c.flat_id and aa.parent_id is null
+									) as accounts,
+									s.old_sq, c.new_sq
+							from ao 
+							inner join adress.owners ow on ow.account_id = ao.account_id
+							inner join s on s.flat_id = ow.flat_id
+							inner join c on c.flat_id = ow.flat_id
+							where s.old_sq <> c.new_sq and s.old_sq > 0;
+
+						end; 
+					else
+						begin
+						
+							return query
+							with ao as
+							(
+								select p.account_id, 
+									sum((case when p.value = '1' then 1 else 0 end) * ((case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end - case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end) + 1)) as account_open
+								from parametr.account p
+									inner join period.list pl on pl.is_working = true
+								where parametr_id = 1362 
+									and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+									and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+								group by p.account_id
+							), s as
+							(
+								select cp.flat_id, 
+									sum((case when cp.is_closed = 1 then 0 else 1 end) * (case when pa.parametr_id in (277, 313) then coalesce(cast(value as numeric(15,2)),0.0) else -coalesce(cast(value as numeric(15,2)),0.0) end)) as old_sq
+								from parametr.account pa
+									inner join period.list pl on pl.is_working = true
+									inner join ao on ao.account_id = pa.account_id
+									inner join calculation.parametr_transporate cp on cp.account_id = pa.account_id
+								where pa.parametr_id in (277, 285, 313, 314)
+									and pa.date_begin <= pl.date_begin and coalesce(pa.date_end,pl.date_begin) >= pl.date_begin
+									and ao.account_open > 0 and cp.house_open > ao.account_open
+								group by cp.flat_id
+							), c as 
+							(
+								select flat_id, sum((case when cp.is_closed = 1 then 1 else 0 end) * (coalesce(osq,0.0) - coalesce(nsq,0.0) + coalesce(pl_dop,0.0) - coalesce(n_pl_dop,0.0))) as new_sq
+								from ao
+									inner join calculation.parametr_transporate cp on cp.account_id = ao.account_id
+								where ao.account_open > 0 and cp.house_open > ao.account_open
+								group by flat_id
+							)
+						
+							select distinct 'wrn' as severity, ow.short_name_adress,
+									(	select string_agg(aa.name , ', ')
+										from adress.account aa
+										inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.id
+										where aa.flat_id = c.flat_id and aa.parent_id is null
+									) as accounts,
+									s.old_sq, c.new_sq
+							from ao 
+							inner join adress.owners ow on ow.account_id = ao.account_id
+							inner join s on s.flat_id = ow.flat_id
+							inner join c on c.flat_id = ow.flat_id
+							where s.old_sq <> c.new_sq and s.old_sq > 0;
+
+						end;
+				end if;
+			end;
+	end if;
+	
+end;
+"""
+  returnType = TABLE(severity character varying, short_name_adress text, accounts text, old_sq numeric, new_sq numeric)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Евгений
+ Create date:	11.03.2024
+ Description:	Тест проверки отапливаемой площади на начало и конец периода по л/с в рамках одного помещения
+ =============================================
+"""
+}
+

@@ -1,0 +1,71 @@
+table "gis"."debt_subrequest_data" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_debt_subrequest_data"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.debt_subrequest_data_id_seq'::regclass)
+    }
+    column "subrequest_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "request_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "request_number" {
+      type = character varying(30)
+      null = NOT NULL
+    }
+    column "debt_address_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "status" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "sent_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "response_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "is_responce" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "is_debt" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "description" {
+      type = character varying(1000)
+    }
+  )
+}
+
+foreignKey "gis"."debt_subrequest_data"."fk_debt_subrequest_data_debt_address" {
+  columns = [
+    "debt_address_id"
+  ]
+  referencedTable = "gis"."debt_address"
+  referencedColumns = [
+    "id"
+  ]
+}
+

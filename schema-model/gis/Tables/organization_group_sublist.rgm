@@ -1,0 +1,36 @@
+table "gis"."organization_group_sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_organization_group_sublist"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.organization_group_sublist_id_seq'::regclass)
+    }
+    column "organization_setting_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "group_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "gis"."organization_group_sublist"."fk_organization_group_sublist_organization_settings" {
+  columns = [
+    "organization_setting_id"
+  ]
+  referencedTable = "gis"."organization_settings"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

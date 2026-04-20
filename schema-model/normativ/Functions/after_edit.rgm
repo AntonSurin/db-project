@@ -1,0 +1,24 @@
+function "normativ"."after_edit()" {
+  text = """
+
+begin
+	
+	call utility.actualize_column_rate ();
+	return null;
+
+end;	
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: <Create Date,,>
+ Description:	<Description,,>
+ =============================================
+"""
+}
+

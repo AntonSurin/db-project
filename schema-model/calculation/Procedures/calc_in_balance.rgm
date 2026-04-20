@@ -1,0 +1,148 @@
+procedure "calculation"."calc_in_balance(integer, integer, jsonb)" {
+  text = """
+
+declare 
+	_first_period_id int;
+begin
+
+	if (exists(select 1
+			   from jsonb_populate_recordset(null::account.list, _account) a
+		       where a.account_id not in (select id from adress.account where parent_id is null)
+		       )
+	   )
+		then 
+			begin
+				raise exception 'Некоторые л/с, переданные в процедуру расчета сальдо, не найдены или не являются мастер-л/с';
+				return;
+			end;
+	end if;
+	
+	_first_period_id = (select id from "period".list where is_active = true);
+	
+	if _first_period_id is null
+		then 
+			begin
+				raise exception 'Первый период не определен в базе. Обратитесь в техподдержку';
+				return;
+			end;
+	end if;
+				
+	create temp table _account_sublist (account_id int, sublist_id int);
+
+	if exists(select * from utility.contragent_group)
+		then			
+			insert into _account_sublist
+			select *
+			from(
+					select aa.id, uc.sublist_id
+				 	from jsonb_populate_recordset(null::account.list, _account) a
+						join adress.account aa on aa.parent_id = a.account_id
+						join utility.contragent_group_sublist uc on uc.group_id = aa.group_id and uc.house_id = aa.house_id
+						union
+				 	select aa.id, s.sublist_id
+					from jsonb_populate_recordset(null::account.list, _account) a
+						join adress.account aa on aa.parent_id = a.account_id
+						cross join (values(6), (7)) s (sublist_id)
+				) as q;
+		else
+			insert into _account_sublist
+			select aa.id,us.id
+			from jsonb_populate_recordset(null::account.list, _account) a
+				join adress.account aa on aa.parent_id = a.account_id
+				cross join utility.sublist us;
+	end if;
+
+	with carcass as 
+		(
+			select pl.id as period_id, s.account_id, s.sublist_id
+			from "period".list pl
+				cross join _account_sublist s
+			where pl.id between _period_begin and _period_end
+		),
+	balance_first as 
+		(
+			select account_id, sublist_id, in_balance
+			from payment.balance
+			where period_id = _first_period_id
+		),
+	balance_history as 
+		(
+			select pb.account_id, pb.sublist_id
+				 , sum(coalesce(current_calculate, 0.0) + coalesce(recalculate, 0.0) - coalesce(pay, 0.0)) as in_balance
+			from payment.balance pb
+			where pb.period_id between _first_period_id and _period_begin - 1 and account_parent_id in (select a.account_id from jsonb_populate_recordset(null::account.list, _account) as a)
+			group by pb.account_id, pb.sublist_id
+		),
+	balance_new as 
+		(
+			select
+				c.period_id,
+				c.account_id,
+				c.sublist_id,
+				coalesce(bf.in_balance, 0.0)
+					+ coalesce(bh.in_balance, 0.0)
+					+ coalesce(sum(pb.current_calculate + pb.recalculate - pb.pay) over (partition by c.account_id, c.sublist_id order by c.period_id), 0.0) as in_balance
+			from carcass c
+				left join balance_first bf on bf.account_id = c.account_id and bf.sublist_id = c.sublist_id
+				left join balance_history bh on bh.account_id = c.account_id and bh.sublist_id = c.sublist_id
+				left join (select * from payment.balance where period_id between _period_begin and _period_end - 1) pb
+							on pb.period_id = c.period_id - 1 and pb.account_id = c.account_id and pb.sublist_id = c.sublist_id
+		)
+	-- расчитываем и обновляем сальдовку
+	merge into payment.balance as targets
+	using (
+		select
+			aa.house_id
+			,aa.flat_id
+			,aa.parent_id as account_parent_id
+			,pb.period_id
+			,pb.account_id
+			,pb.sublist_id
+			,pb.in_balance
+		from balance_new pb
+		join adress.account aa on aa.id = pb.account_id
+	) as sources
+	on (targets.period_id = sources.period_id and targets.account_id = sources.account_id and targets.sublist_id = sources.sublist_id)
+	when matched then
+		update set
+			in_balance = coalesce(sources.in_balance, 0.0)
+	when not matched and (sources.in_balance != 0 or sources.sublist_id in (6, 7)) then
+		insert(house_id, flat_id, account_id, period_id, sublist_id, in_balance, current_calculate, recalculate, account_parent_id, pay)
+		values(sources.house_id, sources.flat_id, sources.account_id, sources.period_id, sources.sublist_id, sources.in_balance, 0.0, 0.0, sources.account_parent_id, 0.0);
+	
+	drop table if exists _account_sublist;
+		
+end
+"""
+  arguments = <
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 02.09.2015
+ Modified:	20.08.2019 Трофимов Б.И. - переписана процедура расчета расчета сальдо, заполнения пробелов по услугам и принудительного заполнения услуг пеня и аванс
+ Description:	Расчет входящего сальдо
+ =============================================
+"""
+}
+

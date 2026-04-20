@@ -1,0 +1,39 @@
+table "special"."version" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_version"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('special.version_id_seq'::regclass)
+    }
+    column "version" {
+      type = integer
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+      default = now()
+    }
+  )
+}
+
+index "special"."version_ix_special_version" {
+  table = "special"."version"
+  type = btree
+  columns = <
+    {
+      definition = version
+      sortOrder = DESC
+    }
+
+  >
+  isUnique = True
+}
+

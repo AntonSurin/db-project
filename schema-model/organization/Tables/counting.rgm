@@ -1,0 +1,100 @@
+table "organization"."counting" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_counting_id"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('organization.counting_id_seq'::regclass)
+    }
+    column "list_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "bank_name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "rs" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "ks" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "bik" {
+      type = character varying(9)
+      null = NOT NULL
+    }
+    column "bank_adress" {
+      type = character varying(50)
+    }
+    column "default_rs" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "service_name" {
+      type = character varying(50)
+    }
+    column "is_archive" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "domyland_id" {
+      type = character varying(50)
+    }
+  )
+}
+
+foreignKey "organization"."counting"."fk_counting_organization" {
+  columns = [
+    "list_id"
+  ]
+  referencedTable = "organization"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "organization"."counting_idx_counting" {
+  table = "organization"."counting"
+  type = btree
+  columns = <
+    {
+      definition = list_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    bank_name
+    rs
+    ks
+    bik
+    bank_adress
+  ]
+}
+
+trigger "organization"."counting"."bank_counting" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = organization.bank_counting
+  functionArguments = [
+  ]
+  table = "organization"."counting"
+  constraint = False
+  newTableReference = inserted
+}
+

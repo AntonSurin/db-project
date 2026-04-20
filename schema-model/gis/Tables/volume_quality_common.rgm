@@ -1,0 +1,53 @@
+table "gis"."volume_quality_common" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_volume_quality_common"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.volume_quality_common_id_seq'::regclass)
+    }
+    column "contract_type" {
+      type = integer
+      null = NOT NULL
+    }
+    column "contract_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "status_gis" {
+      type = integer
+      null = NOT NULL
+    }
+    column "reason_of_annulment" {
+      type = character varying(1000)
+    }
+    column "date_update_gis" {
+      type = timestamp(3) without time zone
+    }
+    column "is_edit_arcus" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "gis"."volume_quality_common"."fk_volume_quality_common_list" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+

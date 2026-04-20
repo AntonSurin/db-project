@@ -1,0 +1,30 @@
+table "house"."signature" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_house_signature"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('house.signature_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "employee_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "signature_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+

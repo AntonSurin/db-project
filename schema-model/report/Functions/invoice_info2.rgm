@@ -1,0 +1,415 @@
+function "report"."invoice_info2(integer, jsonb, boolean, integer, boolean, integer, integer)" {
+  text = """
+
+
+declare 
+	_period_date_end 	date;
+ 	_is_working 		bool;
+ 	_debt 				bool;
+ 	_date_begin 		date;
+ 	_is_export_post 	bool; 
+
+begin	
+	
+	select pl.is_working, pl.date_end, pl.date_begin
+	into _is_working, _period_date_end, _date_begin
+	from "period".list pl 
+	where pl.id = _period_id;
+
+	create temp table __account 
+	(
+		 account_id 		int primary key not null
+		,account_parent_id 	int not null
+		,organization_id 	int
+		,splitting_rules 	int
+		,password_site 		int
+		,account_name 		varchar(12)
+		,city 				text
+		,adress 			text
+		,fio 				text
+		,gen_fio 			text
+		,post_fio 			text
+	);
+
+	create temp table _last_payment (account_id int primary key not null, pay_date date);
+	
+	create temp table _fine 
+	(
+		 account_id int primary key not null
+		,fine 		numeric(9,2)
+		,fine_pay 	numeric(9,2)
+		,fine_in 	numeric(9,2)
+	);
+
+	if (_group_id is null)
+		then 
+			begin
+				insert into __account 
+				select ai.account_id, aa.parent_id, ol.id, ol.splitting_rules, aa.password_site, ai.account_name, ai.city, ai.short_name_adress, null, null, null
+				from jsonb_populate_recordset(null::account.list, _account) a
+					inner join adress.account aa on aa.parent_id = a.account_id
+					inner join adress.info ai on ai.account_id = aa.id
+					inner join organization.list ol on ol.id = ai.organization_id;
+			end; 
+		else 
+			begin
+				insert into __account
+				select ai.account_id, aa.parent_id, ol.id, ol.splitting_rules, aa.password_site, ai.account_name, ai.city, ai.short_name_adress, null, null, null
+				from jsonb_populate_recordset(null::account.list, _account) a
+					inner join adress.account aa on aa.parent_id = a.account_id
+					inner join adress.info ai on ai.account_id = aa.id
+					inner join organization.list ol on ol.id = ai.organization_id
+				where aa.group_id = _group_id;
+			end;
+	end if;
+	
+	insert into _last_payment
+	select pl.account_id, max(pl."date") as pl_date
+	from payment.list pl 
+		inner join __account a on a.account_parent_id = pl.account_id 
+	where pl.period_id  <= _period_id and pl.type_id = 0 
+	group by pl.account_id;
+
+	insert into _fine
+	select 
+		 p.account_id
+		,coalesce (p.current_calculate,0) + coalesce (p.recalculate,0) as fine
+		,coalesce (p.pay,0) as fine_pay
+		,coalesce (p.in_balance,0) as fine_in
+	from payment.balance p
+		inner join __account a on a.account_id = p.account_id 
+	where p.period_id = _period_id and p.sublist_id = 7; 
+
+	if(_show_mail_address = true)
+		then 
+			update __account aa
+			set  fio = t.fio
+				,gen_fio = t2.gen
+			from __account a
+				left join lateral (
+										select string_agg(	
+															case 
+																when _person_type = 0 then cl.full_name
+																when _person_type = 1 then cl.short_name
+																when _person_type = 2 then cl.surname 
+																when _person_type = 3 then coalesce (cl.name||$$ $$, $$$$)||coalesce (cl.middlename||$$ $$, $$$$)
+																						||case 
+																							when length(coalesce (cl.surname , $$$$)) > 0
+																							then substring(cl.surname , 1, 1)||$$.$$ 
+																							else $$$$
+																						  end
+															end,$$ ,$$
+														  ) as fio
+												,ca.account_id as account_id
+										from contragent.list cl 
+											inner join contragent.account ca on ca.contragent_id = cl.id 
+											inner join contragent.owner_documents od on ca.id = od.contragent_account_id 
+										where ca.account_id = a.account_parent_id 
+												and ca.is_responsible = true 
+												and (coalesce (od.date_begin, _period_date_end) <= _period_date_end 
+												and coalesce (od.date_end, _date_begin) >= _date_begin)													
+										group by ca.account_id
+									) as t on true 
+				left join lateral (		
+									   select string_agg(case 
+															when cl.type  = true then cl.full_name
+															else coalesce (cl.name||$$ $$, $$$$)||coalesce (cl.middlename||$$ $$, $$$$)||coalesce (substring(cl.surname , 1, 1)||$$.$$, $$$$) 
+														end,$$ ,$$) as gen
+												,ca.account_id as account_id
+									   from contragent.list cl 
+											inner join contragent.account ca on ca.contragent_id = cl.id
+											inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+									   where ca.account_id = a.account_parent_id 
+									   		and ca.is_responsible = true
+											and (coalesce (od.date_begin, _period_date_end) <= _period_date_end 
+											and coalesce (od.date_end, _date_begin) >= _date_begin)
+										group by ca.account_id
+									) as t2 on true
+			where a = aa;		 
+		else
+				update __account aa
+				set fio = t.fio
+				from __account a				
+					left join lateral (
+										select string_agg(	case 
+																when _person_type = 0 then cl.full_name
+																when _person_type = 1 then cl.short_name
+																when _person_type = 2 then cl.surname 
+																when _person_type = 3 then coalesce (cl.name||$$ $$, $$$$)||coalesce (cl.middlename||$$ $$, $$$$)
+																							||case 
+																								when length(coalesce (cl.surname , $$$$)) > 0 
+																								then substring(cl.surname , 1, 1)||$$.$$ 
+																								else $$$$ 
+																							  end
+															  end,$$ ,$$) as fio 
+												,ca.account_id as account_id
+										from contragent.list cl 
+											inner join contragent.account ca on ca.contragent_id = cl.id
+											inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+										where ca.account_id = a.account_parent_id 
+												and ca.is_responsible = true 
+												and (coalesce (od.date_begin, _period_date_end) <= _period_date_end 
+												and coalesce (od.date_end, _date_begin) >= _date_begin)
+										group by ca.account_id
+									) as t on true
+				where a = aa; 
+	end if;
+
+	_is_export_post :=  (SELECT coalesce (xmlexists($$/Root/UI/IsExportPost/text() = true$$ PASSING BY VALUE (select xml_data from special.parametr)),false));
+
+	if (_is_export_post = true) 
+		then 
+				update __account aa 
+					set	post_fio = t.fio
+				from __account a
+					left join lateral (
+										select string_agg(case 
+															when _person_type = 0 then cl.full_name
+															when _person_type = 1 then cl.short_name
+															when _person_type = 2 then cl.surname 
+															when _person_type = 3 then coalesce (cl.name||$$ $$, $$$$)||coalesce (cl.middlename||$$ $$, $$$$)
+																						||case 
+																							when length(coalesce (cl.surname , $$$$)) > 0 
+																							then substring(cl.surname , 1, 1)||$$.$$ 
+																							else $$$$ 
+																						  end
+														  end,$$ ,$$) as fio 
+												,ca.account_id as account_id
+										from contragent.list cl 
+											inner join contragent.account ca on ca.contragent_id = cl.id
+											inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+										where ca.account_id = a.account_parent_id 
+											and ca.is_responsible = true
+											and (coalesce (od.date_begin, _period_date_end) <= _period_date_end 
+											and coalesce (od.date_end, _date_begin) >= _date_begin)
+										group by ca.account_id 
+										) as t on true
+				where a = aa ;
+	end if;
+
+	create temp table _temp 
+	(
+		 account_id         int not null primary key
+		,organization_id    int
+		,password_site      int
+		,account_name       varchar(12)
+		,city               text
+		,adress             text
+		,fio                text
+		,post_fio			text
+		,gen_fio            text
+		,sum_last_payment	numeric(10,2)
+		,date               date
+		,in_balance         numeric(10,2)
+		,avance_value       numeric(10,2)
+		,calc               numeric(10,2)
+		,fine_value         numeric(9,2)
+		,fine_in_balance    numeric(9,2)
+		,fine_pay           numeric(9,2)
+		,unique_number      varchar(20)
+		,pd_unique_number	varchar(36)
+	);
+
+	insert into _temp
+	select 
+		 a.account_parent_id::int as account_id
+		,a.organization_id::int
+		,a.password_site::int
+		,a.account_name
+		,a.city
+		,a.adress 
+		,a.fio 
+		,a.post_fio 
+		,a.gen_fio 
+		,sum(pb.pay - case when a.splitting_rules = 2 then f.fine_pay else 0.0 end)  as sum_last_payment
+		,l.pay_date  as date
+		,sum(pb.in_balance) as in_balance
+		,sum(case when a.splitting_rules = 2 then (pb.in_balance - f.fine_in) - (pb.pay - f.fine_pay) else pb.in_balance - pb.pay end) as avance_value
+		,sum(pb.current_calc + pb.recalc - coalesce (f.fine,0)) as calc
+		,sum(f.fine) as fine_value
+		,sum(f.fine_in) as fine_in_balance
+		,sum(f.fine_pay) as fine_pay
+		,ha.unique_number
+		,pd.unique_number
+	from payment.balance_group pb 
+		inner join 	__account a on pb.account_id = a.account_id
+		inner join _fine f on f.account_id = pb.account_id
+		left join house.account ha on ha.account_id = a.account_parent_id
+		left join _last_payment l on l.account_id = pb.account_parent_id
+		left join 
+				(	select 
+						dpd.account_id, 
+						dpd.unique_number,
+						row_number() over (partition by dpd.account_id order by dpd.unique_number) rn
+					from documents.payment_document dpd
+					where period_id = _period_id and state = 1
+				) pd on pd.account_id = a.account_parent_id and pd.rn = 1
+	where pb.period_id = _period_id
+	group by a.account_parent_id, ha.unique_number, pd.unique_number, a.account_name, a.organization_id, a.password_site, a.city, a.adress, a.fio, a.post_fio, a.gen_fio,  l.pay_date;	
+
+	if (_is_working = true)
+		then 
+			return query
+			select 
+				 t.*
+				,cp.house_id::int
+				,ah."index" as flat_index
+				,ah.organization_counting_id::int
+				,_group_id::int as group_id
+				,cp.dsq 
+				,cp.dls::int
+				,cp.osq - coalesce(cp.nsq, 0) as osq
+				,cp.cpr::int
+				,cp.nsq
+				
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.dsq else cp.dsq end, 0.0)  as numeric(13, 5)) as p1
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.dsqot1354 else cp.dsqot1354 end, 0.0)  as numeric(13, 5)) as p2
+				,null::numeric(17,5) as p3
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.col_reg else cp.col_reg end, 0.0)  as numeric(13, 5)) as p4
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.cpr else cp.cpr end, 0.0)  as numeric(13, 5)) as p5
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.count_owners else cp.count_owners end, 0.0)  as numeric(13, 5)) as p6
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then coalesce(cp.osq,0) - coalesce(cp.nsq,0) else coalesce(cp.osq,0) - coalesce(cp.nsq,0) end, 0.0)  as numeric(13, 5)) as p7
+			
+				,ow.name::text as work_name
+				,ow.inn as work_inn
+				,ow.kpp as work_kpp
+				,ocw.bik as work_bik
+				,ocw.rs as work_rs
+				,ocw.ks as work_ks
+				,ocw.bank_name::text as work_bank_name
+				,ocw.bank_adress::text as work_bank_adress 
+				,coalesce (hc.email, ow.email)::text as email
+				,ow.web::text
+				,coalesce (hc.phone, ow.phone)::text as  phone
+				,case when coalesce (trim(oa.index),$$$$) = $$$$ then $$$$ else oa.index || $$, $$ end || coalesce (oa.city,$$$$) || $$ $$ || coalesce  (oa.street,$$$$) || $$ $$ || coalesce (oa.house,$$$$)::text as work_adress
+				,o.splitting_rules::int
+				,ah.index
+			from calculation.parametr_transporate cp
+				inner join adress.house ah on ah.id = cp.house_id
+				inner join organization.list ow on ow.id = ah.work_id
+				inner join organization.counting ocw on ocw.id = ah.work_counting_id
+				inner join organization.list o on o.id = ah.organization_id
+				inner join organization.counting c on c.id = ah.organization_counting_id
+				inner join organization.type ot on ot.id = o.type_id
+				inner join organization.adress oa on oa.id = ow.adress_legal
+				inner join _temp t on t.account_id = cp.account_id
+				left join house.contact hc on hc.house_id = ah.id ;
+		else 
+			return query
+			select 
+				t.*
+				,cp.house_id::int
+				,ah.index as flat_index
+				,ah.organization_counting_id::int
+				,_group_id::int as group_id
+				,cp.dsq
+				,cp.dls::int
+				,cp.osq - coalesce (cp.nsq, 0) as osq
+				,cp.cpr::int
+				,cp.nsq
+				
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.dsq else cp.dsq end, 0.0)  as numeric(13, 5)) as p1
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.dsqot1354 else cp.dsqot1354 end, 0.0)  as numeric(13, 5)) as p2
+				,null::numeric(17,5) as p3
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.col_reg else cp.col_reg end, 0.0)  as numeric(13, 5)) as p4
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.cpr else cp.cpr end, 0.0)  as numeric(13, 5)) as p5
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then cp.count_owners else cp.count_owners end, 0.0)  as numeric(13, 5)) as p6
+				,cast(nullif(case when exists(select * from "input".account ap where ap.account_id  = cp.account_id and ap.sublist_id = 20) then coalesce(cp.osq,0) - coalesce(cp.nsq,0) else coalesce(cp.osq,0) - coalesce(cp.nsq,0) end, 0.0)  as numeric(13, 5)) as p7
+				
+				,ow.name::text as work_name
+				,ow.inn as work_inn
+				,ow.kpp as work_kpp
+				,ocw.bik as work_bik
+				,ocw.rs as work_rs
+				,ocw.ks as work_ks
+				,ocw.bank_name::text as work_bank_name
+				,ocw.bank_adress::text as work_bank_adress 
+				,coalesce (hc.email, ow.email)::text email
+				,ow.web::text
+				,coalesce (hc.phone, ow.phone)::text phone
+				,case when coalesce (trim(oa.index), $$$$) = $$$$ then $$$$ else oa.index ||$$, $$ end || coalesce (oa.city,$$$$) || $$ $$ || coalesce (oa.street,$$$$) || $$ $$ || coalesce (oa.house,$$$$)::text as work_adress
+				,o.splitting_rules::int
+				,ah.index
+			from calculation.parametr_transporate_arch cp
+				inner join adress.house ah on ah.id = cp.house_id
+				inner join organization.list ow on ow.id = ah.work_id
+				inner join organization.counting ocw on ocw.id = ah.work_counting_id
+				inner join organization.list o on o.id = ah.organization_id
+				inner join organization.counting c on c.id = ah.organization_counting_id
+				inner join organization.type ot on ot.id = o.type_id
+				inner join organization.adress oa on oa.id = ow.adress_legal
+				inner join _temp t on t.account_id = cp.account_id
+				left join house.contact hc on hc.house_id = ah.id 
+			where cp.period_id = _period_id;
+	end if;
+
+drop table _last_payment;
+drop table _fine;
+drop table __account; 			
+drop table _temp;
+
+end;  
+"""
+  returnType = TABLE(account_id integer, organization_id integer, password_site integer, account_name character varying, city text, adress text, fio text, post_fio text, gen_fio text, sum_last_payment numeric, date date, in_balance numeric, avance_value numeric, calc numeric, fine_value numeric, fine_in_balance numeric, fine_pay numeric, unique_number character varying, pd_unique_number character varying, house_id integer, flat_index character varying, organization_counting_id integer, group_id integer, dsq numeric, dls integer, osq numeric, cpr integer, nsq numeric, p1 numeric, p2 numeric, p3 numeric, p4 numeric, p5 numeric, p6 numeric, p7 numeric, work_name text, work_inn character varying, work_kpp character varying, work_bik character varying, work_rs character varying, work_ks character varying, work_bank_name text, work_bank_adress text, email text, web text, phone text, work_adress text, splitting_rules integer, index character varying)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _show_work_details
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _show_mail_address
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+    {
+      name = _person_type
+      type = integer
+      mode = IN
+      default = 0
+    }
+
+    {
+      name = _post_person_type
+      type = integer
+      mode = IN
+      default = 0
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:	 поляков павел
+ create date: 01.06.2016
+ update date:		description 
+ 14.07.2017		оптимизация работы
+ 11.01.2018		добавлено разделение по группам
+ 04.02.2019		@postpersontype - добавлен формат фио в квитке почты россии ()
+ =============================================
+"""
+}
+

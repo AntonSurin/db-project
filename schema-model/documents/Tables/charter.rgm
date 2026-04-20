@@ -1,0 +1,37 @@
+table "documents"."charter" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_charter_charter"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.charter_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = timestamp(3) without time zone
+    }
+    column "reason" {
+      type = character varying(250)
+    }
+    column "status" {
+      type = character varying(20)
+    }
+    column "version_guid" {
+      type = uuid
+    }
+  )
+}
+

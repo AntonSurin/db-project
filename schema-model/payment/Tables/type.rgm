@@ -1,0 +1,21 @@
+table "payment"."type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_type_pay"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = smallint
+      null = NOT NULL
+      default = nextval('payment.type_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+    }
+  )
+}
+

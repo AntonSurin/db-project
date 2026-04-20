@@ -1,0 +1,45 @@
+table "adress"."territory" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_territory"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.territory_id_seq'::regclass)
+    }
+    column "region_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(200)
+    }
+    column "oktmo" {
+      type = character varying(11)
+      null = NOT NULL
+    }
+    column "month_begin" {
+      type = smallint
+    }
+    column "month_end" {
+      type = smallint
+    }
+  )
+}
+
+foreignKey "adress"."territory"."fk_territory_region" {
+  columns = [
+    "region_id"
+  ]
+  referencedTable = "adress"."region"
+  referencedColumns = [
+    "id"
+  ]
+}
+

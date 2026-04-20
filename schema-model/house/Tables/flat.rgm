@@ -1,0 +1,135 @@
+table "house"."flat" {
+  primaryKey = {
+    columns = [
+      "flat_id"
+    ]
+    name = "pk_house_flat"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_book_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_guid" {
+      type = uuid
+    }
+    column "unique_number" {
+      type = character varying(100)
+    }
+    column "number" {
+      type = character varying(255)
+    }
+    column "is_odn" {
+      type = boolean
+    }
+    column "area" {
+      type = numeric(18,2)
+    }
+    column "gross_area" {
+      type = numeric(18,2)
+    }
+    column "floor" {
+      type = integer
+    }
+    column "cadastral_number" {
+      type = character varying(40)
+    }
+    column "access_number" {
+      type = character varying(5)
+    }
+    column "feature_room_id" {
+      type = integer
+    }
+    column "is_residential" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "termination_date" {
+      type = timestamp(3) without time zone
+    }
+    column "modification_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "cadaster_flat_name" {
+      type = character varying(255)
+    }
+    column "area_gis" {
+      type = numeric(18,2)
+    }
+    column "gross_area_gis" {
+      type = numeric(18,2)
+    }
+    column "num_resident_gis" {
+      type = integer
+    }
+    column "num_rooms_gis" {
+      type = integer
+    }
+    column "cadastral_number_gis" {
+      type = character varying(255)
+    }
+    column "number_gis" {
+      type = character varying(255)
+    }
+    column "access_number_gis" {
+      type = character varying(20)
+    }
+  )
+}
+
+foreignKey "house"."flat"."fk_house_flat_gis_book_feature_room_id" {
+  columns = [
+    "feature_room_id"
+  ]
+  referencedTable = "gis"."book"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "house"."flat"."fk_house_flat_house_characteristic_house_id" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+  onDelete = CASCADE
+}
+
+index "house"."flat_ix_feature_room_id" {
+  table = "house"."flat"
+  type = btree
+  columns = <
+    {
+      definition = feature_room_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "house"."flat_ix_house_id" {
+  table = "house"."flat"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+}
+

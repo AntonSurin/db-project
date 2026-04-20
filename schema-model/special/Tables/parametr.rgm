@@ -1,0 +1,36 @@
+table "special"."parametr" {
+  owner = postgres
+  columns = (
+    column "xml_data" {
+      type = xml
+      null = NOT NULL
+    }
+    column "annotation" {
+      type = text
+    }
+    column "documents_accounting_date" {
+      type = timestamp(3) without time zone
+    }
+    column "documents_accounting_period" {
+      type = integer
+    }
+    column "report_options" {
+      type = text
+    }
+    column "online_exhange_rule" {
+      type = smallint
+      default = 0
+    }
+    column "database_guid" {
+      type = uuid
+      null = NOT NULL
+      default = gen_random_uuid()
+    }
+    column "unique_database_guid" {
+      type = uuid
+      null = NOT NULL
+      default = '00000000-0000-0000-0000-000000000000'::uuid
+    }
+  )
+}
+

@@ -1,0 +1,36 @@
+table "report"."answers" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_report_protocol"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.answers_id_seq'::regclass)
+    }
+    column "question_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "answers" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "report"."answers"."fk_report_protocol_report_protocol_question" {
+  columns = [
+    "question_id"
+  ]
+  referencedTable = "report"."question"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

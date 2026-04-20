@@ -1,0 +1,41 @@
+table "house"."contact" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contact_2"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('house.contact_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "phone" {
+      type = character varying(150)
+    }
+    column "email" {
+      type = character varying(150)
+    }
+    column "adress" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "house"."contact"."fk_contact_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+}
+

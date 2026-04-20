@@ -1,0 +1,51 @@
+table "documents"."charter_detail" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_charter_detail"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.charter_detail_id_seq'::regclass)
+    }
+    column "charter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "detail_object" {
+      type = integer
+      null = NOT NULL
+    }
+    column "from_day" {
+      type = integer
+    }
+    column "from_is_next_month" {
+      type = boolean
+    }
+    column "to_day" {
+      type = integer
+      null = NOT NULL
+    }
+    column "to_is_next_month" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "documents"."charter_detail"."fk_doc_chart_detail_doc_chart_chart_id" {
+  columns = [
+    "charter_id"
+  ]
+  referencedTable = "documents"."charter"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

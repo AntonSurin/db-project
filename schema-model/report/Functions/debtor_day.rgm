@@ -1,0 +1,169 @@
+function "report"."debtor_day(jsonb, date, integer, boolean)" {
+  text = """
+
+declare 
+	_period_id			int;	
+	_date_end			date;
+	_active_period		int;
+begin
+
+	select pl.id, pl.date_end 
+	into _period_id, _date_end
+	from period.list pl 
+	where _date between pl.date_begin and pl.date_end;
+
+	drop table if exists _payment_balance_group;
+
+	create temp table _payment_balance_group (
+												account_id int not null, 
+												house_id int, 
+												period_id int not null, 
+												in_balance numeric(38, 2), 
+												current_calculate numeric(38, 2), 
+												recalculate numeric(38, 2), 
+												pay numeric(38, 2)
+											);
+	
+	alter table _payment_balance_group 
+	add constraint _clx_account_period unique (period_id, account_id);
+	
+	create index _idx_period_id on _payment_balance_group (period_id asc) 
+	include (in_balance, current_calculate, recalculate, pay, account_id);
+	
+	insert into _payment_balance_group (account_id, house_id, period_id, in_balance, current_calculate, recalculate, pay)
+	select
+		 pb.account_parent_id
+		,pb.house_id
+		,pb.period_id
+		,sum(pb.in_balance) as in_balance
+		,sum(pb.current_calculate) as current_calculate
+		,sum(pb.recalculate) as recalculate
+		,sum(pb.pay) as pay
+	from payment.balance pb
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = pb.house_id
+	where pb.sublist_id != case when _fine = false then 7 else -1000 end and pb.period_id <= _period_id
+	group by pb.account_parent_id, pb.period_id, pb.house_id;
+	
+
+	_active_period = (select pl.id from period.list pl where pl.is_active = true);
+
+	return query
+	with cte as (
+		select 
+			pb.account_id
+			,b.period_id
+			,(_date - (pl.date_end + interval'1 day' * _day)) as "day"
+			,sum (case when b.calc < 0 then 0 else b.calc end) over (partition by b.account_id order by b.period_id desc, ord asc ) rolling_sum_dold   --- сумма разложенного долга нарастающим итогом
+			,case   
+				when  (pb.in_balance) - sum (case when b.calc < 0 then 0 else b.calc end) over (partition by b.account_id order by b.period_id desc, ord asc ) > 0
+					then case when b.calc < 0 then 0 else b.calc end
+				when (pb.in_balance) - (sum (case when b.calc < 0 then 0 else b.calc end) over (partition by b.account_id order by b.period_id desc, ord asc ) - (b.calc)) > 0 
+					then  (pb.in_balance) - (sum (case when b.calc < 0 then 0 else b.calc end) over (partition by b.account_id order by b.period_id desc, ord asc ) - (b.calc))
+				else 0.0
+			end as in_balance
+			,pb.pay
+			,case   
+				when  (pb.debt) - sum (case when b.calc < 0 then 0 else b.calc end) over (partition by b.account_id order by b.period_id desc, ord asc ) > 0
+					then case when b.calc < 0 then 0 else b.calc end
+				when (pb.debt) - (sum (case when b.calc < 0 then 0 else b.calc end) over (partition by b.account_id order by b.period_id desc, ord asc ) - (b.calc)) > 0 
+					then  (pb.debt) - (sum (case when b.calc < 0 then 0 else b.calc end) over (partition by b.account_id order by b.period_id desc, ord asc ) - (b.calc))
+				else 0.0
+			end as debt
+		from (
+				select pbg.account_id, pbg.in_balance as in_balance, pbg.in_balance - pbg.pay as debt, pbg.pay
+				from _payment_balance_group pbg
+				where pbg.period_id = _period_id and pbg.in_balance <> 0.0
+			) as pb
+			inner join 	(
+							select pb.current_calculate + pb.recalculate as calc, pb.account_id, pb.period_id,1 as ord
+						 	from  _payment_balance_group pb
+						 	where pb.period_id < _period_id and abs(pb.current_calculate + pb.recalculate) <> 0.0
+			  			 		union all
+							select pbg.in_balance, pbg.account_id, _active_period - 1,2
+							from _payment_balance_group pbg
+							where pbg.period_id = _active_period and pbg.in_balance > 0.0 
+					) b on pb.account_id = b.account_id
+				inner join "period".list pl on pl.id = b.period_id
+	)
+	
+	
+	select 
+		c.account_id
+		,ai.house_id
+		,ai.order_id
+		,ai.account_order_id
+		,ai.short_name as adress
+		,ai.flat_book_short_name || ' ' || ai.flat_name as flat_name
+		,ai.account_name
+		,sum(c.in_balance) as in_balance
+		,coalesce(sum(case when c."day" < '45 day' then c.in_balance end), 0.0) as in_balance_45
+		,coalesce(sum(case when c."day" between '45 day' and '90 day' then c.in_balance end), 0.0) as in_balance_45_90
+		,coalesce(sum(case when c."day" > '90 day' then c.in_balance end), 0.0) as in_balance_90
+		,c.pay
+		,coalesce(sum(c.debt), 0.0) as debt
+		,coalesce(sum(case when c."day" < '45 day' then c.debt end), 0.0) as debt_45
+		,coalesce(sum(case when c."day" between '45 day' and '90 day' then c.debt end), 0.0) as debt_45_90
+		,coalesce(sum(case when c."day" > '90 day' then c.debt end), 0.0) as debt_90
+		,pd."date"
+		,(
+			select string_agg(cl.full_name , ', ')
+			from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+			where ca.account_id = c.account_id and ca.is_responsible = true and coalesce(od.date_end, _date_end) >= _date_end
+		) as "owner"
+	from cte c
+		inner join adress.info ai  on ai.account_id = c.account_id
+		left join lateral(
+							select pl."date" 
+							from payment.list pl
+							where pl.account_id = c.account_id and pl."date" <= _date
+							order by pl."date" desc
+							limit 1
+						) pd on true
+	group by ai.house_id, c.account_id, ai.short_name, ai.account_name, pd."date", ai.flat_book_short_name, ai.flat_name, ai.order_id, ai.account_order_id, c.pay;
+
+	drop table if exists _payment_balance_group;
+
+end;
+"""
+  returnType = TABLE(account_id integer, house_id integer, order_id integer, account_order_id integer, adress text, flat_name text, account_name character varying, in_balance numeric, in_balance_45 numeric, in_balance_45_90 numeric, in_balance_90 numeric, pay numeric, debt numeric, debt_45 numeric, debt_45_90 numeric, debt_90 numeric, date date, owner text)
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _date
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _day
+      type = integer
+      mode = IN
+      default = 10
+    }
+
+    {
+      name = _fine
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Create date: <Create Date,,>
+ Description:	<Description,,>
+ =============================================
+"""
+}
+

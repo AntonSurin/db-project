@@ -1,0 +1,96 @@
+view "gis"."house_characteristic" {
+  text = """-
+SELECT hi.settlement_name,
+    hi.short_adress,
+    hc.unique_number,
+    hc.fias_house_guid,
+    hc.cadastral_number,
+    hc.oktmo,
+    hc.year_of_construction,
+    hc.year_begin,
+    hc.floor_count_max,
+    hc.floor_underground_count,
+    hc.living_count_flat,
+    hc.non_residential_count_flat,
+    hc.area,
+    hc.living_area,
+    hc.non_residential_area,
+    hc.common_propery_water,
+    hc.common_propery_el,
+    hl.lift,
+    ha.podezd
+   FROM (((house.characteristic hc
+     JOIN house.info hi ON ((hi.house_id = hc.house_id)))
+     LEFT JOIN ( SELECT hll.house_id,
+            count(hll.house_id) AS lift
+           FROM house.lift hll
+          GROUP BY hll.house_id) hl ON ((hl.house_id = hc.house_id)))
+     LEFT JOIN ( SELECT haa.house_id,
+            count(haa.house_id) AS podezd
+           FROM house.access haa
+          GROUP BY haa.house_id) ha ON ((ha.house_id = hc.house_id)))
+  WHERE (hc.is_export = true);
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "settlement_name" {
+      type = text
+    }
+    column "short_adress" {
+      type = text
+    }
+    column "unique_number" {
+      type = character varying(50)
+    }
+    column "fias_house_guid" {
+      type = uuid
+    }
+    column "cadastral_number" {
+      type = character varying(40)
+    }
+    column "oktmo" {
+      type = character varying(15)
+    }
+    column "year_of_construction" {
+      type = smallint
+    }
+    column "year_begin" {
+      type = smallint
+    }
+    column "floor_count_max" {
+      type = smallint
+    }
+    column "floor_underground_count" {
+      type = smallint
+    }
+    column "living_count_flat" {
+      type = smallint
+    }
+    column "non_residential_count_flat" {
+      type = smallint
+    }
+    column "area" {
+      type = numeric(18,2)
+    }
+    column "living_area" {
+      type = numeric(18,2)
+    }
+    column "non_residential_area" {
+      type = numeric(18,2)
+    }
+    column "common_propery_water" {
+      type = numeric(18,2)
+    }
+    column "common_propery_el" {
+      type = numeric(18,2)
+    }
+    column "lift" {
+      type = bigint
+    }
+    column "podezd" {
+      type = bigint
+    }
+  )
+}
+

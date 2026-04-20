@@ -1,0 +1,124 @@
+function "sms"."debtors(jsonb, integer, numeric, integer)" {
+  text = """
+
+declare 
+	_period_begin int;
+begin
+
+	drop table if exists _table;
+	drop table if exists __account;
+	
+	create temp table _table (account_id int, debt numeric(18,2) not null default 0.0);
+	create temp table __account (account_id int);
+
+	insert into __account
+	select a.account_id
+	from jsonb_populate_recordset(null::account.list, _account) a;
+
+	_period_begin = (select min(id) from "period".list where is_open = true);
+
+	insert into _table (account_id, debt)
+	select 
+		 pb.account_id
+		,pb.in_balance + pb.current_calc + pb.recalc - coalesce(pd.payment_sum, 0) as debt
+	from payment.balance_group pb 
+		inner join __account a on a.account_id = pb.account_parent_id
+		left join (
+					select pd.account_id, sum(pd.sum) as payment_sum
+					from payment.list pl
+						inner join payment.detal pd on pd.payment_id = pl.id
+					where pl.period_id >= _period_id
+					group by pd.account_id
+				) pd on pd.account_id = pb.account_id
+	where period_id = _period_id;		
+
+	return query
+	with cte as
+	(
+		select 
+			 pb.account_id
+			,pb.period_id
+			,pb.account_parent_id
+			,pb.calculate
+			,case   
+				when  (t.debt) - sum (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) over (partition by pb.account_id order by pb.period_id desc, ord asc ) > 0
+					then case when pb.calculate >= 0.0 then pb.calculate else 0.0 end 
+				when (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) - (sum (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) over (partition by pb.account_id order by pb.period_id desc, ord asc ) - (t.debt)) > 0 
+					then  (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) - (sum (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) over (partition by pb.account_id order by pb.period_id desc, ord asc) - (t.debt))
+				else 0.0
+				end as debt
+			,t.debt as full_debt
+		from (
+				select p.account_id, p.period_id, p.account_parent_id, abs(p.current_calc + p.recalc) as calculate, 1 as ord
+				from payment.balance_group p 
+					inner join __account a on a.account_id = p.account_parent_id
+				union all
+				select p.account_id, p.period_id - 1, p.account_parent_id, in_balance as calculate, 2 as ord
+				from payment.balance_group p 
+					inner join __account a on a.account_id = p.account_parent_id
+				where p.period_id = _period_begin
+			) pb
+			left join _table t on t.account_id = pb.account_id
+		where t.debt > 0 and pb.period_id <= _period_id
+	), cte2 as 
+	(
+		select 
+			ct.account_parent_id
+			,ct.account_id
+			,sum(case when ct.debt > 0 then 1 else 0 end) as "count"
+			,ct.full_debt
+		from cte ct
+		group by ct.account_parent_id, ct.account_id, ct.full_debt
+	)
+
+	select 
+		ctt.account_parent_id as account_id
+		,sum(ctt.full_debt) as debt
+		,max(ctt."count")::int2 as "count" 
+	from cte2 ctt
+	where ctt."count" >= _count and ctt.full_debt >= _min_debt
+	group by ctt.account_parent_id;
+
+	drop table if exists __account;
+	drop table if exists _table;
+
+end;
+"""
+  returnType = TABLE(account_parent_id integer, debt numeric, count smallint)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _min_debt
+      type = numeric
+      mode = IN
+    }
+
+    {
+      name = _count
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 20.07.2018
+ Description:	Список должников для смс-рассылки и обзвона
+ =============================================
+"""
+}
+

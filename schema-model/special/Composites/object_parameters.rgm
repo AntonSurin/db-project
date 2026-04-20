@@ -1,0 +1,12 @@
+composite "special"."object_parameters" {
+  owner = postgres
+  fields = (
+    field "object_id" {
+      type = integer
+    }
+    field "parameter" {
+      type = integer
+    }
+  )
+}
+

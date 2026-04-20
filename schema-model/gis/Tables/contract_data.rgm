@@ -1,0 +1,48 @@
+table "gis"."contract_data" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contract_data"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.contract_data_id_seq'::regclass)
+    }
+    column "contract_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "number" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "date_create" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = timestamp(3) without time zone
+    }
+    column "version_guid" {
+      type = uuid
+    }
+    column "contract_object_version_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+

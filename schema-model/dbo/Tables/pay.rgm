@@ -1,0 +1,39 @@
+table "dbo"."pay" {
+  owner = postgres
+  columns = (
+    column "account_name" {
+      type = character varying(9)
+    }
+    column "pay" {
+      type = numeric(9,2)
+    }
+    column "fine" {
+      type = numeric(9,2)
+    }
+    column "data_pay" {
+      type = date
+    }
+    column "date_batch" {
+      type = date
+    }
+    column "number_batch" {
+      type = integer
+    }
+    column "bank" {
+      type = integer
+    }
+    column "bank_name" {
+      type = character varying(255)
+    }
+    column "batch_id" {
+      type = integer
+    }
+    column "payment_id" {
+      type = integer
+    }
+    column "sum_batch" {
+      type = numeric(9,2)
+    }
+  )
+}
+

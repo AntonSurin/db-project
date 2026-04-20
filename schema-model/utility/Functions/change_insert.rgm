@@ -1,0 +1,70 @@
+function "utility"."change_insert()" {
+  text = """
+
+declare 
+	_sublist_id		int;
+	_start_period	date;
+	_sql			text = '';
+begin
+	
+	_start_period = (select date_begin from "period".list where is_working = true);
+
+	if not exists (select * 
+					from calculation.account_sublist  ca
+					where new.is_on = true and ca.sublist_id = new.id)
+		then
+			begin				
+				if not exists (select * from utility.contragent_group) 
+					then
+						begin 
+							insert into calculation.account_sublist (account_id, account_parent_id, house_id, sublist_id, value, "date")
+							select aa.id, parent_id, house_id, new.id, new.is_on, _start_period
+							from adress.account aa
+							where aa.parent_id is not null and new.is_on = true and new.id not in (6, 7);
+						end;
+					else 
+						begin
+							insert into calculation.account_sublist (account_id, account_parent_id, house_id, sublist_id, value, "date")
+							select aa.id, parent_id, aa.house_id, new.id, new.is_on, _start_period
+							from adress.account aa
+								inner join utility.contragent_group_sublist cgs on cgs.house_id = aa.house_id and aa.group_id = cgs.group_id
+							where new.is_on = true  and new.id not in (6, 7) and aa.parent_id is not null and new.id = cgs.sublist_id;
+						end;
+				end if;			
+			end;
+	end if;
+
+	--/////////////////////////////////////////////////// todo Включить обратно
+	_sublist_id = new.id;
+
+		/*Создание колонок в таблицах объема, тарифа и норматива*/
+	
+	_sql = 'alter table calculation.tarif add t_' || new.short_name || ' numeric(9, 5);
+			alter table calculation.tarif_arch add t_' || new.short_name || ' numeric(9, 5);
+			
+			alter table calculation.volume add v_' || new.short_name || ' numeric(11, 5);
+			alter table calculation.volume_arch add v_' || new.short_name || ' numeric(11, 5);
+
+			alter table recalculation.tarif add t_' || new.short_name || ' numeric(9, 5);
+			alter table recalculation.volume add v_' || new.short_name || ' numeric(11, 5);';
+
+	execute(_sql);
+
+	return new;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 15.04.2014
+ Description:	Проверка на изменение наименования услуги
+ =============================================
+"""
+}
+

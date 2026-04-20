@@ -1,0 +1,46 @@
+table "utility"."sublist_group" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sublist_group"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.sublist_group_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "utility"."sublist_group"."fk_sublist_group_sublist_group" {
+  columns = [
+    "id"
+  ]
+  referencedTable = "utility"."sublist_group"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+trigger "utility"."sublist_group"."fill_group" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = ROW
+  function = utility.fill_group
+  functionArguments = [
+  ]
+  table = "utility"."sublist_group"
+  constraint = False
+  newTableReference = inserted
+}
+

@@ -1,0 +1,42 @@
+table "counter"."ignore_verification" {
+  primaryKey = {
+    columns = [
+      "counter_id"
+    ]
+    name = "pk_ignore_verification"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "verification_id" {
+      type = bigint
+      null = NOT NULL
+    }
+    column "verification_date" {
+      type = date
+    }
+    column "last_update_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "reason" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "counter"."ignore_verification"."fk_ignore_verification_list" {
+  columns = [
+    "counter_id"
+  ]
+  referencedTable = "counter"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

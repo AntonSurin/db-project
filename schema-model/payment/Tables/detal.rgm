@@ -1,0 +1,253 @@
+table "payment"."detal" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_detal"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.detal_id_seq'::regclass)
+    }
+    column "payment_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+      default = 0.0
+    }
+    column "account_parent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_manual" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+  )
+}
+
+foreignKey "payment"."detal"."fk_detal_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."detal"."fk_detal_detal_sub_util" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."detal"."fk_detal_list" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "payment"."detal"."fk_detal_list_payment" {
+  columns = [
+    "payment_id"
+  ]
+  referencedTable = "payment"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "payment"."detal_idx_account_sum" {
+  table = "payment"."detal"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = period_id
+    }
+
+    {
+      definition = sum
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    payment_id
+    sublist_id
+  ]
+}
+
+index "payment"."detal_idx_detal_id_list_payment" {
+  table = "payment"."detal"
+  type = btree
+  columns = <
+    {
+      definition = payment_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    sum
+    period_id
+  ]
+}
+
+index "payment"."detal_idx_detal_payment_id" {
+  table = "payment"."detal"
+  type = btree
+  columns = <
+    {
+      definition = payment_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "payment"."detal_idx_payment_sum" {
+  table = "payment"."detal"
+  type = btree
+  columns = <
+    {
+      definition = payment_id
+    }
+
+    {
+      definition = sum
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+  ]
+}
+
+index "payment"."detal_idx_period_sum" {
+  table = "payment"."detal"
+  type = btree
+  columns = <
+    {
+      definition = account_parent_id
+    }
+
+    {
+      definition = period_id
+    }
+
+    {
+      definition = sum
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    payment_id
+    account_id
+    sublist_id
+  ]
+}
+
+index "payment"."detal_idx_unique_payment_detal" {
+  table = "payment"."detal"
+  type = btree
+  columns = <
+    {
+      definition = payment_id
+    }
+
+    {
+      definition = account_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+  >
+  isUnique = True
+}
+
+trigger "payment"."detal"."delete_detal_changed" {
+  timing = AFTER
+  events = [
+    DELETE
+  ]
+  level = STATEMENT
+  function = payment.detal_changed_deleted
+  functionArguments = [
+  ]
+  table = "payment"."detal"
+  constraint = False
+  oldTableReference = deleted
+}
+
+trigger "payment"."detal"."insert_detal_changed" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = payment.detal_changed_insert
+  functionArguments = [
+  ]
+  table = "payment"."detal"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "payment"."detal"."update_detal_changed" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = payment.detal_changed_update
+  functionArguments = [
+  ]
+  table = "payment"."detal"
+  constraint = False
+  oldTableReference = deleted
+  newTableReference = inserted
+}
+

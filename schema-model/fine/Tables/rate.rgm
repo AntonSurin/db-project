@@ -1,0 +1,80 @@
+table "fine"."rate" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_rate_fine"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('fine.rate_id_seq'::regclass)
+    }
+    column "refinancing_rate" {
+      type = numeric(4,2)
+    }
+    column "part_refinancing_rate31" {
+      type = numeric(5,0)
+    }
+    column "part_refinancing_rate60" {
+      type = numeric(5,0)
+    }
+    column "part_refinancing_rate91" {
+      type = numeric(5,0)
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "list_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "free_days" {
+      type = integer
+      null = NOT NULL
+      default = 0
+    }
+    column "list_id_nvarchar" {
+      type = character varying
+      generatedAs = public.convert((10)::character varying, list_id)
+    }
+    column "result31" {
+      type = numeric
+      generatedAs = COALESCE(public.convert("numeric"((10)::numeric, 3), round((refinancing_rate / NULLIF(part_refinancing_rate31, (0)::numeric)), 8)), 0.0)
+    }
+    column "result60" {
+      type = numeric
+      generatedAs = COALESCE(public.convert("numeric"((10)::numeric, 3), round((refinancing_rate / NULLIF(part_refinancing_rate60, (0)::numeric)), 8)), 0.0)
+    }
+    column "result91" {
+      type = numeric
+      generatedAs = COALESCE(public.convert("numeric"((10)::numeric, 3), round((refinancing_rate / NULLIF(part_refinancing_rate91, (0)::numeric)), 8)), 0.0)
+    }
+  )
+}
+
+foreignKey "fine"."rate"."fk_rate_fine_names_fine" {
+  columns = [
+    "list_id"
+  ]
+  referencedTable = "fine"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "fine"."rate_ix_rate_fine_date" {
+  table = "fine"."rate"
+  type = btree
+  columns = <
+    {
+      definition = id
+    }
+
+  >
+  isUnique = True
+}
+

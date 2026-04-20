@@ -1,0 +1,140 @@
+function "counter"."fill_parametr()" {
+  text = """
+
+declare 
+	_sql					text = '';
+	_period_id				int;
+	_use_correction_volume 	bool;
+begin
+	
+	_use_correction_volume = coalesce((nullif((select array_to_string( xpath('root/ui/usebenifit/text()', lower(p.xml_data::text)::xml)::text[] , '')
+											   from special.parametr p 
+											   ), ''))::bool, false);						
+							
+							
+	_period_id = (select id from "period".list where is_working = true);
+
+	drop table if exists _temp_parametr;
+	drop table if exists _deleted_sublist;
+
+	create temp table _temp_parametr (account_id int, sublist_id int, flow numeric(11,5));
+	create temp table _deleted_sublist (sublist_id int);
+
+	insert into _deleted_sublist 
+	select distinct i.sublist_id 
+	from inserted i
+		inner join counter.list cl on cl.id = i.counter_id;
+
+	if exists (select * 
+			   from inserted i 
+					inner join counter.account ca on ca.counter_id = i.counter_id)
+		then
+			begin
+				with cte as (
+					select distinct ca.account_id, i.sublist_id
+					from inserted i
+						inner join counter.account ca on ca.counter_id = i.counter_id
+				)
+				--Объем по лс
+		
+				insert into _temp_parametr
+				select ca.account_id, i.sublist_id, sum(cf.flow - case when _use_correction_volume = true then cf.c_value else 0 end)
+				from cte i
+					inner join counter.account ca on ca.account_id = i.account_id
+					inner join counter.flow cf on cf.counter_id = ca.counter_id
+						and cf.sublist_id = i.sublist_id
+						and period_id = _period_id
+						and coalesce(cf.flow_type_id, 0) != 5
+				group by ca.account_id, i.sublist_id;
+		
+				_sql = (select string_agg(coalesce(f.d,''), '; ')
+						from (select '
+									update calculation.parametr_transporate cpp 
+										set ' || pl.short_name || ' = cast(p.flow as ' || pt.system_type || 
+																							case 
+																								when pl.len is not null and pl."precision" is null then '(' || pl.len || ')'
+																								when pl.len is not null and pl."precision" is not null then '(' || pl.len || ',' || pl."precision" || ')'
+																								else ''
+																							end || ') 
+									from calculation.parametr_transporate cp
+										inner join _temp_parametr p on p.account_id = cp.account_id
+									where cp = cpp and p.sublist_id = ' || ps.sublist_id::text as d
+								from parametr.list pl 
+									inner join parametr."type"  pt on pt.id = pl.type_id
+									inner join parametr.sublist ps on ps.parametr_id = pl.id
+									inner join _deleted_sublist ds on ds.sublist_id = ps.sublist_id
+								where ps.catalog_id = 1 
+								group by pl.short_name, pl.id, pt.system_type, pl.len, pl."precision", ps.sublist_id) f);
+				
+				execute(_sql);
+			
+			end;
+	end if;
+
+	truncate table _temp_parametr;
+	_sql = '';
+
+	with cte as (
+			select distinct ch.house_id, i.sublist_id
+			from inserted i
+				inner join counter.list cl on cl.id = i.counter_id
+				inner join counter.house ch on ch.counter_id = i.counter_id
+	)
+	--Объем по домам
+
+	insert into _temp_parametr
+	select ch.house_id, i.sublist_id, sum(case when cl.is_calculation = true then cf.flow else 0 end)
+	from cte i
+		inner join counter.house ch on ch.house_id = i.house_id
+		inner join counter.list cl on cl.id = ch.counter_id
+		inner join counter.flow cf on cf.counter_id = ch.counter_id
+			and cf.sublist_id = i.sublist_id
+			and period_id = _period_id
+			and coalesce(cf.flow_type_id,0) != 5	
+	group by ch.house_id, i.sublist_id;
+
+	_sql =  (select string_agg(coalesce(f.d,''), '; ')
+			from (select '
+						update calculation.parametr_transporate cpp 
+							set ' || pl.short_name || ' = cast(p.flow as ' || pt.system_type || 
+																				case 
+																					when pl.len is not null and pl."precision" is null then '(' || pl.len || ')'
+																					when pl.len is not null and pl."precision" is not null then '(' || pl.len || ',' || pl."precision" || ')'
+																					else ''
+																				end || ') 
+						from calculation.parametr_transporate cp
+							inner join _temp_parametr p on p.account_id = cp.house_id
+						where cp = cpp and p.sublist_id = ' || ps.sublist_id::text as d
+					from parametr.list pl 
+						inner join parametr."type"  pt on pt.id = pl.type_id
+						inner join parametr.sublist ps on ps.parametr_id = pl.id
+						inner join _deleted_sublist ds on ds.sublist_id = ps.sublist_id
+					where ps.catalog_id = 3 
+					group by pl.short_name, pl.id, pt.system_type, pl.len, pl."precision", ps.sublist_id) f );
+
+	if coalesce(_sql,'') <> ''
+		then
+			execute(_sql);
+	end if;
+
+	drop table _temp_parametr;
+	drop table _deleted_sublist;
+	
+	return new;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+ =============================================
+ Author:		Глещинский Д.В.
+ Create date: 12.08.2015
+ Description:	Распределение расхода по параметрам
+ =============================================
+"""
+}
+

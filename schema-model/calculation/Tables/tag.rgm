@@ -1,0 +1,22 @@
+table "calculation"."tag" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_tag"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('calculation.tag_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+  )
+}
+

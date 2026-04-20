@@ -1,0 +1,108 @@
+view "gis"."flat_info" {
+  text = """-
+SELECT ai.house_id,
+    hc.house_type,
+    hc.fias,
+    hc.fias_house_guid,
+    ai.flat_id,
+    ai.city,
+    ai.street_name AS street,
+        CASE
+            WHEN ((hi.korpus IS NULL) OR ((hi.korpus)::text = '0'::text)) THEN (hi.number)::text
+            ELSE (((hi.number)::text || ' '::text) || (hi.korpus)::text)
+        END AS house,
+    hf.access_number,
+    ai.flat_book_short_name AS flat_type,
+    ai.flat_name AS number,
+    hf.cadaster_flat_name,
+    hf.area,
+    hf.gross_area,
+    hf.cadastral_number,
+    hf.unique_number,
+        CASE
+            WHEN ((hf.unique_number IS NULL) AND (ge.error_text IS NULL)) THEN 0
+            WHEN ((hf.unique_number IS NOT NULL) AND (ge.error_text IS NULL)) THEN 1
+            WHEN ((hf.unique_number IS NOT NULL) AND (ge.error_text IS NOT NULL)) THEN 2
+            WHEN ((hf.unique_number IS NULL) AND (ge.error_text IS NOT NULL)) THEN 2
+            ELSE NULL::integer
+        END AS state,
+    ge.error_text
+   FROM ((((((( SELECT account.flat_id,
+            account.parent_id,
+            min(account.id) AS account_id
+           FROM adress.account
+          GROUP BY account.flat_id, account.parent_id
+         HAVING (account.parent_id IS NULL)) aa
+     JOIN adress.info ai ON ((aa.account_id = ai.account_id)))
+     JOIN house.info hi ON ((ai.house_id = hi.house_id)))
+     JOIN house.flat hf ON ((ai.flat_id = hf.flat_id)))
+     JOIN house.characteristic hc ON ((ai.house_id = hc.house_id)))
+     LEFT JOIN ( SELECT account.flat_id
+           FROM house.account
+          WHERE (account.close_date IS NULL)
+          GROUP BY account.flat_id) ha ON ((ha.flat_id = ai.flat_id)))
+     LEFT JOIN gis.entity_queue ge ON (((ge.entity_id = ai.house_id) AND (lower((ge.type_name)::text) = 'flat'::text) AND (ge.id = ( SELECT max(ge2.id) AS max
+           FROM gis.entity_queue ge2
+          WHERE (((ge2.type_name)::text = 'flat'::text) AND (ge2.entity_id = ai.house_id)))))))
+  WHERE ((ai.account_parent_id IS NULL) AND (hc.is_export = true) AND (ha.flat_id IS NOT NULL));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+    }
+    column "house_type" {
+      type = smallint
+    }
+    column "fias" {
+      type = uuid
+    }
+    column "fias_house_guid" {
+      type = uuid
+    }
+    column "flat_id" {
+      type = integer
+    }
+    column "city" {
+      type = text
+    }
+    column "street" {
+      type = text
+    }
+    column "house" {
+      type = text
+    }
+    column "access_number" {
+      type = character varying(5)
+    }
+    column "flat_type" {
+      type = character varying(10)
+    }
+    column "number" {
+      type = character varying(30)
+    }
+    column "cadaster_flat_name" {
+      type = character varying(255)
+    }
+    column "area" {
+      type = numeric(18,2)
+    }
+    column "gross_area" {
+      type = numeric(18,2)
+    }
+    column "cadastral_number" {
+      type = character varying(40)
+    }
+    column "unique_number" {
+      type = character varying(100)
+    }
+    column "state" {
+      type = integer
+    }
+    column "error_text" {
+      type = text
+    }
+  )
+}
+

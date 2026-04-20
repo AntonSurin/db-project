@@ -1,0 +1,35 @@
+table "utility"."unit" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_unit"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.unit_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+    }
+    column "description" {
+      type = text
+    }
+    column "is_okei" {
+      type = boolean
+    }
+    column "code" {
+      type = character varying(50)
+    }
+    column "external_id" {
+      type = uuid
+      null = NOT NULL
+      default = gen_random_uuid()
+    }
+  )
+}
+

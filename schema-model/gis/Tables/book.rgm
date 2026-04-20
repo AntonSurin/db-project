@@ -1,0 +1,28 @@
+table "gis"."book" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_gis_book"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.book_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "code" {
+      type = text
+    }
+    column "description" {
+      type = text
+    }
+  )
+}
+

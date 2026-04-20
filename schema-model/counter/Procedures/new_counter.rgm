@@ -1,0 +1,325 @@
+procedure "counter"."new_counter(jsonb, integer, smallint, integer, numeric, integer, character varying, integer, date, date, date, jsonb, boolean, integer, boolean, integer)" {
+  text = """
+
+declare 
+	  _period_id 		int;
+	  _date_end 		date = null::date;
+	  _active 			bool = true;
+	  _unit_id 			int;
+	  _count 			int;
+	  _period_begin 	date;	
+	  _prev_date_end 	date;
+begin
+	
+	if _catalog_id = 1
+		then 
+			begin
+				create temp table _account (account_id int);
+				create temp table _counter (id int, date_begin date, date_end date, sublist_id int, active bool, "number" int2, rate numeric(9, 6), unit_id int, is_show_value int2); 
+				create temp table _counter_account (rownumber int, account_id int, counter_id int);
+				create temp table _account_list (id int, account_id int);
+				create temp table _counter_list (id int, counter_id int);
+
+				select coalesce(_date_begin, date_begin), date_begin, id 
+				into _date_begin, _period_begin, _period_id
+				from "period".list 
+				where is_working = true;
+
+				if (_date_install > _date_begin and _date_install is not null)
+					then				
+						raise notice 'Не корректная дата установки (должна быть больше начальной даты рабочего периода)' using errcode='55000';
+					return;
+				end if;
+	
+				_unit_id = (select unit_id from utility.sublist where id = _sublist_id);
+
+				insert into _account (account_id)
+				select distinct ai.account_id
+				from adress.light_info ai 
+					inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = ai.house_id
+					inner join jsonb_populate_recordset(null::special.objects, _flat_book) f on f.object_id = ai.flat_book_id
+					inner join calculation.parametr_transporate cp on cp.account_id = ai.account_id
+				where ai.account_id not in (
+												select distinct ai.account_id
+												from adress.light_info ai 
+													inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = ai.house_id
+													inner join counter.account ca on ca.account_id = ai.account_id
+													inner join counter.list cl on cl.id = ca.counter_id			
+												where cl.sublist_id = _sublist_id and cl."number" = _number and cl.active = true
+												group by ai.account_id
+											)  and cp.is_closed = 1::int2;
+
+				if  exists(select * from _account)
+					then 
+						begin
+							with cte as 
+							(
+								insert into counter.list (date_begin, date_end, sublist_id, active, "number", rate, unit_id, is_show_value, counter_type
+									,mark_id, model, installation_date, verification_interval, verification_date, remote_metering_mode, remote_metering_info_id, is_export_to_gis)
+								 select _date_begin, _date_end, _sublist_id, _active, _number, _rate, _unit_id, 1, 1, _mark_id, _model, _date_install
+								 , _interval, _date_verf, _remote_metering, _remote_metering_id, _is_export_to_gis
+								 from _account
+								 returning id, date_begin, date_end, sublist_id, active, "number", rate, unit_id, is_show_value
+							)
+							insert into _counter
+							select *
+							from cte;
+					
+							_count = (select count(*) from _counter);	
+		
+							insert into _counter_list (id, counter_id)
+							select row_number() over (order by id), id 
+							from _counter;
+		
+							insert into _account_list(id, account_id)
+							select row_number() over (order by account_id), account_id 
+							from _account;
+		
+							insert into counter.account (account_id, counter_id)
+							select account_id, counter_id 
+							from _counter_list c
+								inner join _account_list t on t.id = c.id ;
+		
+					 		_prev_date_end = (make_date(date_part('year', _date_begin)::int, date_part('month', _date_begin)::int, 1) - 1);
+		
+							insert into counter.flow (counter_id, period_id, prev_value, value, c_value, flow_type_id, sublist_id, rate, prev_date, "date")
+							select *
+							from (
+									select id, _period_id - 1, 0.0, 0.0, 0.0, 5, _sublist_id, _rate, _prev_date_end, _prev_date_end
+									from _counter
+									union all
+									select id, _period_id, 0.0, null, 0.0, 0, _sublist_id, _rate, _prev_date_end, null 
+									from _counter
+								) counter;
+		 	
+							raise notice 'Успешно создано % счетчик(ов)', _count using errcode='55000';
+						end;
+					else 
+						begin
+							raise notice 'Счетчик(и) с такими параметрами уже существует' using errcode='55000';
+						end;	
+				end if;	
+			end;
+		
+				drop table if exists _account;
+				drop table if exists _counter; 
+				drop table if exists _counter_account;
+				drop table if exists _account_list;
+				drop table if exists _counter_list;
+		else
+			begin
+				create temp table _house (house_id int);
+				create temp table _counter (id int, date_begin date, date_end date, sublist_id int, active bool, "number" int2, rate numeric(9, 6), unit_id int, is_show_value int2); 
+				create temp table _counter_house (rownumber int, house_id int, counter_id int);
+				create temp table _account_list (id int, house_id int);
+				create temp table _counter_list (id int, counter_id int);
+
+				select coalesce(_date_begin, date_begin), date_begin, id 
+				into _date_begin, _period_begin, _period_id
+				from "period".list 
+				where is_working = true;
+
+				if (_date_install > _date_begin and _date_install is not null)
+					then				
+						raise notice 'Не корректная дата установки (должна быть больше начальной даты рабочего периода)' using errcode='55000';
+					return;
+				end if;
+	
+				_unit_id = (select unit_id from utility.sublist where id = _sublist_id);
+
+				insert into _house (house_id)
+				select distinct h.house_id
+				from jsonb_populate_recordset(null::house.list, _house) h 
+				where h.house_id not in (
+											select distinct h.house_id
+											from jsonb_populate_recordset(null::house.list, _house) h 
+												inner join counter.house ca on ca.house_id = h.house_id
+												inner join counter.list cl on cl.id = ca.counter_id			
+											where cl.sublist_id = _sublist_id and cl."number" = _number and cl.active = true
+											group by h.house_id
+										);
+
+				if  exists(select * from _house)
+					then 
+						begin
+							with cte as 
+							(
+								insert into counter.list (date_begin, date_end, sublist_id, active, "number", rate, unit_id, is_show_value, counter_type
+									,mark_id, model, installation_date, verification_interval, verification_date, remote_metering_mode, remote_metering_info_id, is_export_to_gis)
+								select _date_begin, _date_end, _sublist_id, _active, _number, _rate, _unit_id, 1, 1, _mark_id, _model, _date_install, _interval
+									, _date_verf, _remote_metering, _remote_metering_id , _is_export_to_gis
+								from _house
+								returning id, date_begin, date_end, sublist_id, active, "number", rate, unit_id, is_show_value
+							)
+							insert into _counter
+							select *
+							from cte;
+					
+							_count = (select count(*) from _counter);	
+		
+							insert into _counter_list (id, counter_id)
+							select row_number() over (order by id), id 
+							from _counter;
+		
+							insert into _house_list(id, house_id)
+							select row_number() over (order by house_id), house_id 
+							from _house;
+		
+							insert into counter.house (house_id, counter_id)
+							select house_id, counter_id 
+							from _counter_list c
+								inner join _house_list t on t.id = c.id ;
+		
+					 		_prev_date_end = (make_date(date_part('year', _date_begin)::int, date_part('month', _date_begin)::int, 1) - 1);
+		
+							insert into counter.flow (counter_id, period_id, prev_value, value, c_value, flow_type_id, sublist_id, rate, prev_date, "date")
+							select *
+							from (
+									select id, _period_id - 1, 0.0, 0.0, 0.0, 5, _sublist_id, _rate, _prev_date_end, _prev_date_end
+									from _counter
+									union all
+									select id, _period_id, 0.0, null, 0.0, 0, _sublist_id, _rate, _prev_date_end, null 
+									from _counter
+								) counter;
+		 	
+							raise notice 'Успешно создано % счетчик(ов)',_count using errcode='55000';
+						end;
+					else 
+						begin
+							raise notice 'Счетчик(и) с такими параметрами уже существует' using errcode='55000';
+						end;	
+				end if;	
+
+				if(_date_verf is not null)
+				then
+					begin
+						insert into counter.verification_history(counter_id, created_at, session_id, verification_date, verification_interval, resource)
+						select id, current_date, _session_id, _date_verf, _interval, 2
+						from _counter;
+					end;
+				end if;
+
+				drop table if exists _house;
+				drop table if exists _counter; 
+				drop table if exists _counter_house;
+				drop table if exists _account_list;
+				drop table if exists _counter_list;
+			
+			end;	
+	end if;
+
+
+
+end
+"""
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _sublist_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _number
+      type = smallint
+      mode = IN
+    }
+
+    {
+      name = _catalog_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _rate
+      type = numeric
+      mode = IN
+    }
+
+    {
+      name = _mark_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _model
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _interval
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _date_begin
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _date_verf
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _date_install
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _flat_book
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _is_export_to_gis
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _session_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _remote_metering
+      type = boolean
+      mode = IN
+      default = NULL::boolean
+    }
+
+    {
+      name = _remote_metering_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		ооо жилфондсервис
+ create date: 25.10.2013
+ description:	массовое добавление счетчиков
+ =============================================
+"""
+}
+

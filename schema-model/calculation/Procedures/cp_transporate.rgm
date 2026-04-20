@@ -1,0 +1,107 @@
+procedure "calculation"."cp_transporate(jsonb)" {
+  text = """
+
+declare 
+	_qry 		text = '';
+	_date_begin date; 
+	_entity 	varchar(10) = '';
+	_entity_id 	varchar(10) = '';
+	_result		text = '';
+	_i 			int = 1;
+begin 
+	
+	_date_begin = (select date_begin from "period".list where is_working = true);
+
+
+
+
+	drop table if exists _houses;
+	drop table if exists _flats;
+	drop table if exists _accounts;
+
+	create temp table _houses (object_id int);
+	create temp table _flats (object_id int);
+	create temp table _accounts (object_id int);
+	
+	insert into _houses
+	select h.house_id
+	from jsonb_populate_recordset(null::house.list, _house) h;
+	
+	insert into _flats
+	select af.id
+	from adress.flat af
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = af.house_id;
+		
+	insert into _accounts
+	select aa.id
+	from adress.account aa
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = aa.house_id;
+
+	while _i <= 3 loop
+
+		_entity = (select case when _i = 1 then 'account' when _i = 2 then 'flat' when _i = 3 then 'house' end);
+		_entity_id = (select case when _i = 1 then 'account_id' when _i = 2 then 'flat_id' when _i = 3 then 'house_id' end);
+
+		_qry = (select  string_agg(
+			(select 'select distinct ' || cast(pf.parametr_id as varchar(10)) || ', ' || _entity_id||',cast(' || pl.short_name || ' as varchar(200)), ''' || cast(_date_begin as varchar(10)) || '''::date
+			from (' || pf.formula || ') t
+			inner join _' || _entity || 's e on e.object_id = t.' || _entity_id || '
+				'),'
+		union all
+		')
+		from parametr.formula pf
+			inner join parametr.list pl on pl.id = pf.parametr_id
+		where pl.catalog_id = _i and pf.date_end is null);
+
+		_qry='
+		merge into parametr.' || _entity || ' as targets 
+		using (' || _qry || ')';
+		
+		_qry = _qry||'
+		as sources(parametr_id, ' || _entity_id || ', value, date_begin)
+		on(targets.parametr_id = sources.parametr_id and targets.' || _entity_id || ' = sources.' || _entity_id || ' and coalesce(targets.date_begin, sources.date_begin) = sources.date_begin)
+		when matched then
+			update set
+				value = sources.value,
+				date_begin = sources.date_begin
+		when not matched then
+			insert(parametr_id, ' || _entity_id || ', value, date_begin)
+			values(sources.parametr_id, sources.' || _entity_id || ', sources.value, sources.date_begin)
+		;';
+
+		_i = _i + 1;
+		_result = _result||coalesce(_qry,'');
+			
+
+	end loop;
+
+	execute (_result);	
+	
+
+	drop table if exists _houses;
+	drop table if exists _flats;
+	drop table if exists _accounts;
+
+end
+"""
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 26.05.214
+ modified date: 23.04.2019, трофимов б.и., добавил фильтр по домам
+ description:	формирование процедуры заполнения таблицы calculation.parametrtransporate
+				_parametr - параметр, который указывает, нужно ли перерасчитывать расчетные параметры
+ =============================================
+"""
+}
+

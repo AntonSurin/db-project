@@ -1,0 +1,89 @@
+table "input"."account" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_account_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('input.account_id_seq'::regclass)
+    }
+    column "input_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "input"."account"."fk_account_list" {
+  columns = [
+    "input_id"
+  ]
+  referencedTable = "input"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+index "input"."account_ix_input_account" {
+  table = "input"."account"
+  type = btree
+  columns = <
+    {
+      definition = input_id
+    }
+
+    {
+      definition = account_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+  >
+  isUnique = True
+}
+
+index "input"."account_non_clustered_index_20160413_154345" {
+  table = "input"."account"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+    {
+      definition = input_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+  ]
+}
+

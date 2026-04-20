@@ -1,0 +1,40 @@
+table "service"."task_file" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_task_file"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.task_file_id_seq'::regclass)
+    }
+    column "task_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "service_guid" {
+      type = character varying(50)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "service"."task_file"."fk_task_file_task" {
+  columns = [
+    "task_id"
+  ]
+  referencedTable = "service"."task"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

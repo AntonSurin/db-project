@@ -1,0 +1,57 @@
+table "account"."scan_document" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_scan_document"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('account.scan_document_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "display_name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "date_uploaded" {
+      type = date
+      null = NOT NULL
+    }
+    column "comment" {
+      type = character varying(100)
+    }
+    column "file_path" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "archive" {
+      type = boolean
+    }
+    column "file_size" {
+      type = numeric(9,5)
+    }
+    column "delete_date" {
+      type = date
+    }
+  )
+}
+
+foreignKey "account"."scan_document"."fk_scan_document_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,52 @@
+table "dbo"."parametr_flat" {
+  owner = postgres
+  columns = (
+    column "code_h" {
+      type = character varying(9)
+    }
+    column "code_f" {
+      type = character varying(10)
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "flat_id" {
+      type = integer
+    }
+    column "parametr_ellis" {
+      type = character varying(10)
+    }
+    column "parametr_name" {
+      type = character varying(10)
+    }
+    column "value" {
+      type = character varying(255)
+    }
+    column "string_value" {
+      type = character varying(255)
+    }
+    column "date_begin" {
+      type = date
+    }
+  )
+}
+
+index "dbo"."parametr_flat_idx_parametr_flat" {
+  table = "dbo"."parametr_flat"
+  type = btree
+  columns = <
+    {
+      definition = flat_id
+    }
+
+    {
+      definition = parametr_name
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    value
+  ]
+}
+

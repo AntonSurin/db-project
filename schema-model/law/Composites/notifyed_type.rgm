@@ -1,0 +1,27 @@
+composite "law"."notifyed_type" {
+  owner = postgres
+  fields = (
+    field "account_id" {
+      type = integer
+    }
+    field "debt" {
+      type = numeric(20,2)
+    }
+    field "date" {
+      type = date
+    }
+    field "payment_date" {
+      type = date
+    }
+    field "period_id" {
+      type = integer
+    }
+    field "parent_id" {
+      type = integer
+    }
+    field "folder_id" {
+      type = integer
+    }
+  )
+}
+

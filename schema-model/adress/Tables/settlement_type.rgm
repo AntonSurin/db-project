@@ -1,0 +1,23 @@
+table "adress"."settlement_type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_settlement_type"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(50)
+    }
+    column "short_name" {
+      type = character varying(10)
+    }
+  )
+}
+

@@ -1,0 +1,197 @@
+procedure "payment"."correct_balance_by_documents()" {
+  text = """
+
+declare 
+	_bank_id 		int;
+	_bank_name 		text = 'Корректировка платежных документов';
+	_counting_id 	int;
+	_period_id 		int;
+	_date 			timestamp;
+	_batch_id 		int;
+	_account 		jsonb;
+	_period_begin 	int;
+	_period_end 	int;
+begin
+	-- id корректировка
+	_bank_id = (
+					select pb.id
+					from parametr.book pb
+						join parametr.list pl on pb.parametr_id = pl.id
+					where lower(pl.short_name) = 'bank' and lower(pb."name") = lower(_bank_name)
+				);
+
+	if(_bank_id is null)
+		then
+			with cte as 
+			(
+				insert into parametr.book("name", parametr_id)
+				select _bank_name, pl.id
+				from parametr.list pl
+				where lower(pl.short_name) = 'bank'
+				returning id
+			)
+			select max(ct.id)
+			into _bank_id
+			from cte ct;
+	end if;
+
+	drop table if exists _details;
+
+	_counting_id = (select og.id from organization.counting og where og.default_rs = true);
+
+	if(_counting_id is null)
+		then
+			raise notice 'Р/с по умолчанию не найден.';
+			return;
+	end if;
+
+	_period_id = (select pl.id from "period".list pl where pl.is_working = true);
+
+	create temp table _details (account_parent_id int, account_id int, sublist_id int, "sum" numeric(9,2));
+
+	with balance as 
+	(
+		select
+			pb.account_parent_id,
+			pb.account_id,
+			pb.sublist_id,
+			pb.in_balance - pb.pay as "sum"
+		from payment.balance pb
+		where pb.period_id = _period_id
+	)
+	,document_details as 
+	(
+		select 
+			doc.id as document_id, 
+			doc.period_id, 
+			doc.account_id as account_parent_id, 
+			doc_details.account_id, 
+			doc_details.sublist_id, 
+			doc_details."sum"
+		from payment."document" doc
+			join payment.document_detail doc_details on doc.id = doc_details.payment_document_id
+		where doc.period_id < _period_id and doc.type_id = 3 or doc.period_id <= _period_id and doc.type_id in (1,2)
+	)
+	,document_history_details as 
+	(
+		select 
+			closed.period_id, 
+			closed.account_id as account_parent_id, 
+			phd.account_id, 
+			phd.source_sublist_id,  
+			phd.sublist_id, 
+			phd."sum"
+		from payment.document_history ph
+			join payment.document_history_detail phd on ph.id = phd.history_id
+			join payment."document" closed on ph.closed_document_id = closed.id
+			join payment."document" closed_by on ph.closed_by_document_id = closed_by.id
+		where phd.source_sublist_id is not null
+			and (closed.type_id in (1, 2) 
+					and closed.period_id <= _period_id 
+					or closed.type_id = 3 
+					and closed.period_id < _period_id
+				)
+			-- исключаем взаимозачеты, т.к. у них общая сумма по детали будет 0
+			and phd.source_sublist_id != phd.sublist_id
+	)
+	-- баланс согласно документов.
+	,document_balance as 
+	(
+		select dd.period_id, dd.account_parent_id, dd.account_id, dd.sublist_id, dd."sum", 'd' as origin
+		from document_details dd
+		union all
+		select hd.period_id, hd.account_parent_id, hd.account_id, hd.sublist_id, hd."sum", 't'
+		from document_history_details hd
+		union all
+		select hd.period_id, hd.account_parent_id, hd.account_id, hd.source_sublist_id, -hd."sum", 's'
+		from document_history_details hd
+	)
+	,balance_diff as 
+	(
+		select
+			q.account_parent_id,
+			q.account_id,
+			q.sublist_id,
+			sum(case when lower(q.origin) = 'd' then q."sum" else 0.0 end) as docs_sum,
+			sum(case when lower(q.origin) = 'b' then q."sum" else 0.0 end) as balance_sum
+		from
+		(
+			select d.account_parent_id, d.account_id, d.sublist_id, d."sum", 'd' as origin
+			from document_balance d
+			union all
+			select b.account_parent_id, b.account_id, b.sublist_id, b."sum", 'b' as origin
+			from balance b
+		) q
+		group by q.account_parent_id, q.account_id, q.sublist_id
+	)
+	insert into _details
+	select
+		d.account_parent_id,
+		d.account_id,
+		d.sublist_id,
+		d.balance_sum - d.docs_sum as "sum"
+	from balance_diff d
+	where d.balance_sum - d.docs_sum != 0;
+
+	if not exists(select 1 from _details)
+		then
+			return;
+	end if;
+	
+	_date = (select pl.date_end from "period".list pl where pl.id = _period_id);
+
+	with cte as 
+	(
+		insert into payment.batch as target (bank_id, counting_id, period_id, "date", "number", "sum")
+		values(_bank_id, _counting_id, _period_id, _date, (select coalesce(max(pb."number"), 0) + 1 from payment.batch pb where pb.period_id = _period_id), 0.0)
+		returning target.id
+	)
+	select max(ct.id)
+	into _batch_id
+	from cte ct;
+
+	insert into payment.list (batch_id, period_id, type_id, account_id, "date", "sum", service_guid, check_type)
+	select _batch_id, _period_id, 1, d.account_parent_id, _date, sum("sum"), gen_random_uuid (), 3
+	from _details d
+	group by d.account_parent_id;
+
+	insert into payment.detal (account_id, account_parent_id, payment_id, period_id, sublist_id, "sum")
+	select d.account_id, d.account_parent_id, pl.id, _period_id, d.sublist_id, d."sum"
+	from _details d
+		join payment.list pl on d.account_parent_id = pl.account_id
+	where pl.batch_id = _batch_id;
+
+	if(_period_id < (select pl.id from "period".list pl where pl.is_working = true))
+		then 
+			
+			_account = (
+						select jsonb_agg(jsonb_build_object('account_id', d.account_parent_id))
+					  	from _details d
+					  	group by d.account_parent_id
+					  );
+				
+			_period_begin = (_period_id + 1);
+	
+			
+			_period_end = (select pl.id from "period".list pl where pl.is_working = true);
+	
+			call calculation.calc_in_balance (_period_begin, _period_end, _account);
+	end if;
+	
+	drop table if exists _details;
+	
+end
+"""
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		трофимов б.и.
+ create date: 12.05.2020
+ description:	корректировка баланса платежными документами.
+ =============================================
+"""
+}
+

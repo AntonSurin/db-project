@@ -1,0 +1,24 @@
+function "test_gis"."house_guid()" {
+  text = """
+
+
+	select hi.house_id, short_adress
+	from gis.address_info hi
+	where fias_house_guid is null
+
+"""
+  returnType = TABLE(house_id integer, short_adress text)
+  arguments = [
+  ]
+  language = sql
+  owner = postgres
+  comment = """-
+
+-- =============================================
+-- Author:		Поляков Павел
+-- Create date: 28.06.2016
+-- Description:	Проверка наличия всех GUID домов
+-- =============================================
+"""
+}
+

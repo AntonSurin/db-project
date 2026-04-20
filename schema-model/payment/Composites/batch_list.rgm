@@ -1,0 +1,9 @@
+composite "payment"."batch_list" {
+  owner = postgres
+  fields = (
+    field "batch_id" {
+      type = integer
+    }
+  )
+}
+

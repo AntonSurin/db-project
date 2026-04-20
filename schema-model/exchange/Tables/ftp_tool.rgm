@@ -1,0 +1,30 @@
+table "exchange"."ftp_tool" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_exchange_ftp_tool"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('exchange.ftp_tool_id_seq'::regclass)
+    }
+    column "url_string" {
+      type = character varying(100)
+    }
+    column "user_login" {
+      type = character varying(100)
+    }
+    column "user_password" {
+      type = character varying(100)
+    }
+    column "use_passive" {
+      type = boolean
+    }
+  )
+}
+

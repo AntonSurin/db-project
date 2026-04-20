@@ -1,0 +1,150 @@
+function "report"."partner_balance(integer, integer, jsonb, smallint)" {
+  text = """
+
+begin
+	
+	create temp table _table ("type" int2);
+
+	if (_type = 0) 
+		then
+			insert into _table 
+			values(0), (4);
+		else 
+			insert into _table 
+			values(1), (2), (3);
+	end if;
+
+	return query
+	with cte as
+	(
+		select 
+			 p.period_id
+			,p.sublist_id
+			,hi.order_id
+			,hi.short_adress
+			,hi.house_id
+			,pl.name_month || ' ' || pl."year" as period_name
+			,p.in_balance_mkd
+			,p.calculate_mkd
+			,p.pay_mkd
+			,ud.document_id as doc_id
+			,case when usp.provider_id is null then fp.provider_id else usp.provider_id end  as provider_id
+			,case when usp.id is null then fp.id else usp.id end as usp_id
+		from (	
+				select 
+					pb.period_id, 
+					pb.house_id, 
+					pb.sublist_id, 
+					sum(pb.in_balance) as in_balance_mkd, 
+					sum(pb.current_calculate) + sum (pb.recalculate) as calculate_mkd, 
+					sum(pb.pay) as pay_mkd
+				from payment.balance pb
+				where pb.period_id between _period_begin and _period_end
+				group by pb.period_id, pb.house_id, pb.sublist_id
+			) p
+			inner join "period".list pl on pl.id = p.period_id
+			inner join house.info hi  on hi.house_id = p.house_id
+			left join utility.sublist_provider usp on usp.sublist_id = p.sublist_id 
+					and usp.house_id = p.house_id 
+					and (usp.date_begin <= pl.date_begin 
+					and coalesce (usp.date_end,pl.date_end)>= pl.date_end)
+			left join 	(
+							select 
+								usp.id, 
+								usp.provider_id, 
+								usp.sublist_id, 
+								usp.house_id, 
+								row_number() over (partition by usp.sublist_id, usp.house_id order by usp.sublist_id,usp.house_id, usp.date_begin) as rn 
+							from utility.sublist_provider usp
+						) fp on fp.sublist_id = p.sublist_id and fp.house_id = p.house_id and rn = 1
+			left join utility.documents ud on ud.sublist_provider_id = coalesce (usp.id,fp.id) 
+					and (ud.period_begin <= p.period_id 
+					and coalesce (ud.period_end, p.period_id) >= p.period_id)
+	)
+
+	select 
+		 c.period_id
+		,c.house_id
+		,c.order_id
+		,c.doc_id as document_id
+		,c.short_adress
+		,c.period_name
+		,up."name" as provider --для группировки по поставщику
+		,case 
+			when c.doc_id is not null 
+			then up."name" || '/' || pd."name" 
+			else up."name" || '/Договор отсутствует' 
+		end as provider_name
+		,up.id as partner_id
+		,sum(c.in_balance_mkd) as in_balance_mkd
+		,sum(c.calculate_mkd) as calculate_mkd
+		,sum(c.pay_mkd) as pay_mkd
+		,coalesce(pb.in_balance,0) as in_balance_partner
+		,coalesce(pb.calculate,0) as calculate_partner
+		,coalesce(pb.pay,0) as pay_partner
+	from cte c
+		inner join utility.sublist us on us.id = c.sublist_id
+		inner join _table t on t.type = us.type
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = c.house_id
+		left  join utility.provider up on up.id = c.provider_id
+		left join organization.list ol on ol.inn = up.inn
+		left join partner."document" pd on pd.id = c.doc_id
+		left join partner.balance pb on pb.document_id = pd.id and pb.period_id = c.period_id and pb.house_id = c.house_id
+	where c.provider_id is not null and ol.id is null
+	group by c.period_id, 
+			c.order_id, 
+			c.short_adress, 
+			c.period_name, 
+			up."name", 
+			c.doc_id, 
+			c.provider_id, 
+			pd."name", 
+			pb.in_balance, 
+			pb.calculate, 
+			pb.pay, 
+			up.id, 	
+			c.house_id;
+	
+	drop table if exists _table;
+	
+end;
+"""
+  returnType = TABLE(period_id integer, house_id integer, order_id integer, document_id integer, short_adress text, period_name text, provider character varying, provider_name text, partner_id integer, in_balance_mkd numeric, calculate_mkd numeric, pay_mkd numeric, in_balance_partner numeric, calculate_partner numeric, pay_partner numeric)
+  arguments = <
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _type
+      type = smallint
+      mode = IN
+      default = 0
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		поляков п.г.
+ create date: 23.11.2016
+ description:	отчет для юрск по блоку №3
+ =============================================
+"""
+}
+

@@ -1,0 +1,96 @@
+function "report"."sublist_2(integer, integer)" {
+  text = """
+
+declare 
+	_date_end 	date;
+	_flat_id 	int;
+	_fio 		varchar(200);
+begin
+
+	create temp table _parametr (account_id int, parametr_name varchar(50), value varchar(200));
+
+	_flat_id = (select a.flat_id from adress.account a where a.id = _account_id);
+	_date_end = (select p.date_end from "period".list p where p.id = _period_id);
+
+	_fio = (select  cl.full_name 
+			from contragent.account ca 
+					inner join contragent.owner_documents od on od.contragent_account_id = ca.id
+					inner join contragent.list cl on cl.id = ca.contragent_id
+			where od.date_end is null and ca.account_id = _account_id
+			limit 1);
+
+	insert into _parametr
+	select 
+		 pa.account_id
+		,pl.short_name
+		,pa.value
+	from parametr.list pl
+		inner join parametr.account pa on pa.parametr_id = pl.id
+	where lower(pl.short_name) in ('osq', 'nsq', 'cpr', 'xv', 'gv', 'gp', 'chblk', 'co', 'vs')
+		and ((pa.date_begin <= _date_end and pa.date_end >= _date_end) or (pa.date_begin <= _date_end and pa.date_end is null))
+		and pa.account_id = _account_id
+	union
+	select 
+		_account_id
+		,pl.short_name
+		,pf.value
+	from parametr.list pl
+		inner join parametr.flat pf on pf.parametr_id = pl.id
+	where (lower(pl.short_name) = 'et'or lower(pl.short_name) = 'crm')
+		and pf.flat_id = _flat_id 
+		and ((pf.date_begin <= _date_end and pf.date_end >= _date_end) or (pf.date_begin <= _date_end and pf.date_end is null));
+	
+	return query
+	select 
+		aa.account_name 
+		,_fio as fio
+		,upper(aa.short_name_flat)::varchar(200) as short_name
+		,(ot.short_name || ' ' || ol.short_name)::varchar(300) as organization_name
+		,max(case when lower(p.parametr_name) = 'osq' 	 then p.value end)::numeric(6,2) as osq
+		,max(case when lower(p.parametr_name) = 'nsq' 	 then p.value end)::numeric(6,2) as nsq
+		,max(case when lower(p.parametr_name) = 'cpr' 	 then p.value end)::int as cpr
+		,max(case when lower(p.parametr_name) = 'et'	 then p.value end)::int as et
+		,max(case when lower(p.parametr_name) = 'xv'	 then p.value end)::int as xv
+		,max(case when lower(p.parametr_name) = 'gv'	 then p.value end)::int as gv
+		,max(case when lower(p.parametr_name) = 'gp' 	 then p.value end)::int as gp
+		,max(case when lower(p.parametr_name) = 'chbl_k' then p.value end)::int as chbl_k
+		,max(case when lower(p.parametr_name) = 'co' 	 then p.value end)::int as co
+		,max(case when lower(p.parametr_name) = 'vs'  	 then p.value end)::int as vs
+		,max(case when lower(p.parametr_name) = 'crm' 	 then p.value end)::int as crm
+	from _parametr p
+			inner join adress.info aa on aa.account_id = p.account_id
+			inner join organization.list ol on ol.id = aa.work_id
+			inner join organization.type ot on ot.id = ol.type_id
+	group by p.account_id, aa.account_name, aa.short_name_flat, ot.short_name, ol.short_name;
+	
+	drop table if exists _parametr;
+
+end;
+"""
+  returnType = TABLE(account_name character varying, fio character varying, short_name character varying, organization_name character varying, osq numeric, nsq numeric, cpr integer, et integer, xv integer, gv integer, gp integer, chblk integer, co integer, vs integer, crm integer)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 17.11.2014
+ Description:	Справка о составе жилижно-комунальных услуг и размере занимаемого жилого помещения
+				не хватает параметров количество комнат
+ =============================================
+"""
+}
+

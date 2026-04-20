@@ -1,0 +1,37 @@
+table "eco"."contract_house" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contract_house"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.contract_house_id_seq'::regclass)
+    }
+    column "contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "eco"."contract_house"."fk_contract_house_contract" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "eco"."contract"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

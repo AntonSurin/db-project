@@ -1,0 +1,54 @@
+function "tests"."exiting_sublist_without_group(jsonb)" {
+  text = """
+
+declare 
+	_period_id int;
+	_use_groups bool;
+begin
+	
+	_period_id = (select id from "period".list where is_working = true);
+
+	_use_groups = coalesce((nullif((
+					select array_to_string( xpath('root/ui/is_use_sublist_group/text()', lower(p.xml_data::text)::xml)::text[] , '')
+				  	from special.parametr p 
+						  ),''))::bool,false);
+	return query			
+	select 
+ 		 hi.short_adress as house_name
+		,aa."name" as account_name
+		,us."name" as sublist_name
+	from payment.balance pb
+		inner join house.info hi on pb.house_id = hi.house_id
+		inner join adress.account aa on aa.id = pb.account_id
+		inner join utility.sublist us on us.id = pb.sublist_id
+		left join utility.contragent_group_sublist ugs on ugs.house_id = pb.house_id and ugs.sublist_id = pb.sublist_id
+	where period_id = _period_id 
+		and (in_balance <> 0.0 or pay <> 0.0 or print = 1)
+		and ugs.id is null
+		and _use_groups = true
+		and us.id not in (6, 7)
+		and (not exists(select a.account_id from jsonb_populate_recordset(null::account.list, _account) a ) or aa.id in (select a.account_id from jsonb_populate_recordset(null::account.list, _account) a));
+
+end;
+"""
+  returnType = TABLE(house_name text, account_name character varying, sublist_name character varying)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:			Поляков Павел
+ Create date:		13.09.2017
+ Modified date:	10.12.2020, Трофимов Б.И. - добавил фильтр по лс для автоматического запуска тестов
+ Description:		Проверка на наличие услуг у которых есть входящее сальдо или начисления или перерасчет или оплата и при этом они не привязаны ни к одной группе
+ =============================================
+"""
+}
+

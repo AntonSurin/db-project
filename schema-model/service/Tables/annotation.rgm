@@ -1,0 +1,34 @@
+table "service"."annotation" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_database_annotation"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.annotation_id_seq'::regclass)
+    }
+    column "task_number" {
+      type = integer
+      null = NOT NULL
+    }
+    column "comment" {
+      type = text
+      null = NOT NULL
+    }
+    column "created_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "username" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+

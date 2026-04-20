@@ -1,0 +1,45 @@
+table "counter"."house" {
+  primaryKey = {
+    columns = [
+      "house_id"
+      "counter_id"
+    ]
+    name = "pk_house_counter"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "counter"."house"."fk_counter_house_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "counter"."house"."fk_counter_house_list" {
+  columns = [
+    "counter_id"
+  ]
+  referencedTable = "counter"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+

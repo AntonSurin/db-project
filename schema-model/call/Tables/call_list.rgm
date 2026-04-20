@@ -1,0 +1,77 @@
+table "call"."call_list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_call_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('call.call_list_id_seq'::regclass)
+    }
+    column "batch_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "call_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "phones" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "month" {
+      type = integer
+    }
+    column "debt" {
+      type = numeric(9,2)
+    }
+    column "sum" {
+      type = numeric(9,2)
+    }
+    column "duration" {
+      type = numeric(9,2)
+    }
+    column "cost" {
+      type = numeric(9,2)
+    }
+    column "status" {
+      type = integer
+    }
+    column "is_ended" {
+      type = boolean
+    }
+    column "last_try_status" {
+      type = integer
+    }
+    column "error_message" {
+      type = character varying(1000)
+    }
+    column "date_start" {
+      type = timestamp(3) without time zone
+    }
+    column "date_end" {
+      type = timestamp(3) without time zone
+    }
+  )
+}
+
+foreignKey "call"."call_list"."fk_call_list_call_batch" {
+  columns = [
+    "batch_id"
+  ]
+  referencedTable = "call"."call_batch"
+  referencedColumns = [
+    "id"
+  ]
+}
+

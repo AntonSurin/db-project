@@ -1,0 +1,380 @@
+function "report"."flow_table(integer, jsonb, jsonb, integer)" {
+  text = """
+
+declare 
+	_date_begin				date;
+	_date_end				date;
+	_inn					varchar(12);
+	_working_period_id		int;
+	_sql 					text = '';
+	_sum_value_id			varchar(200);
+	_sum_value				text;
+	_use_correction_volume	bool;
+begin
+
+	if _period_end is null
+		then 
+			_period_end = _period_id;
+	end if;
+
+	create temp table _house (house_id int);
+
+	insert into _house (house_id)
+	select distinct house_id 
+	from  adress.light_info al 
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = al.account_id;
+
+	drop table if exists _account_table;
+	drop table if exists _house_table;
+	drop table if exists _volume;
+	drop table if exists __sublist;
+
+	create temp table __sublist (sublist_name varchar(200) not null primary key);
+	
+	_sum_value_id = (
+						select lower(d.value::text)::jsonb ->> 'value'
+						from report.list as l
+							left join lateral (select *
+											   from jsonb_array_elements(l.parameters ::jsonb)
+											  ) as d on 1 = 1
+						where (lower(d.value::text)::jsonb ->> 'name') = 'sumvalue' and l.id = 1
+					);
+
+	if _sum_value_id != ''
+		then
+			_sum_value = 
+			'insert into __sublist
+			select us.name
+			from utility.sublist us
+				inner join utility.type ut on ut.id = us.type and (ut.id = 1 or ut.parent_id = 1)
+			where us.id in (' || _sum_value_id || ')
+			group by us.name';
+		
+			execute (_sum_value);
+	end if;
+
+	_date_begin = (select pl.date_begin from "period".list pl where pl.id = _period_id);
+	_date_end = (select pl.date_end from "period".list pl where pl.id = _period_end);
+
+	create temp table _account_table 
+	(
+		account_id 				int, 
+		sublist_id 				int, 
+		rn 						int, 
+		verification_date 		date, 
+		account_sublist_name 	varchar(150), 
+		account_number 			int2, 
+		account_serial_number 	varchar(50),
+		account_prev_value 		numeric(13,5), 
+		account_value 			numeric(13,5), 
+		rate 					numeric(9,6), 
+		unit_name 				varchar(50), 
+		is_transmit 			int2, 
+		must_get 				bool, 
+		period_id 				int
+	);
+								
+	insert into _account_table (account_id, sublist_id, rn, verification_date, account_sublist_name, account_number, account_serial_number, account_prev_value, account_value, rate, unit_name, is_transmit, must_get, period_id)
+	select 
+		 a.account_id as account_id
+		,cl.sublist_id
+		,row_number() over (partition by a.account_id order by a.account_id, us.name, cl.sublist_id, cl."number")::int as rn
+		,(cl.verification_date + interval '1 year' * cl.verification_interval)::date as verification_date
+		,us."name" as account_sublist_name
+		,cl."number" as account_number
+		,cl.serial_number as account_serial_number
+		,cf.prev_value as account_prev_value
+		,cf.value as account_value
+		,cf.rate
+		,uu."name" as unit_name
+		,case when coalesce(cl.date_end, (_date_end + 1)) <= _date_end then 0 else 1 end as is_transmit
+		,(case 
+			when coalesce (g.house_get,false) = true or coalesce(g.account_get, false) = true 
+			then false  --- снимает показания организация и собсвенник не будет передавать через сайт 
+			else true  --- снимает показания собственник и собственник может передать через сайт
+		  end) as must_get
+		,cf.period_id
+	from jsonb_populate_recordset(null::account.list, _account) a
+		inner join counter.account ca on ca.account_id = a.account_id
+		inner join counter.list cl on cl.id = ca.counter_id
+		inner join counter.flow cf on cf.counter_id = cl.id
+		inner join utility.sublist us on us.id = cl.sublist_id
+		inner join utility.unit uu on uu.id = cl.unit_id
+		left join (
+					select sga.account_id, sga.get_value_type as account_get, sgh.get_value_type as house_get, sgi.sublist_id
+					from utility.sublist_group_a_detail sga
+						inner join utility.sublist_group_h_detail sgh on sgh.group_id = sga.group_id and sga.house_id = sgh.house_id
+						inner join utility.sublist_group_info sgi on sgi.group_id = sgh.group_id
+				   ) g on g.account_id = ca.account_id and g.sublist_id = cl.sublist_id
+	where coalesce(cl.date_end, _date_end) >= _date_begin and cf.period_id between _period_id and _period_end and cf.flow_type_id != 5;
+
+	create temp table _house_table 
+	(
+		account_id 			int, 
+		sublist_id 			int, 
+		rn 					int, 
+		house_sublist_name 	varchar(150), 
+		house_number 		int,
+		rate 				numeric(9,6), 
+		house_prev_value 	numeric(13,5),
+		house_value 		numeric(13,5),
+		unit_name 			varchar(50), 
+		is_show_value 		int2,
+		house_id 			int,
+		period_id 			int
+	);
+
+	insert into _house_table (account_id, sublist_id, rn, house_sublist_name, house_number, rate, house_prev_value, house_value, unit_name, is_show_value, house_id, period_id)
+	select 
+	 	 a.account_id as account_id
+		,cl.sublist_id
+		,row_number() over (partition by a.account_id order by  a.account_id, us."name", cl.sublist_id, cl."number")::int as rn
+		,us."name" as house_sublist_name
+		,cl."number" as house_number
+		,cl.rate as rate
+		,cf.prev_value as house_prev_value
+		,cf.value as house_value
+		,uu."name" as unit_name
+		,cl.is_show_value
+		,al.house_id
+		,cf.period_id
+	from jsonb_populate_recordset(null::account.list, _account) a
+		inner join adress.light_info al on al.account_id = a.account_id
+		inner join counter.house ch on ch.house_id = al.house_id
+		inner join counter.list cl on cl.id = ch.counter_id
+		inner join counter.flow cf on cf.counter_id = cl.id
+		inner join utility.sublist us on us.id = cl.sublist_id
+		inner join utility.unit uu on uu.id = cl.unit_id
+	where coalesce(cl.date_end, _date_end) >= _date_begin and cf.period_id between _period_id and _period_end and cl.is_show_value != 2 and cf.flow_type_id != 5;
+
+	/*
+		внимание!!!
+		костыль для отопления от юркина евгения от 13.12.2021
+	*/
+
+	_use_correction_volume = (select array_to_string(xpath('/root/calculation/usecorrectionvolume/text()', lower(p.xml_data::text)::xml)::text[], '') from special.parametr p);
+	
+	create temp table _volume (house_id int, rn int, summ numeric(9,2),"name" varchar(150), period_id int);
+	
+	create temp table _sublist_ot (sublist_id int);
+
+	insert into _sublist_ot
+	select id
+	from utility.sublist 
+	where is_counter = true and list_id = 1022;
+
+	insert into _volume (house_id, rn, summ,"name", period_id)
+	select  
+    pb.house_id, 
+    row_number() over (partition by pb.house_id order by pb.house_id , us."name")::int as rn,
+    sum(case when abs(coalesce(rr.sum_rec,0)) > 0.00001 and pb.current_calculate = 0 then 0.0 else pb.volume end + coalesce(rr.sum_rec,0) + coalesce(kr.korr,0)) as summ,  
+    us."name",
+    pb.period_id
+  from payment.balance pb
+    inner join utility.sublist us on us.id = pb.sublist_id
+    inner join utility."type" ut on ut.id = us."type"
+    inner join _house h on h.house_id = pb.house_id
+    inner join jsonb_populate_recordset(null::report.sublist, _sublist) s on s.sublist_id = us.id
+    left join lateral (
+						select sum(
+									case 
+										when ro.type = 4
+										then coalesce(nullif(
+																case
+																	when round(diff_volume,4) = 0
+																	then 0
+																	else diff_volume
+																end
+											,0),calc_volume)
+										else diff_volume
+									end
+									) as sum_rec, re.account_id, re.sublist_id
+				  		from recalculation."result" re
+						  	inner join recalculation.root ro on ro.id = re.root_id 
+															and (ro.type = 4 or (_use_correction_volume = true and (ro.is_use_volume_in_calc = true or ro.type = 2))) 
+															and ro.period_id between _period_id and _period_end
+				  			inner join utility.formula_result uf on uf.period_id = pb.period_id and uf."type" = 3 and uf.sublist_id = re.sublist_id
+						  	inner join _sublist_ot ot on ot.sublist_id = re.sublist_id
+						  	inner join _house h on h.house_id = re.house_id
+						  	inner join jsonb_populate_recordset(null::report.sublist, _sublist) s on s.sublist_id = re.sublist_id
+					  	where re.diff_result <> 0 
+							and re.account_id = pb.account_id 
+							and pb.sublist_id = re.sublist_id 
+							and pb.period_id = ro.period_id 
+							and uf.formula ilike '%account_open%'
+					  	group by re.account_id, re.sublist_id
+					) rr on true
+	left join lateral (
+						select sum(
+									case 
+										when ro.type = 4
+										then coalesce(nullif(
+															case 
+																when round(diff_volume,4) = 0
+																then 0
+																else diff_volume
+															end
+												,0),calc_volume)
+										else diff_volume
+									end
+									) as korr, re.account_id, re.sublist_id
+						from recalculation."result" re
+							inner join recalculation.root ro on ro.id = re.root_id 
+															and (ro.type in (2,4) or ro.is_use_volume_in_calc = true) 
+															and ro.period_id between _period_id and _period_end
+							inner join _house h on h.house_id = re.house_id
+							inner join jsonb_populate_recordset(null::report.sublist, _sublist) s on s.sublist_id = re.sublist_id and not exists (select sublist_id from _sublist_ot o where o.sublist_id = s.sublist_id)
+						where (re.diff_result <> 0.0 or re.diff_volume <> 0.0) 
+							and re.account_id = pb.account_id 
+							and pb.sublist_id = re.sublist_id 
+							and pb.period_id = ro.period_id 
+							and _use_correction_volume = true
+						group by re.account_id, re.sublist_id
+					) kr on true
+  where pb.period_id between _period_id and _period_end and (ut.id = (1) or ut.parent_id = 1) and s.sublist_id not in (32,34,37) and us.id != 15
+  group by 
+    pb.house_id, 
+    us.name, 
+    case when pb.sublist_id in (8,31) then 27 when pb.sublist_id in (9,33) then 42 when pb.sublist_id in (10,36) then 28 else pb.sublist_id end,
+    pb.period_id
+  having sum(pb.volume + coalesce(rr.sum_rec,0)) <> 0;
+
+	/*
+		внимание!!!
+		костыль для престижа
+		нужно исправлять
+	*/
+	
+	_inn = (select ol.inn from organization.list ol where ol.is_owner = true); 
+	_working_period_id =(select pl.id from "period".list pl where pl.is_working = true);
+
+	if (_inn in ('0107019220', '0107024653', '0107026178'))
+		then
+			begin
+				_sql = '';
+		
+				if (_working_period_id = _period_end)
+					then
+						_sql = 'insert into _volume
+								select house_id, -1, vo_kom_odn, ''Ком.ресурс отведение сточ.вод на сод.общ.имущ.'', ' || _working_period_id || ' period_id
+								from calculation.parametr_transporate
+								group by house_id, vo_kom_odn
+								union all
+								select house_id, -2, gv_kom_odn, ''Ком.ресурс гор.вода на сод.общ.имущ.'', ' || _working_period_id || '
+								from calculation.parametr_transporate
+								group by house_id, gv_kom_odn
+								union all
+								select house_id, -3, xv_kom_odn, ''Ком.ресурс хол.вода на сод.общ.имущ.'' , ' || _working_period_id || ' 
+								from calculation.parametr_transporate
+								group by house_id, xv_kom_odn
+								union all
+								select house_id, -4, el_kom_odn, ''Ком.ресурс эл.энерг. на сод.общ.имущ.'' , ' || _working_period_id || ' 
+								from calculation.parametr_transporate
+								group by house_id, el_kom_odn';
+				end if;
+
+				_sql = _sql || case when _sql = '' then '' else ' 
+					union all ' end ||'
+					select house_id, -1, vo_kom_odn, ''Ком.ресурс отведение сточ.вод на сод.общ.имущ.'', period_id from calculation.parametr_transporate_arch 
+					where period_id between ' || _period_id || ' and ' || _period_end || '
+					group by house_id, vo_kom_odn, period_id 
+					union all
+					select house_id, -2, gv_kom_odn, ''Ком.ресурс гор.вода на сод.общ.имущ.'', period_id from calculation.parametr_transporate_arch 
+					where period_id between ' || _period_id || ' and ' || _period_end || '
+					group by house_id, gv_kom_odn, period_id 
+					union all
+					select house_id, -3, xv_kom_odn, ''Ком.ресурс хол.вода на сод.общ.имущ.'', period_id from calculation.parametr_transporate_arch 
+					where period_id between ' || _period_id || ' and ' || _period_end || '
+					group by house_id, xv_kom_odn, period_id 
+					union all
+					select house_id, -4, el_kom_odn, ''Ком.ресурс эл.энерг. на сод.общ.имущ.'', period_id from calculation.parametr_transporate_arch 
+					where period_id between ' || _period_id || ' and ' || _period_end || '
+					group by house_id, el_kom_odn, period_id ';
+		
+				execute(_sql);
+			end;
+	end if;
+		
+	return query
+	select 
+		coalesce(coalesce(a.account_id, h.account_id), v.account_id) as account_id,
+		coalesce(a.rn, h.rn, v.rn) as order_id, 
+		h.house_sublist_name, 
+		h.house_number, 
+		h.rate,
+		a.account_serial_number,
+		a.rate as account_flow_rate,
+		h.house_prev_value, 
+		h.house_value,
+		h.unit_name as house_unit_name,
+		a.account_sublist_name, 
+		a.account_number, 
+		a.verification_date,
+		a.account_prev_value, 
+		a.account_value,
+		a.unit_name as account_unit_name,
+		h.is_show_value,
+		a.is_transmit,
+		a.must_get,
+		v.name volume_sublist_name, 
+		v.summ volume_sum,
+		coalesce(coalesce(a.period_id, h.period_id), v.period_id) as period_id
+	from _account_table a
+		full join _house_table h on h.account_id = a.account_id and a.rn = h.rn and a.period_id = h.period_id
+		full join (
+					select vol.house_id, vol.rn, vol.summ, vol.name, vol.period_id, a.account_id
+					from _volume vol
+						inner join __sublist s on s.sublist_name = vol.name
+						inner join adress.flat af on af.house_id = vol.house_id
+						inner join adress.account aa on aa.flat_id = af.id
+						inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.id 
+					) v on v.account_id = coalesce(h.account_id, a.account_id) and v.rn = coalesce(h.rn, a.rn) and v.period_id = coalesce(h.period_id, a.period_id);
+
+	drop table if exists _account_table;
+	drop table if exists _house_table;
+	drop table if exists _volume;
+	drop table if exists _house;
+	drop table if exists __sublist;
+	drop table if exists _sublist_ot;
+	
+end;
+"""
+  returnType = TABLE(account_id integer, order_id integer, house_sublist_name character varying, house_number integer, rate numeric, account_serial_number character varying, account_flow_rate numeric, house_prev_value numeric, house_value numeric, house_unit_name character varying, account_sublist_name character varying, account_number smallint, verification_date date, account_prev_value numeric, account_value numeric, account_unit_name character varying, is_show_value smallint, is_transmit smallint, must_get boolean, volume_sublist_name character varying, volume_sum numeric, period_id integer)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _sublist
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Create date: 13.01.2017
+ Description:	Сбор показаний счетчиков для квитанции в виде таблицы
+ =============================================
+"""
+}
+

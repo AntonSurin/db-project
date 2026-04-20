@@ -1,0 +1,41 @@
+function "benefit"."delete_calc()" {
+  text = """
+
+declare 
+	_period_id int;
+	_benefit_type int2;
+begin
+	
+	_period_id = (select period_id from deleted limit 1);
+
+	_benefit_type = (	select array_to_string( xpath('root/ui/usebenefit/text()', lower(p.xml_data::text)::xml)::text[] , '')::int2
+						from special.parametr p )::int;
+
+	if _benefit_type = 2
+		then
+			begin
+				delete 
+				from recalculation.root rr 
+					using recalculation."result" r, deleted d 
+				where rr.id = r.root_id and d.period_id = r.period_id and d.account_id = r.account_id and d.sublist_id = r.sublist_id and rr.period_id = _period_id and rr."type" = 6;
+			end;
+	end if;
+
+	return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 02.05.2017
+ Description:	Удаление расчета льгот 
+ =============================================
+"""
+}
+

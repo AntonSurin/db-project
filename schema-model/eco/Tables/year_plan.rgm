@@ -1,0 +1,88 @@
+table "eco"."year_plan" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_eco_year_plan"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.year_plan_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "period_id" {
+      type = integer
+    }
+    column "period_end_id" {
+      type = integer
+    }
+    column "work_year" {
+      type = integer
+    }
+    column "act_num" {
+      type = character varying(15)
+    }
+    column "act_date" {
+      type = date
+    }
+    column "contract_number" {
+      type = character varying(15)
+    }
+    column "is_approved" {
+      type = boolean
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+    }
+    column "work_list_guid" {
+      type = uuid
+    }
+    column "contract_guid" {
+      type = uuid
+    }
+    column "is_gis_approved" {
+      type = boolean
+    }
+    column "is_create_gis" {
+      type = boolean
+    }
+    column "is_for_load_gis" {
+      type = boolean
+    }
+    column "status_gis" {
+      type = integer
+    }
+    column "area" {
+      type = numeric(18,2)
+    }
+    column "date_load_gis_year_works" {
+      type = timestamp(3) without time zone
+    }
+    column "user_id_load_gis_year_works" {
+      type = integer
+    }
+    column "date_load_gis_year_plan" {
+      type = timestamp(3) without time zone
+    }
+    column "user_id_load_gis_year_plan" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "eco"."year_plan"."fk_eco_year_plant_house_characteristic_house_id" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+}
+

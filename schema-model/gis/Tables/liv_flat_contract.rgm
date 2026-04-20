@@ -1,0 +1,71 @@
+table "gis"."liv_flat_contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_liv_flat_contract"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.liv_flat_contract_id_seq'::regclass)
+    }
+    column "contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "payment_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "object_guid" {
+      type = uuid
+    }
+    column "begin_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "end_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "payment_size" {
+      type = numeric(10,2)
+      null = NOT NULL
+    }
+    column "status_gis" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_protocol" {
+      type = boolean
+    }
+    column "voting_protocol_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "gis"."liv_flat_contract"."fk_liv_flat_contract_contract_data" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "gis"."contract_data"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "gis"."liv_flat_contract"."fk_liv_flat_contract_voting_protocol" {
+  columns = [
+    "voting_protocol_id"
+  ]
+  referencedTable = "gis"."voting_protocol"
+  referencedColumns = [
+    "id"
+  ]
+}
+

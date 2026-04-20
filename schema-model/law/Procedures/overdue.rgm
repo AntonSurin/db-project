@@ -1,0 +1,39 @@
+procedure "law"."overdue()" {
+  text = """
+
+begin
+
+	create temp table _table (document_id int, folder int);
+
+	insert into _table (document_id, folder)
+	select ld.id, ld.folder_id
+	from law.docs ld
+		inner join law.folder lf on lf.id  = ld.folder_id
+	where ld.status_id = 1 
+		and ld.notifyed_id = 1 
+		and lf.block_id = 1 
+		and lf.is_open = true
+		and (ld.date + 21) < current_date
+		and not exists(select * from law.docs ldd where ldd.parent_id = ld.parent_id);
+
+	update law.docs ld 
+		set status_id = 15
+	from _table t
+	where ld.id = t.document_id;
+
+	drop table if exists _table;	
+end
+"""
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 01.09.2016
+ description:	поиск просроченных уведомлений
+ =============================================
+"""
+}
+

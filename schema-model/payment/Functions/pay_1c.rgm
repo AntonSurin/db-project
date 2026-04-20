@@ -1,0 +1,100 @@
+function "payment"."pay_1c(date, date)" {
+  text = """
+
+begin
+
+	return query
+	select
+		_data_begin as data_begin,
+		_data_end as data_end,
+		ai.account_name,
+		ai.organization_id as recipient_id,
+		pb.date as batch_date,
+		pb.id as batch_id,
+		pl.date as payment_date, 
+		b.name as batch_from_name,
+		pb.bank_id as bank_id,
+		oc.rs as rs,
+		pd.sum as detail_sum,
+		coalesce(dp.detail_period,pd.period_id) as detail_period,
+		coalesce(dp.detail_period_sum,pd.sum) as detail_period_sum,
+		case 
+			when oc.rs = '00000000000000000000' 
+			then true 
+			else false
+		end as rs_type,
+		pl.id as payment_id,
+		pr.date_end as per_pay,
+		coalesce(br.fee,0) as payment_comiss,
+		pl.type_id as payment_type,
+		case
+			when b.number::int = 19 then 1	--Корректировка
+			when b.number::int = 5 then 2	--Корректировка авансов
+			when b.number::int = 99 then 3	--Корректировка (Без выгрузки 1С)
+			else 0
+		end::int2 as adjustment_type,
+		pl.check_type,
+		pl.cashless_payment,
+		pp.number_pp,
+		pp.date_pp,
+		pd.sublist_id
+	from payment.batch pb 
+		inner join payment.list pl on pl.batch_id = pb.id
+		inner join payment.detal pd on pd.payment_id = pl.id 
+		left join period.list pr on pr.id = pl.payment_period_id
+		inner join adress.info ai on ai.account_id = pl.account_id 
+		inner join organization.counting oc on oc.id = pb.counting_id
+		inner join parametr.book b on b.id = pb.bank_id 
+		left join bank.registry_payment br on br.payment_id = pl.id
+		left join (
+					select be.batch_id, de.number as number_pp, cast(de.date as date) as date_pp
+					from bank.bank_exchange_to_batch be
+						inner join bank.document_exchange de on be.bank_exchange_document_id = de.id
+				) pp on pp.batch_id = pb.id
+		left join (
+					select cbd.payment_id, dhd.account_id, dhd.source_sublist_id as sublist_id, cd.period_id as detail_period, sum(-dhd.sum) as detail_period_sum
+					from payment.document_history dh
+						inner join payment.document_history_detail dhd on dhd.history_id = dh.id
+						inner join payment.document cd on cd.id = dh.closed_document_id
+						inner join payment.document cbd on cbd.id = dh.closed_by_document_id
+					group by cbd.payment_id, dhd.account_id, dhd.source_sublist_id, cd.period_id
+					union 
+					select dd.payment_id, dd.account_id, dd.sublist_id, dd.period_id as detail_period, dd.sum - sum(-dhd.sum) as detail_period_sum
+					from payment.document_history dh
+						inner join payment.document_history_detail dhd on dhd.history_id = dh.id
+						inner join payment.document cd on cd.id = dh.closed_document_id
+						inner join payment.document cbd on cbd.id = dh.closed_by_document_id
+						inner join payment.detal dd on dd.payment_id = cbd.payment_id and dd.account_id = dhd.account_id and dd.sublist_id = dhd.source_sublist_id
+					group by dd.payment_id, dd.account_id, dd.sublist_id, dd.period_id, dd.sum
+					having dd.sum - sum(-dhd.sum) <> 0.0
+				) dp on dp.payment_id = pd.payment_id and dp.account_id = pd.account_id and dp.sublist_id = pd.sublist_id
+	where pb.date between _data_begin and _data_end;
+
+	end;
+"""
+  returnType = TABLE(data_begin date, data_end date, account_name character varying, recipient_id integer, batch_date date, batch_id integer, payment_date date, batch_from_name character varying, bank_id integer, rs character varying, detail_sum numeric, detail_period integer, detail_period_sum numeric, rs_type boolean, payment_id integer, per_pay date, payment_comiss numeric, payment_type smallint, adjustment_type smallint, check_type smallint, cashless_payment boolean, number_pp character varying, date_pp date, sublist_id integer)
+  arguments = <
+    {
+      name = _data_begin
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _data_end
+      type = date
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Е.Ю
+ Create date: 17.04.2025
+ Description:	Отчет платежи за диапазон дат для 1С
+ =============================================
+"""
+}
+

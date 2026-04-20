@@ -1,0 +1,17 @@
+table "dbo"."__refactor_log" {
+  primaryKey = {
+    columns = [
+      "operation_key"
+    ]
+    name = "pk____refact__d3aeffdb35d925da"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "operation_key" {
+      type = uuid
+      null = NOT NULL
+    }
+  )
+}
+

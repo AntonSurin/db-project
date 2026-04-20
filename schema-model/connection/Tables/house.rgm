@@ -1,0 +1,48 @@
+table "connection"."house" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_connection_house"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('connection.house_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "connection_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "connection"."house"."fk_connection_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "connection"."house"."fk_connection_house_list" {
+  columns = [
+    "connection_id"
+  ]
+  referencedTable = "connection"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,51 @@
+table "house"."ogf_data" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_ogf_data"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('house.ogf_data_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_common" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "value" {
+      type = character varying(300)
+    }
+    column "is_from_gis" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "type_value" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "house"."ogf_data"."fk_ogf_data_characteristic" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+}
+

@@ -1,0 +1,9 @@
+composite "house"."list" {
+  owner = postgres
+  fields = (
+    field "house_id" {
+      type = integer
+    }
+  )
+}
+

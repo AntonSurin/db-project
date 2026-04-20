@@ -1,0 +1,30 @@
+view "utility"."active_sublist_for_1c" {
+  text = """-
+SELECT DISTINCT pb.house_id,
+    pb.sublist_id,
+    us.name AS sublist_name,
+    COALESCE(us.is_kp, false) AS is_kp
+   FROM (payment.balance pb
+     JOIN utility.sublist us ON ((us.id = pb.sublist_id)))
+  WHERE (((pb.in_balance <> (0)::numeric) OR (pb.current_calculate <> (0)::numeric) OR (pb.recalculate <> (0)::numeric) OR (pb.pay <> (0)::numeric)) AND (pb.period_id = ( SELECT (list.id - 1)
+           FROM period.list
+          WHERE (list.is_working = true))));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "sublist_name" {
+      type = character varying(100)
+    }
+    column "is_kp" {
+      type = boolean
+    }
+  )
+}
+

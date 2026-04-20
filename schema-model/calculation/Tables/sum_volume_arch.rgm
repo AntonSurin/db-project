@@ -1,0 +1,54 @@
+table "calculation"."sum_volume_arch" {
+  primaryKey = {
+    columns = [
+      "account_id"
+      "period_id"
+    ]
+    name = "pk_sum_volume_arch"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sumxv" {
+      type = numeric(15,5)
+    }
+    column "sumgv" {
+      type = numeric(15,5)
+    }
+    column "sumot" {
+      type = numeric(15,5)
+    }
+    column "sumel" {
+      type = numeric(15,5)
+    }
+    column "sumelday" {
+      type = numeric(15,5)
+    }
+    column "sumelnight" {
+      type = numeric(15,5)
+    }
+    column "sumgkal" {
+      type = numeric(15,5)
+    }
+    column "sumgaz" {
+      type = numeric(15,5)
+    }
+  )
+}
+

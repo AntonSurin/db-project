@@ -1,0 +1,54 @@
+table "utility"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.list_id_seq'::regclass)
+    }
+    column "code" {
+      type = character varying(20)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "short_name" {
+      type = character varying(20)
+    }
+    column "sort" {
+      type = smallint
+      default = 0
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "number" {
+      type = integer
+    }
+  )
+}
+
+trigger "utility"."list"."create_sort" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = utility.create_sort
+  functionArguments = [
+  ]
+  table = "utility"."list"
+  constraint = False
+}
+

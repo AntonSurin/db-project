@@ -1,0 +1,104 @@
+table "contragent"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list_11"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('contragent.list_id_seq'::regclass)
+    }
+    column "parent_id" {
+      type = integer
+    }
+    column "integration_identity" {
+      type = uuid
+      null = NOT NULL
+      default = gen_random_uuid()
+    }
+    column "type" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "surname" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "middlename" {
+      type = character varying(100)
+    }
+    column "genitive_surname" {
+      type = character varying(255)
+    }
+    column "genitive_name" {
+      type = character varying(100)
+    }
+    column "genitive_middlename" {
+      type = character varying(100)
+    }
+    column "full_name" {
+      type = character varying(457)
+    }
+    column "short_name" {
+      type = character varying(260)
+    }
+    column "sex" {
+      type = smallint
+    }
+    column "snils" {
+      type = character varying(50)
+    }
+    column "inn" {
+      type = character varying(12)
+    }
+    column "kpp" {
+      type = character varying(9)
+    }
+    column "ogrn" {
+      type = character varying(15)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "dative_surname" {
+      type = character varying(255)
+    }
+    column "dative_name" {
+      type = character varying(100)
+    }
+    column "dative_middlename" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "contragent"."list"."fk_list_list" {
+  columns = [
+    "parent_id"
+  ]
+  referencedTable = "contragent"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "contragent"."list_idx_full_name" {
+  table = "contragent"."list"
+  type = btree
+  columns = <
+    {
+      definition = full_name
+    }
+
+  >
+  isUnique = False
+}
+

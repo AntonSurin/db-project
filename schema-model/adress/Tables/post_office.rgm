@@ -1,0 +1,45 @@
+table "adress"."post_office" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_post_office"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.post_office_id_seq'::regclass)
+    }
+    column "post_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "settlement_name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "address" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "index" {
+      type = character varying(6)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "adress"."post_office"."fk_post_office_post" {
+  columns = [
+    "post_id"
+  ]
+  referencedTable = "adress"."post"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

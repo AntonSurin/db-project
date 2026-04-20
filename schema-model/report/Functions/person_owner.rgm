@@ -1,0 +1,54 @@
+function "report"."person_owner(integer)" {
+  text = """
+
+
+	select 
+		 ca.id 					as account_id
+		,cl.surname 			as "фамилия"
+		,cl."name" 				as "имя"
+		,cl.middlename 			as "отчество"
+		,cl.full_name 			as "полное фио"
+		,cl.short_name 			as "краткое фио"
+		,ai.city 				as "город"
+		,ah."index" 			as "индекс"
+		,ai.short_name_adress 	as "адрес"
+		,ai.account_name 		as "лицевой счет"
+		,case 
+			when coalesce(cl.genitive_surname, '') = '' or coalesce(cl.genitive_name, '') = '' 
+			then cl.full_name 
+			else cl.genitive_surname || ' ' || cl.genitive_name || ' ' || coalesce(cl.genitive_middlename, '') 
+		end as genitive_name
+		,case 
+			when coalesce(cl.dative_surname, '') = '' or coalesce(cl.dative_name, '') = '' 
+			then cl.full_name 
+			else cl.dative_surname || ' ' || cl.dative_name || ' ' || coalesce(cl.dative_middlename, '') 
+		end as dative_fio
+	from contragent.list cl
+		inner join contragent.account ca on ca.contragent_id = cl.id
+		inner join contragent.owner_documents od on od.contragent_account_id = ca.id
+		inner join adress.info ai on ai.account_id = ca.account_id
+		inner join adress.house ah on ah.id = ai.house_id
+	where ca.account_id = _account_id;
+
+"""
+  returnType = TABLE(account_id integer, "Фамилия" text, "Имя" text, "Отчество" text, "Полное ФИО" text, "Краткое ФИО" text, "Город" text, "Индекс" text, "Адрес" text, "Лицевой счет" character varying, genitive_name text, dative_fio text)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков П.Г.
+ Create date: 08.07.2014
+ Description:	выбор собственника по лицевому счету
+			
+ =============================================
+"""
+}
+

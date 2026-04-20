@@ -1,0 +1,12 @@
+sequence "gis"."electric_counter_id_seq" {
+  type = bigint
+  increment = 1
+  minValue = 1
+  maxValue = 9223372036854775807
+  start = 1
+  cache = 1
+  cycle = NO CYCLE
+  ownedBy = "gis"."electric_counter"."id"
+  owner = postgres
+}
+

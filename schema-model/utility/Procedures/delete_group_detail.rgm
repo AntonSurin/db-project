@@ -1,0 +1,246 @@
+procedure "utility"."delete_group_detail(text)" {
+  text = """
+
+declare 
+	_errors_text			text = null::text;
+	_error_number 			text;
+	_error_table 			text;
+	_error_line 			text;
+	_error_message 			text;
+	_count_can_be_deleted 	int;
+	_total_deleted_groups 	int;
+begin
+	
+	begin
+	
+		drop table if exists _accounts;
+	
+		create temp table _accounts(id int, group_id int2);
+	
+		insert into _accounts
+		select aa.id, aa.group_id 
+		from adress.account aa
+			left join utility.contragent_group cg on cg.id = aa.group_id
+		where cg.id is null and aa.parent_id is not null;
+	
+		alter table _accounts 
+		add constraint ak_index unique (id,group_id);
+	
+		--перечень удалённых групп, по которым остались записи в связанных таблицах
+		create temp table _deleted_groups (id int, recalc_result bool, payment bool, balance bool);
+		create temp table _can_not_be_deleted (object_id int);
+		create temp table _can_be_deleted (object_id int);
+	
+		insert into _deleted_groups (id, recalc_result, payment, balance)
+		select 
+			 coalesce(aa.group_id, 0) as id
+			,case 
+				when exists( 	
+								select 1 
+								from recalculation."result" rr
+									inner join  _accounts a on a.id = rr.account_id and coalesce(a.group_id, 0) = coalesce(aa.group_id, 0)
+							)
+				then true 
+				else false 
+			end as recalc_result
+			,case 
+				when exists( 
+								select 1 from payment.detal pd
+									inner join  _accounts a on a.id = pd.account_id and a.group_id= coalesce(aa.group_id, 0)
+							) 
+				then true 
+				else false 
+			end as payment
+			,case 
+				when exists( 
+								select 1 from payment.balance pb
+									inner join _accounts a on a.id = pb.account_id and a.group_id = coalesce(aa.group_id, 0)
+								where pb.in_balance <> 0 
+										or pb.current_calculate <> 0
+										or pb.recalculate <> 0
+										or pb.pay <> 0
+						) 
+				then true 
+				else false 
+			end as balance
+		from _accounts aa
+		group by aa.group_id;
+	
+		drop table if exists _accounts;
+	
+		insert into _can_not_be_deleted
+		select dg.id 
+		from _deleted_groups dg 
+		where dg.balance = true 
+			or dg.payment = true 
+			or dg.recalc_result = true;
+	
+		insert into _can_be_deleted
+		select dg.id 
+		from _deleted_groups dg 
+		where dg.balance = false 
+			and dg.payment = false 
+			and dg.recalc_result = false; 
+			
+		_count_can_be_deleted = (select count(*) from _can_be_deleted); 
+		_total_deleted_groups = (select count(*) from _deleted_groups);
+	
+		--удаление связанных с группой поставщиков с тарифами
+		drop table if exists _delete_group_sublist;
+		
+		create temp table _delete_group_sublist (sublist_provider_id int);
+
+		with cte as 
+		(
+			delete 
+			from utility.contragent_group_sublist cgs
+			where cgs.group_id in (select dg.id from _deleted_groups dg )
+			returning sublist_provider_id  	
+		)
+		
+		insert into _delete_group_sublist
+		select *
+		from cte;
+		
+		drop table if exists _deleted_sublist_provider;
+	
+		create temp table _deleted_sublist_provider(house_id int, provider_id int, sublist_id int);
+
+		with cte as 
+		(
+			delete 
+			from utility.sublist_provider slp
+			where slp.id in (select dgs.sublist_provider_id from _delete_group_sublist dgs)   
+			returning house_id, provider_id, sublist_id
+		)
+		
+		insert into _deleted_sublist_provider
+		select *
+		from cte;
+								
+		drop table if exists _delete_group_sublist;
+
+		delete  
+		from tarif.house_tarif th
+		using tarif.list tl, _deleted_sublist_provider dsp 
+		where tl.id = th.tarif_id 
+			and  dsp.house_id = th.house_id 
+			and dsp.sublist_id = tl.sublist_id 
+			and dsp.provider_id = tl.provider_id;
+				
+		drop table if exists _deleted_sublist_provider;
+
+		--удаление записей, созданных совместо с группами
+		if(_count_can_be_deleted > 0)
+			then
+				begin
+					--если вышло так что по всем записям удалённых групп отсутствует полезная информация(перерасчёты, платежи или начисления)
+					--и в целом в базе больше нет групп, то необходимо сохранить одну группу лицевых для дальнейшей работы с ними
+					--(такая ситуация может возникнуть если в новой базе начали создавать группы и потом решили их удалить)
+					if(_count_can_be_deleted = _total_deleted_groups and not exists(select 1 from utility.contragent_group))
+						then	
+							delete 
+							from _can_be_deleted 
+							where object_id = (select min(id) from _deleted_groups);
+					end if;
+				
+					drop table if exists _delete_by_accounts;
+		
+					create temp table _delete_by_accounts(id int);
+		
+					insert into _delete_by_accounts
+					select aa.id
+					from adress.account aa
+						inner join _can_be_deleted cd on coalesce(aa.group_id, 0) = coalesce(cd.object_id, 0);
+					
+					alter table _delete_by_accounts
+					add constraint ak_index unique (id);
+		
+					delete  
+					from fine.account fa
+					where fa.account_id in (select a.id from _delete_by_accounts a);
+			
+					delete 
+					from payment.balance pb
+					where pb.account_id in (select a.id from _delete_by_accounts a);
+		
+					delete 
+					from adress.account aa
+					where coalesce(aa.id,0) in (select coalesce(cd.id,0) from _delete_by_accounts cd);
+		
+					drop table  if exists _delete_by_accounts;
+				end;
+		end if;
+
+		--удаление связи лицевых с группой
+		if ((select count(*) from _can_not_be_deleted) = 1)
+			then
+				begin
+					update adress.account aa 
+						set group_id = null::int 
+					from _can_not_be_deleted cnd 
+					where cnd.object_id = aa.group_id 
+						and aa.group_id  is not null;
+				end;
+			else
+				begin
+					_errors = null::text;
+					
+					_errors_text = 'Обратите внимание в базе есть записи по удалённым группам:';
+		
+					_errors_text = _errors_text || string_agg( (select '
+												'|| row_number() over (order by nbd.object_id) || ') Группа ID =' 
+												|| case when nbd.object_id = 0 then 'null' else nbd.object_id::text end || ': '
+												|| case when dg.payment = true then 'Есть платежи' else 'Нет платежей' end
+												|| case when dg.balance = true then ', Есть начисления' else ', Нет начислений' end
+												|| case when dg.recalc_result = true then ', Есть перерасчёты' else ', Нет перерасчётов' end
+											from _can_not_be_deleted nbd
+												inner join  _deleted_groups dg on dg.id = nbd.object_id), ' ') ;
+			
+					if 	(_errors_text is not null)
+						then
+							_errors = _errors_text;
+					end if;
+				end;
+		end if;
+
+		exception when others 
+		then 
+			get stacked diagnostics
+			_error_number = returned_sqlstate,
+			_error_table = table_name,
+			_error_line = pg_exception_context,
+			_error_message = pg_exception_detail;
+		
+		raise exception '%,%,%,%', _error_number, _error_table, _error_line, _error_message;
+	end; 
+
+		drop table if exists _accounts;
+		drop table if exists _deleted_groups;
+		drop table if exists _can_not_be_deleted;
+		drop table if exists _can_be_deleted;
+		drop table if exists _delete_group_sublist;
+		drop table if exists _deleted_sublist_provider;
+		drop table if exists _delete_by_accounts;
+	
+end
+"""
+  arguments = <
+    {
+      name = _errors
+      type = text
+      mode = INOUT
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:	Макарова Е.А.
+ Create date: 05.10.2020
+ Description:	Удаление записей, которые были связаны с удалённой группой
+ =============================================
+"""
+}
+

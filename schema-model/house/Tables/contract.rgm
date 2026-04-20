@@ -1,0 +1,36 @@
+table "house"."contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contract"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('house.contract_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "report_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "house"."contract"."fk_contract_contract_list" {
+  columns = [
+    "report_id"
+  ]
+  referencedTable = "report"."contract_list"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,49 @@
+function "payment"."recalc_1c(integer)" {
+  text = """
+
+begin
+
+	return query
+	select 
+		_period_id as period_id,
+		aa.name as account_name, 
+		re.period_id as recalc_period_id,
+		re.sublist_id, 
+		max(coalesce(re.calc_tarif,0)) as calc_tarif,
+		max(coalesce(re.recalc_tarif,0)) as recalc_tarif,
+		max(coalesce(re.diff_tarif,0)) as diff_tarif,
+		sum(coalesce(re.calc_volume,0)) as calc_volume,
+		sum(coalesce(re.recalc_volume,0)) as recalc_volume,
+		sum(coalesce(re.diff_volume,0)) as diff_volume,
+		sum(coalesce(re.calc_result,0)) as calc_result,
+		sum(coalesce(re.recalc_result,0)) as recalc_result,
+		sum(coalesce(re.diff_result,0)) as diff_result
+	from recalculation.root ro
+		inner join recalculation.result re on re.root_id = ro.id
+		inner join adress.account aa on aa.id = re.account_id
+	where ro.period_id = _period_id
+	group by aa.name, ro.period_id, re.period_id, re.sublist_id
+	having sum(coalesce(re.diff_volume,0)) != 0 or sum(coalesce(re.diff_result,0)) != 0;
+
+end;
+"""
+  returnType = TABLE(period_id integer, account_name character varying, recalc_period_id integer, sublist_id integer, calc_tarif numeric, recalc_tarif numeric, diff_tarif numeric, calc_volume numeric, recalc_volume numeric, diff_volume numeric, calc_result numeric, recalc_result numeric, diff_result numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Е.Ю
+ Create date: 06.04.2025
+ Description:	Отчет перерасчеты по периоду для 1С
+ =============================================
+"""
+}
+

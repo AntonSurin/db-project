@@ -1,0 +1,75 @@
+function "gis"."get_count_list()" {
+  text = """
+
+begin
+
+	drop table  if exists _account;
+	create temp table _account (flat_id int, account_id int);
+
+	insert into _account 
+	select cp.flat_id, cp.account_id
+	from calculation.parametr_transporate cp
+	where cp.is_closed = 1;
+
+	return query
+	select  hc.house_id, 
+			hi.short_adress, 
+			hf.count_flat_all::int, 
+			hf.count_flat::int, 
+			ha.count_account_all::int, 
+			ha.count_account::int, 
+			c.count_counter_all::int, 
+			c.count_counter::int 
+	from house.characteristic hc
+		inner join house.info hi on hi.house_id = hc.house_id 
+		inner join (
+						select  af.house_id, 
+								count(*) as count_flat_all,
+								sum(case when hf.unique_number is not null then 1 else 0 end) count_flat
+						from adress.flat af
+							inner join (select distinct flat_id from _account) a on a.flat_id = af.id
+							left join house.flat hf on hf.flat_id = af.id
+						group by af.house_id
+					) hf on hf.house_id = hc.house_id
+		inner join (
+						select  aa.house_id, 
+								count(*) count_account_all, 
+								sum(case when ha.unique_number is not null then 1 else 0 end) count_account
+						from adress.account aa
+							inner join _account a on a.account_id = aa.id
+							left join 
+								(
+									select ha.account_id, ha.unique_number
+									from house.account ha
+									where ha.unique_number is not null
+									group by ha.account_id, ha.unique_number
+								) ha on ha.account_id = aa.id
+						group by aa.house_id
+					) ha on ha.house_id = hc.house_id
+		left join (
+						select  al.house_id, 
+								count(*) count_counter_all, 
+								sum(case when cl.unique_number is not null then 1 else 0 end) count_counter
+						from adress.light_info al 
+							inner join counter.account ca on ca.account_id = al.account_id
+							inner join counter.list cl on cl.id = ca.counter_id		
+						where cl.active = true
+						group by al.house_id
+					) c on c.house_id = hc.house_id
+	where hc.is_export = true;
+
+	drop table if exists _account;
+	
+end;
+"""
+  returnType = TABLE(house_id integer, short_adress text, count_flat_all integer, count_flat integer, count_account_all integer, count_account integer, count_counter_all integer, count_counter integer)
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  StoredProcedure [Gis].[GetCountList]    
+ Script Date: 13.10.2023 12:57:43 
+"""
+}
+

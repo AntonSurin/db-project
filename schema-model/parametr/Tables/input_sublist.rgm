@@ -1,0 +1,35 @@
+table "parametr"."input_sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_input_sub_list_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "parametr"."input_sublist"."fk_input_sub_list_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+}
+

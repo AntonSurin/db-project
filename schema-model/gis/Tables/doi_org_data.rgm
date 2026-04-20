@@ -1,0 +1,33 @@
+table "gis"."doi_org_data" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_doi_org_data"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.doi_org_data_id_seq'::regclass)
+    }
+    column "reg_org_guid" {
+      type = uuid
+    }
+    column "inn" {
+      type = character varying(12)
+    }
+    column "ogrn" {
+      type = character varying(15)
+    }
+    column "full_name" {
+      type = character varying(500)
+    }
+    column "short_name" {
+      type = character varying(150)
+    }
+  )
+}
+

@@ -1,0 +1,86 @@
+table "gis"."rso_contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_rso_contract"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.rso_contract_id_seq'::regclass)
+    }
+    column "settlement_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "contract_guid" {
+      type = uuid
+    }
+    column "other_side_org_id" {
+      type = integer
+    }
+    column "doc_num" {
+      type = character varying(100)
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+    }
+    column "status_gis" {
+      type = integer
+      null = NOT NULL
+    }
+    column "doc_num_gis" {
+      type = character varying(100)
+    }
+    column "date_gis" {
+      type = timestamp(3) without time zone
+    }
+    column "org_gis_guid" {
+      type = uuid
+    }
+    column "supply_contract_id" {
+      type = integer
+    }
+    column "is_rso" {
+      type = boolean
+    }
+    column "tko_contract_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "gis"."rso_contract"."fk_rso_contract_doi_org_data" {
+  columns = [
+    "other_side_org_id"
+  ]
+  referencedTable = "gis"."doi_org_data"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "gis"."rso_contract"."fk_rso_contract_supply_contract" {
+  columns = [
+    "supply_contract_id"
+  ]
+  referencedTable = "documents"."supply_contract"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "gis"."rso_contract"."fk_rso_contract_tko_contract" {
+  columns = [
+    "tko_contract_id"
+  ]
+  referencedTable = "gis"."tko_contract"
+  referencedColumns = [
+    "id"
+  ]
+}
+

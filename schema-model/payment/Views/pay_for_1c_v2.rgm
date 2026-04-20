@@ -1,0 +1,183 @@
+view "payment"."pay_for_1c_v2" {
+  text = """-
+SELECT oll.inn AS organization_inn,
+    oll.kpp AS organization_kpp,
+    pb.date AS batch_date,
+    pb.id AS batch_id,
+    ai.account_name,
+    ai.district_name,
+    pl.date AS payment_date,
+    b.name AS batch_from_name,
+    oc.rs,
+    us.name AS sublist_name,
+    us.id AS sublist_id,
+    pd.sum AS detail_sum,
+        CASE
+            WHEN ((oc.rs)::text = '00000000000000000000'::text) THEN true
+            ELSE false
+        END AS rs_type,
+    pl.id AS payment_id,
+    pr.date_end AS per_pay,
+    COALESCE(br.fee, (0)::numeric) AS payment_comiss,
+        CASE
+            WHEN (pc.contract_id IS NOT NULL) THEN
+            CASE
+                WHEN (ltrim(rtrim((pc.inn)::text)) = ''::text) THEN NULL::text
+                ELSE ltrim(rtrim((pc.inn)::text))
+            END
+            ELSE NULL::text
+        END AS contract_inn,
+    ('МО-'::text || ((hi.district_id)::character varying(10))::text) AS district_id,
+    ('Д-'::text || ((ai.house_id)::character varying(5))::text) AS house_id,
+    pc.contract_id,
+    pc.type AS customer_type,
+    pl.type_id AS payment_type,
+        CASE
+            WHEN ((b.number)::integer = 19) THEN 1
+            WHEN ((b.number)::integer = 5) THEN 2
+            WHEN ((b.number)::integer = 99) THEN 3
+            ELSE 0
+        END AS adjustment_type,
+    pl.check_type,
+    pl.cashless_payment,
+    COALESCE(kp.group_id, 1) AS group_id,
+    COALESCE(kp.is_kp, 0) AS is_kp,
+    pp.number_pp,
+    pp.date_pp
+   FROM ((((((((((((((payment.batch pb
+     JOIN payment.list pl ON ((pl.batch_id = pb.id)))
+     JOIN payment.detal pd ON ((pd.payment_id = pl.id)))
+     LEFT JOIN period.list pr ON ((pr.id = pl.payment_period_id)))
+     JOIN adress.info ai ON ((ai.account_id = pl.account_id)))
+     JOIN house.info hi ON ((hi.house_id = ai.house_id)))
+     JOIN organization.list ol ON ((ol.id = ai.organization_id)))
+     JOIN organization.counting oc ON ((oc.id = pb.counting_id)))
+     JOIN utility.sublist us ON ((us.id = pd.sublist_id)))
+     JOIN parametr.book b ON ((b.id = pb.bank_id)))
+     JOIN organization.list oll ON ((oll.id = oc.list_id)))
+     LEFT JOIN bank.registry_payment br ON ((br.payment_id = pl.id)))
+     LEFT JOIN LATERAL ( SELECT cl.inn,
+            c.id AS contract_id,
+            cl.surname,
+            cl.name,
+            cl.middlename,
+            cl.type,
+            cl.full_name,
+            ca.id AS person_id
+           FROM ((((contragent.account ca
+             JOIN adress.account aa ON ((aa.id = ca.account_id)))
+             JOIN contragent.owner_documents od ON ((od.contragent_account_id = ca.id)))
+             JOIN contragent.list cl ON ((cl.id = ca.contragent_id)))
+             LEFT JOIN LATERAL ( SELECT cc.id
+                   FROM (contragent.contract cc
+                     JOIN contragent.contract_account ac ON ((ac.contract_id = cc.id)))
+                  WHERE ((ac.account_id = ca.account_id) AND (cc.date_end IS NULL))) c ON (true))
+          WHERE ((ca.is_responsible = true) AND (od.date_end IS NULL) AND (ca.account_id = ai.account_id))
+          ORDER BY cl.id
+         LIMIT 1) pc ON (true))
+     LEFT JOIN ( SELECT aa.id AS account_id,
+            cgs.group_id,
+            max(COALESCE((us_1.is_kp)::integer, 0)) AS is_kp
+           FROM ((utility.contragent_group_sublist cgs
+             JOIN utility.sublist us_1 ON (((us_1.id = cgs.sublist_id) AND (cgs.date_end IS NULL))))
+             JOIN adress.account aa ON ((aa.group_id = cgs.group_id)))
+          GROUP BY aa.id, cgs.group_id) kp ON ((kp.account_id = pd.account_id)))
+     LEFT JOIN ( SELECT be.batch_id,
+            de.number AS number_pp,
+            (de.date)::date AS date_pp
+           FROM (bank.bank_exchange_to_batch be
+             JOIN bank.document_exchange de ON ((be.bank_exchange_document_id = de.id)))) pp ON ((pp.batch_id = pb.id)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "organization_inn" {
+      type = character varying(12)
+    }
+    column "organization_kpp" {
+      type = character varying(9)
+    }
+    column "batch_date" {
+      type = date
+    }
+    column "batch_id" {
+      type = integer
+    }
+    column "account_name" {
+      type = character varying(12)
+    }
+    column "district_name" {
+      type = character varying(255)
+    }
+    column "payment_date" {
+      type = date
+    }
+    column "batch_from_name" {
+      type = character varying(100)
+    }
+    column "rs" {
+      type = character varying(20)
+    }
+    column "sublist_name" {
+      type = character varying(100)
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "detail_sum" {
+      type = numeric(9,2)
+    }
+    column "rs_type" {
+      type = boolean
+    }
+    column "payment_id" {
+      type = integer
+    }
+    column "per_pay" {
+      type = date
+    }
+    column "payment_comiss" {
+      type = numeric
+    }
+    column "contract_inn" {
+      type = text
+    }
+    column "district_id" {
+      type = text
+    }
+    column "house_id" {
+      type = text
+    }
+    column "contract_id" {
+      type = integer
+    }
+    column "customer_type" {
+      type = boolean
+    }
+    column "payment_type" {
+      type = smallint
+    }
+    column "adjustment_type" {
+      type = integer
+    }
+    column "check_type" {
+      type = smallint
+    }
+    column "cashless_payment" {
+      type = boolean
+    }
+    column "group_id" {
+      type = integer
+    }
+    column "is_kp" {
+      type = integer
+    }
+    column "number_pp" {
+      type = character varying(10)
+    }
+    column "date_pp" {
+      type = date
+    }
+  )
+}
+

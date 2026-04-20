@@ -1,0 +1,40 @@
+view "utility"."view_sublist_for_1c" {
+  text = """-
+SELECT us.id,
+    us.name,
+    ut.name AS type_name,
+    ut.id AS type_id,
+    COALESCE(us.is_kp, false) AS is_kp,
+    uu.name AS unit_name,
+    uu.code AS okei
+   FROM ((utility.sublist us
+     JOIN utility.unit uu ON ((uu.id = us.unit_id)))
+     JOIN utility.type ut ON ((ut.id = us.type)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "type_name" {
+      type = character varying(100)
+    }
+    column "type_id" {
+      type = smallint
+    }
+    column "is_kp" {
+      type = boolean
+    }
+    column "unit_name" {
+      type = character varying(50)
+    }
+    column "okei" {
+      type = character varying(50)
+    }
+  )
+}
+

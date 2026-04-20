@@ -1,0 +1,127 @@
+function "fine"."fine_for_law(integer, integer)" {
+  text = """
+
+declare 
+		_period_id 		int;
+		_parametr_id 	int;
+		_active_period 	int;
+		_rate 			numeric(4,2);
+		_free_days 		int;
+begin
+	
+	create temp table _account (account_id int);
+
+	if (_group_id is null)
+		then
+			insert into _account
+			select id 
+			from adress.account
+			where parent_id = _account_id;
+		else 
+			insert into _account
+			select id 
+			from adress.account
+			where parent_id = _account_id and group_id = _group_id;
+	end if;
+
+	_active_period = (select id from period.list where is_active = true);
+	_period_id = (select id from period.list where is_working = true);
+	
+	select fr.refinancing_rate, fr.free_days
+	into _rate, _free_days
+	from fine.account pa
+		inner join fine.rate fr on  pa.fine_id = fr.list_id
+		inner join _account a on a.account_id = pa.account_id;
+	
+	return query
+	select 
+	 	 t.account_id
+		,t.period_id
+		,t.sum_for_fine
+		,_rate as rate
+		,_free_days as free_days
+		,pl.name_month
+		,pl."year"
+		,pl.date_end
+		,t.calc
+	from (
+		select 
+			 pb.account_id
+			,b.period_id
+			,b.calc
+			,case   
+				when  (pb.in_balance) - sum (case when b.calc >= 0.0 then b.calc else 0.0 end ) over (partition by b.account_id order by b.period_id desc, ord asc ) > 0
+					then case when b.calc >= 0.0 then b.calc else 0.0 end 
+				
+				when (case when b.calc >= 0.0 then b.calc else 0.0 end ) - (sum (case when b.calc >=0.0 then b.calc else 0.0 end ) over (partition by b.account_id order by b.period_id desc, ord asc ) - (pb.in_balance)) > 0 
+					then  (case when b.calc >= 0.0 then b.calc else 0.0 end ) - (sum (case when b.calc >=0.0 then b.calc else 0.0 end ) over (partition by b.account_id order by b.period_id desc, ord asc) - (pb.in_balance))
+				else 0.0
+			end sum_for_fine
+		from 
+			(
+				select
+					account_parent_id as account_id
+					,sum(in_balance) - sum(pay) as in_balance
+				from payment.balance pb
+					inner join _account a on a.account_id = pb.account_id
+				where pb.period_id = _period_id and sublist_id <> 7
+				group by account_parent_id
+			) pb
+			inner join 	(select 
+								sum(current_calculate) + sum (recalculate) as calc
+								,pb.account_parent_id as account_id
+								,pb.period_id
+								,1 as ord
+						 from  payment.balance pb
+							inner join _account a on a.account_id = pb.account_id
+						 where pb.period_id <_period_id and sublist_id <> 7 
+						 group by pb.period_id,pb.account_parent_id
+						 having abs(sum(current_calculate) + sum (recalculate)) <> 0.0
+			  			 union all
+						 select 
+							sum(in_balance)
+							,account_parent_id
+							,_active_period - 1
+							,2
+						 from payment.balance pb
+							inner join _account a on a.account_id = pb.account_id
+						 where pb.period_id = _active_period and sublist_id <> 7 
+						 group by account_parent_id
+						 having sum (in_balance) > 0.0 
+					) b on pb.account_id = b.account_id
+		) t
+	inner join period.list pl on pl.id = t.period_id
+	where t.sum_for_fine <>  0.0;
+
+drop table if exists _account;
+
+
+end;
+"""
+  returnType = TABLE(account_id integer, period_id integer, sum_for_fine numeric, rate numeric, free_days integer, name_month character varying, year integer, date_end date, calc numeric)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ =============================================
+"""
+}
+

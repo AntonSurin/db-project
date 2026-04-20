@@ -1,0 +1,47 @@
+table "payment"."temp_payment_from_1c" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_temp_payment_from1c"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.temp_payment_from1c_id_seq'::regclass)
+    }
+    column "account_name" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "pay_sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "inn" {
+      type = character varying(20)
+    }
+  )
+}
+
+trigger "payment"."temp_payment_from_1c"."split_payments" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = payment.split_payments
+  functionArguments = [
+  ]
+  table = "payment"."temp_payment_from_1c"
+  constraint = False
+  newTableReference = inserted
+}
+

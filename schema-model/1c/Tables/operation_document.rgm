@@ -1,0 +1,42 @@
+table "1c"."operation_document" {
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('"1c".operation_document_id_seq'::regclass)
+    }
+    column "payment_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "key" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "number" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "1c"."operation_document"."fk_1c_operation_document_payment_list" {
+  columns = [
+    "payment_id"
+  ]
+  referencedTable = "payment"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,33 @@
+view "payment"."house_calc" {
+  text = """-
+SELECT pl.month_id,
+    pl.year,
+    sum((COALESCE(pb.current_calculate, (0)::numeric) + COALESCE(pb.recalculate, (0)::numeric))) AS calc,
+    pb.house_id,
+    pb.sublist_id
+   FROM (payment.balance pb
+     JOIN period.list pl ON ((pb.period_id = pl.id)))
+  GROUP BY pl.month_id, pl.year, pb.house_id, pb.sublist_id
+ HAVING (sum((COALESCE(pb.current_calculate, (0)::numeric) + COALESCE(pb.recalculate, (0)::numeric))) <> (0)::numeric);
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "month_id" {
+      type = smallint
+    }
+    column "year" {
+      type = integer
+    }
+    column "calc" {
+      type = numeric
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "sublist_id" {
+      type = integer
+    }
+  )
+}
+

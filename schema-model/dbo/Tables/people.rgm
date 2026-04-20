@@ -1,0 +1,93 @@
+table "dbo"."people" {
+  owner = postgres
+  columns = (
+    column "account_name" {
+      type = character varying(9)
+    }
+    column "fio" {
+      type = character varying(1000)
+    }
+    column "people_type" {
+      type = integer
+    }
+    column "is_show" {
+      type = integer
+    }
+    column "doc_type" {
+      type = integer
+    }
+    column "name_doc" {
+      type = character varying(1000)
+    }
+    column "serial" {
+      type = character varying(100)
+    }
+    column "number" {
+      type = character varying(100)
+    }
+    column "date_doc" {
+      type = date
+    }
+    column "is_by" {
+      type = character varying(1000)
+    }
+    column "date_birth" {
+      type = date
+    }
+    column "date_begin_reg" {
+      type = date
+    }
+    column "date_end_reg" {
+      type = date
+    }
+    column "sex" {
+      type = character varying(20)
+    }
+    column "rs" {
+      type = character varying(20)
+    }
+    column "code_prop" {
+      type = integer
+    }
+    column "t_prop" {
+      type = character varying(100)
+    }
+    column "dol" {
+      type = character varying(100)
+    }
+    column "prm" {
+      type = character varying(100)
+    }
+    column "bron" {
+      type = character varying(40)
+    }
+    column "army" {
+      type = character varying(40)
+    }
+    column "predadr" {
+      type = character varying(40)
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "person_id" {
+      type = integer
+    }
+    column "new_person_id" {
+      type = integer
+    }
+    column "new_sur_name" {
+      type = text
+    }
+    column "new_name" {
+      type = text
+    }
+    column "new_middle_name" {
+      type = text
+    }
+    column "document_id" {
+      type = integer
+    }
+  )
+}
+

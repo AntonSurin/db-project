@@ -1,0 +1,55 @@
+table "gis"."unit" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_unit_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.unit_id_seq'::regclass)
+    }
+    column "name" {
+      type = text
+      null = NOT NULL
+    }
+    column "code_okei" {
+      type = character varying(10)
+      null = NOT NULL
+    }
+    column "code_group_gis" {
+      type = integer
+    }
+    column "group_unit_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "ugo_national" {
+      type = character varying(100)
+    }
+    column "ugo_international" {
+      type = character varying(100)
+    }
+    column "symbol_national" {
+      type = character varying(100)
+    }
+    column "symbol_international" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "gis"."unit"."fk_unit_group_unit" {
+  columns = [
+    "group_unit_id"
+  ]
+  referencedTable = "gis"."group_unit"
+  referencedColumns = [
+    "id"
+  ]
+}
+

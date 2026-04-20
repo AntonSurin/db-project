@@ -1,0 +1,89 @@
+procedure "parametr"."save_value_house(jsonb)" {
+  text = """
+
+declare 
+	_house jsonb;
+begin	
+
+	with cte as 
+	(
+		update parametr.house ph
+			set value = pa.value,
+				date_begin = pa.date_begin
+		from jsonb_populate_recordset(null::parametr."change", _parametr) pa 
+		where ph.parametr_id = pa.parametr_id 
+			and ph.house_id = pa.object_id 
+			and cast(coalesce(ph.date_begin, pa.date_begin) as date) = cast(pa.date_begin as date)
+		returning ph.*
+	)
+	
+	insert into parametr.house (parametr_id, house_id, value, date_begin)
+	select p.parametr_id, p.object_id, p.value, p.date_begin
+	from jsonb_populate_recordset(null::parametr."change", _parametr) as p
+	where not exists (
+						select * 
+						from cte ct 
+						where ct.parametr_id = p.parametr_id 
+							and ct.house_id = p.object_id 
+							and ct.date_begin= p.date_begin 
+					);
+	
+	with cte as 
+	(
+		select 
+			ph.id,
+			ph.house_id , 
+			ph.parametr_id, 
+			ph.value, 
+			ph.date_begin, 
+			ph.date_end,
+			(lead(ph.date_begin, 1, null) over (partition by ph.house_id, ph.parametr_id order by ph.house_id, ph.parametr_id, ph.date_begin)) - 1 as new_date_end
+		from jsonb_populate_recordset(null::parametr."change", _parametr) p
+			inner join parametr.house ph on ph.house_id = p.object_id 
+											and ph.parametr_id = p.parametr_id
+	)
+
+	update parametr.house ph
+		set date_end = ct.new_date_end
+	from  cte ct
+	where ct.id = ph.id;
+
+	if not exists(
+					select * 
+					from jsonb_populate_recordset(null::parametr."change", _parametr) p
+						inner join parametr.list pl on pl.id = p.parametr_id
+					where lower(pl.short_name) in ('etd', 'gdp', 'sq_mop')
+				 )
+		then 
+			return;
+	end if;
+
+	_house = (
+				select jsonb_agg(jsonb_build_object('object_id', d.object_id))
+				from (
+						select p.object_id 
+						from _parametr p
+						group by p.object_id
+					 ) d
+			 );
+
+	call gis.actualize_house (_house);
+
+end
+"""
+  arguments = <
+    {
+      name = _parametr
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  StoredProcedure [Parametr].[SaveValueHouse]    
+ Script Date: 08.11.2023 15:21:17
+"""
+}
+

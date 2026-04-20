@@ -1,0 +1,49 @@
+table "service"."comment" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_comment"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.comment_id_seq'::regclass)
+    }
+    column "task_id" {
+      type = integer
+    }
+    column "service_guid" {
+      type = character varying(50)
+    }
+    column "author" {
+      type = character varying(50)
+    }
+    column "message" {
+      type = text
+      null = NOT NULL
+    }
+    column "is_support_message" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(6) without time zone
+    }
+  )
+}
+
+foreignKey "service"."comment"."fk_comment_task" {
+  columns = [
+    "task_id"
+  ]
+  referencedTable = "service"."task"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

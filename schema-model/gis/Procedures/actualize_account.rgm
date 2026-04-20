@@ -1,0 +1,161 @@
+procedure "gis"."actualize_account(jsonb)" {
+  text = """
+
+begin
+
+	drop table if exists _upload_flat;	
+	drop table if exists _upload_flat;
+	drop table if exists __account;
+	
+	create temp table _upload_account (account_id int, is_upload int2);
+	create temp table _upload_flat (flat_id int, is_upload int2);
+	create temp table __account (account_id int);
+
+	if exists (select * from jsonb_populate_recordset(null::account.list, _account) as d)
+		then
+			begin
+				insert into __account (account_id)
+				select account_id 
+				from jsonb_populate_recordset(null::account.list, _account) a;
+			end;
+		else 
+			begin
+				insert into __account (account_id)
+				select id 
+				from adress.account
+				where parent_id is null;
+			end;
+	end if;
+
+	insert into _upload_account (account_id, is_upload)
+	select account_id, value::int2
+	from parametr.account
+	where parametr_id = 359 and date_end is null;
+
+	insert into _upload_flat (flat_id, is_upload)
+	select flat_id, value::int2
+	from parametr.flat
+	where parametr_id = 360 and date_end is null;
+
+	create temp table _result(account_id int, close_reason_id int, close_date timestamp, description varchar(500), 
+								flat_id int, account_guid uuid, account_name varchar(20), unique_number varchar(10),
+								living_persons_number int, total_square numeric(18,2), residential_square numeric(18,2),
+								nsq numeric(18,2), heated_area numeric(18,2), share_percent numeric(18,2), organization_setting_id int);
+
+	insert into _result
+	select 
+		 aa.id as account_id
+		,null as close_reason_id
+		,case when max(case when pa.parametr_id = 1362 then value::int end) = 0 then max(case when pa.parametr_id = 1362 then date_begin end) end as close_date 
+		,null as description 
+		,aa.flat_id
+		,null as account_guid
+		,aa."name" as account_name
+		,null as unique_number
+		,max ((case when pa.parametr_id = 279 then value end)::int) as living_persons_number
+		,cast(coalesce(max (case when pa.parametr_id = 277 then value::numeric(8,2) end), 0.0) as numeric (8,2))  as total_square
+		,max (case when pa.parametr_id = 278 then value::numeric(8,2) end) as residential_square
+		,cast(coalesce(max (case when pa.parametr_id = 285 then value::numeric(8,2) end), 0.0) as numeric (8,2)) as nsq
+		,null as heated_area
+		,100 as share_percent
+		,os.organization_setting_id
+	from __account a 
+		inner join adress.account aa on aa.id = a.account_id
+		inner join parametr.account pa on pa.account_id = a.account_id
+		inner join gis.organization_house os on aa.house_id = os.house_id
+		left join _upload_account ua on aa.id = ua.account_id
+		left join _upload_flat uf on aa.flat_id = uf.flat_id
+	where pa.parametr_id in (277, 278, 279, 1362, 285) 
+		and pa.date_end is null
+		and coalesce(ua.is_upload, 1) = 1
+		and coalesce(uf.is_upload, 1) = 1
+	group by aa.id, aa."name", aa.flat_id, os.organization_setting_id;
+	
+	merge into house.account as targets
+	using(select c.account_id
+				,close_reason_id
+				,close_date
+				,description 
+				,flat_id
+				,account_guid
+				,account_name
+				,unique_number
+				,p.date_begin as creation_date
+				,living_persons_number
+				,total_square - nsq total_square
+				,residential_square
+				,heated_area
+				,share_percent
+				,organization_setting_id
+			from _result c
+				left join lateral (	select min(date_begin) as date_begin 
+									from parametr.account pa 
+									where pa.parametr_id = 1362 and pa.account_id = c.account_id and pa.value = '1'
+								) p on true 
+		)
+	as sources (account_id,close_reason_id,close_date,description,flat_id,account_guid,account_name,unique_number,creation_date,living_persons_number,total_square,residential_square,heated_area,share_percent,organization_setting_id)
+	on (targets.account_id = sources.account_id and targets.organization_setting_id = sources.organization_setting_id)
+	when matched
+		then update 
+			set close_date = sources.close_date,
+				living_persons_number = sources.living_persons_number,
+				total_square = sources.total_square,
+				residential_square = sources.residential_square,
+				heated_area = sources.heated_area,
+				account_name = sources.account_name
+	when not matched 
+		then insert (account_id,close_reason_id,close_date,description,flat_id,account_guid,account_name,unique_number,creation_date,living_persons_number,total_square,residential_square,heated_area,share_percent,organization_setting_id)	
+			values (sources.account_id,sources.close_reason_id,sources.close_date,sources.description,sources.flat_id,sources.account_guid,sources.account_name,sources.unique_number,sources.creation_date,sources.living_persons_number,sources.total_square,sources.residential_square,sources.heated_area,sources.share_percent, sources.organization_setting_id);
+
+	delete 
+	from house.account d
+	where exists (
+					select account.account_id 
+					from house.account account
+						inner join _upload_account upload_account on account.account_id = upload_account.account_id
+						left join _upload_flat upload_flat on account.flat_id = upload_flat.flat_id
+					where upload_flat.is_upload = 0 or upload_account.is_upload = 0 and d.account_id = account.account_id
+				);
+	
+	delete 
+	from house.account d
+	where exists (
+					select account.account_id 
+					from house.account account
+						inner join house.flat flat on account.flat_id = flat.flat_id
+						left join gis.organization_house house on flat.house_id = house.house_id and account.organization_setting_id = house.organization_setting_id
+					where house.house_id is null
+				);
+			
+	update house.account
+		set is_close_account = false,
+			unique_number = null
+	where is_close_account = true and close_date is null;
+	
+	 drop table if exists __account;
+	 drop table if exists _upload_flat;
+	 drop table if exists _upload_account;
+	 drop table if exists _result;
+
+	
+end
+"""
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<adescription,,>
+ =============================================
+"""
+}
+

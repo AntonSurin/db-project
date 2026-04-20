@@ -1,0 +1,18 @@
+composite "contragent"."phone" {
+  owner = postgres
+  fields = (
+    field "type" {
+      type = smallint
+    }
+    field "value" {
+      type = character varying(11)
+    }
+    field "description" {
+      type = text
+    }
+    field "use_for_sms" {
+      type = boolean
+    }
+  )
+}
+

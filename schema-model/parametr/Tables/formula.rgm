@@ -1,0 +1,62 @@
+table "parametr"."formula" {
+  primaryKey = {
+    columns = [
+      "formula_id"
+    ]
+    name = "pk_formula"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "formula_id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('parametr.formula_formula_id_seq'::regclass)
+    }
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "tag_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "formula" {
+      type = text
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "sublist_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "parametr"."formula"."fk_formula_list" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "parametr"."formula"."fk_formula_tag" {
+  columns = [
+    "tag_id"
+  ]
+  referencedTable = "calculation"."tag"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+

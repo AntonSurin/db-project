@@ -1,0 +1,31 @@
+view "bank"."counting_info" {
+  text = """-
+SELECT bc.bank_id,
+    oc.rs AS bank_name,
+    oc.id,
+    bc.code,
+    bc.code_fine
+   FROM (bank.counting bc
+     JOIN organization.counting oc ON ((oc.id = bc.counting_id)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "bank_id" {
+      type = integer
+    }
+    column "bank_name" {
+      type = character varying(20)
+    }
+    column "id" {
+      type = integer
+    }
+    column "code" {
+      type = character varying(20)
+    }
+    column "code_fine" {
+      type = character varying(20)
+    }
+  )
+}
+

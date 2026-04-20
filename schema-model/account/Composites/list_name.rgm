@@ -1,0 +1,9 @@
+composite "account"."list_name" {
+  owner = postgres
+  fields = (
+    field "account_name" {
+      type = character varying(12)
+    }
+  )
+}
+

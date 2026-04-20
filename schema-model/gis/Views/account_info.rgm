@@ -1,0 +1,95 @@
+view "gis"."account_info" {
+  text = """-
+SELECT ai.order_id,
+    ai.account_id,
+    ai.flat_id,
+    hi.house_id,
+    hc.house_type,
+    ai.city,
+    ai.street_name AS street,
+        CASE
+            WHEN ((hi.korpus IS NULL) OR ((hi.korpus)::text = '0'::text)) THEN (hi.number)::text
+            ELSE (((hi.number)::text || ' '::text) || (hi.korpus)::text)
+        END AS house,
+    ai.flat_book_short_name AS flat_type,
+    COALESCE(hf.cadaster_flat_name, ai.flat_name) AS flat_name,
+    ai.account_name,
+    ha.total_square,
+    ha.unique_number,
+    ha.close_date,
+        CASE
+            WHEN ((ha.unique_number IS NULL) AND (ge.error_text IS NULL)) THEN 0
+            WHEN ((ha.unique_number IS NOT NULL) AND (ge.error_text IS NULL)) THEN 1
+            WHEN ((ha.unique_number IS NOT NULL) AND (ge.error_text IS NOT NULL)) THEN 2
+            WHEN ((ha.unique_number IS NULL) AND (ge.error_text IS NOT NULL)) THEN 2
+            ELSE NULL::integer
+        END AS state,
+    ge.error_text,
+    ha.is_special_kp
+   FROM (((((adress.info ai
+     JOIN house.info hi ON ((ai.house_id = hi.house_id)))
+     JOIN house.flat hf ON ((hf.flat_id = ai.flat_id)))
+     JOIN house.account ha ON ((ai.account_id = ha.account_id)))
+     JOIN house.characteristic hc ON ((ai.house_id = hc.house_id)))
+     LEFT JOIN gis.entity_queue ge ON (((ge.entity_id = ai.account_id) AND (lower((ge.type_name)::text) = 'account'::text) AND (ge.id = ( SELECT max(ge2.id) AS max
+           FROM gis.entity_queue ge2
+          WHERE ((lower((ge2.type_name)::text) = 'account'::text) AND (ge2.entity_id = ai.account_id)))))))
+  WHERE (hc.is_export = true);
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "order_id" {
+      type = integer
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "flat_id" {
+      type = integer
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "house_type" {
+      type = smallint
+    }
+    column "city" {
+      type = text
+    }
+    column "street" {
+      type = text
+    }
+    column "house" {
+      type = text
+    }
+    column "flat_type" {
+      type = character varying(10)
+    }
+    column "flat_name" {
+      type = character varying
+    }
+    column "account_name" {
+      type = character varying(12)
+    }
+    column "total_square" {
+      type = numeric(18,2)
+    }
+    column "unique_number" {
+      type = character varying(10)
+    }
+    column "close_date" {
+      type = timestamp(3) without time zone
+    }
+    column "state" {
+      type = integer
+    }
+    column "error_text" {
+      type = text
+    }
+    column "is_special_kp" {
+      type = boolean
+    }
+  )
+}
+

@@ -1,0 +1,1460 @@
+procedure "account"."re_create(integer, date, integer, smallint, boolean, boolean, boolean)" {
+  text = """
+
+declare 
+		_parameters					text = '';
+		_sql						text = '';
+		_new_account_id				int;
+		_flat_id					int;
+		_password_site				int;
+		_new_id						int;
+		_date_begin					date;
+		_date_end					date;
+		_open_date					date;
+		_new_account_name			varchar(12);
+		_account_name				varchar(12);
+		_root_id					int;
+		_working_period_id			int;
+		_house_id					int;
+		_tarif						text = '';
+		_volume						text = '';
+		_normativ					text = '';
+		_sum_volume					text = '';
+		_update_volume				text = '';
+		_sum_volume_update			text = '';
+		_hs							jsonb;
+		_order_id 					int;
+		_update_current 			text = '';
+		_flow_transporate_column 	text = '';
+		_generate_flow 				text = '';
+		_is_use_reserve 			bool ;
+		_ca 						jsonb;
+		err_code 					text;
+		msg_text 					text;
+		exc_context 				text;
+		_period_n 					int; 
+		_period_x 					int; 
+		_temp_id 					int;
+		_active_period 				int;
+		_period_id 					int;
+begin
+	
+		select id, date_begin, date_end 
+		into _working_period_id, _date_begin, _date_end 
+		from "period".list 
+		where is_working = true;
+	
+		select left(regexp_replace(md5(name),'\D', '', 'g'), 6)::int , house_id, flat_id, "name"
+		into _password_site, _house_id, _flat_id, _account_name
+		from adress.account 
+		where id = _account_id;
+	
+		_open_date = (case 
+						when _date < _date_begin then _date_begin
+						else _date
+					  end);
+					 
+		drop table if exists _flats;
+		create temp table _flats (object_id int, "parameter" int default null);
+		insert into _flats 
+		values (_flat_id);
+
+		drop table if exists _gen;
+
+		create temp table _gen (id int, "name" text);
+
+		insert into _gen 	
+		select *
+		from account.generate_account_name_with_validation ((select jsonb_agg(jsonb_build_object('object_id', object_id, 'parameter', "parameter")) from _flats));
+
+		_new_account_name  = (select "name" from _gen);
+
+		drop table if exists _gen;
+
+		begin
+			alter table adress.account disable trigger insert_into_p_account;
+		
+			insert into adress.account (house_id, flat_id, "name", password_site)
+			values (_house_id, _flat_id, _new_account_name, _password_site);
+	
+			_new_account_id = (select max(id) from adress.account);
+	
+			_hs = (select '[{"house_id":' || _house_id|| '}]');
+		
+			call account."ordering" (_hs);
+	
+			_order_id = (select order_id from adress.account where id = _new_account_id);
+	
+			if exists (select * from utility.contragent_group)
+				then
+					insert into adress.account (house_id, flat_id, "name", password_site, parent_id, group_id, order_id)
+					select _house_id, _flat_id, _new_account_name, _password_site, _new_account_id, group_id, _order_id
+					from utility.contragent_group_sublist 
+					where house_id = _house_id
+					group by group_id;
+				else 			
+					insert into adress.account (house_id, flat_id, "name", password_site, parent_id, order_id)
+					values (_house_id, _flat_id, _new_account_name, _password_site, _new_account_id, _order_id);
+			end if;
+	
+			/*	перенос настроек пени	*/
+			merge into fine.account as targets
+			using
+			(
+				select a.id, fine_id
+				from adress.account aa
+					inner join fine.account fa on fa.account_id = aa.id
+					inner join (
+						select id, group_id
+						from adress.account 
+						where parent_id = _new_account_id
+					) a on coalesce(a.group_id, 0) = coalesce(aa.group_id, 0)
+				where aa.parent_id = _account_id
+			) 
+			as sources(account_id, fine_id)
+			on(targets.account_id = sources.account_id)
+			when matched then
+				update set
+					fine_id = sources.fine_id
+			when not matched then
+				insert(account_id, fine_id)
+				values(sources.account_id, sources.fine_id);
+	
+------------перенос согласно дате пересоздания собственников/проживающих на новый лицевой
+			create temp table _contragent (contragent_id int);
+	
+			insert into _contragent
+			select distinct ca.contragent_id
+			from contragent.account ca
+				left join contragent.owner_documents od on od.contragent_account_id = ca.id
+				left join lateral(
+									select cc.account_id, cc.contract_id, cc.date_begin, cc.date_end, co.contragent_id 
+								  	from contragent.contract_account cc 
+									   inner join contragent.contract co on co.id = cc.contract_id  
+								  	where co.contragent_id = ca.contragent_id and cc.account_id = ca.account_id
+								  ) as c on  true
+			where ca.account_id = _account_id and (    (od.date_begin >= _date and ca.reg_date_begin >= _date) 
+													or (od.date_begin is null and ca.reg_date_begin >= _date) 
+													or (ca.reg_date_begin is null and od.date_begin >= _date)
+													or (ca.reg_date_begin is null and od.date_begin is null and c.date_begin >= _date)
+												  );
+	
+			update contragent.account as ca 
+				set account_id = _new_account_id
+			from _contragent c
+			where ca.account_id = _account_id and ca.contragent_id = c.contragent_id;
+	
+			update contragent.contract_account ca 
+				set account_id = _new_account_id 
+			from _contragent c
+				inner join contragent.contract cc on cc.contragent_id = c.contragent_id
+			where ca.account_id = _account_id and ca.contract_id = cc.id;
+			
+	--------заполняем услуги
+			alter table calculation.account_sublist disable trigger insert_account_sublist_edit;
+			alter table calculation.account_sublist disable trigger update_account_sublist_edit;
+			
+			insert into calculation.account_sublist(house_id, account_id, account_parent_id, sublist_id, value, "date")
+			select _house_id, aa.id, aa.parent_id, ca.sublist_id, ca.value, ca."date"
+			from calculation.account_sublist ca
+				inner join adress.account a on a.id = ca.account_id
+				inner join (
+								select id, parent_id, group_id
+								from adress.account 
+								where parent_id = _new_account_id
+							) aa on coalesce(aa.group_id, 255) = coalesce(a.group_id, 255)
+			where ca.account_parent_id = _account_id;
+	
+			alter table calculation.account_sublist enable trigger insert_account_sublist_edit;
+			alter table calculation.account_sublist enable trigger update_account_sublist_edit;
+			
+			alter table calculation.account_sublist_for_change disable trigger update_account_sublist;	
+			alter table calculation.account_sublist_for_change disable trigger insert_account_sublist;	
+		
+			insert into calculation.account_sublist_for_change(account_id, account_parent_id, sublist_id, value, date_begin, date_end, period_id)
+			select aa.id, aa.parent_id, ca.sublist_id, ca.value, ca.date_begin, ca.date_end, ca.period_id
+			from calculation.account_sublist_for_change ca
+				inner join adress.account a on a.id = ca.account_id
+				inner join (
+								select id, parent_id, group_id
+								from adress.account 
+								where parent_id = _new_account_id
+							) aa on coalesce(aa.group_id, 255) = coalesce(a.group_id, 255)
+			where ca.account_parent_id = _account_id;
+		
+			alter table calculation.account_sublist_for_change enable trigger update_account_sublist;	
+			alter table calculation.account_sublist_for_change enable trigger insert_account_sublist;	
+	
+			_parameters = (		
+							select string_agg(column_name, ', ') 
+							from information_schema."columns"
+							where table_name = 'parametr_transporate' and table_schema = 'calculation'
+								and column_name not in ('id', 'house_id', 'flat_id', 'account_id', 'territory_id')
+							);	
+
+	------- заполняем таблицу параметров (активную)
+			_sql = 'insert into calculation.parametr_transporate (house_id, flat_id, account_id, territory_id, ' || _parameters ||')
+					select cp.house_id, cp.flat_id, ' || _new_account_id || ', cp.territory_id, ' || _parameters ||' 
+					from calculation.parametr_transporate cp
+					where cp.account_id = '|| _account_id ||';';
+				
+			execute(_sql);
+	
+			select 
+				 string_agg('"t_' || short_name || '"', ','),
+				 string_agg('"v_' || short_name || '"', ','),
+				 string_agg('"v_' || short_name || '" = null', ',')
+			into _tarif, _volume, _update_volume
+			from utility.sublist;
+	
+			-- перенос объемов
+			_sql = 'insert into calculation.volume (house_id, flat_id, account_id, ' || _volume || ')
+					select house_id, flat_id, ' || _new_account_id || ', ' || _volume || '
+					from calculation.volume
+					where account_id = ' || _account_id || ';
+	
+					update calculation.volume 
+						set ' || _update_volume || '
+					where account_id = ' || _account_id;
+				
+			execute(_sql);
+	
+			-- перенос тарифов
+			_sql = 'insert into calculation.tarif (house_id, flat_id, account_id, ' || _tarif || ')
+					select house_id, flat_id, ' || _new_account_id || ', ' || _tarif || '
+					from calculation.tarif
+					where account_id = ' || _account_id;
+				
+			execute(_sql);
+	
+			-- перенос нормативов
+			_normativ = (select string_agg('"' || column_name || '"', ', ')
+						 from information_schema."columns"
+						 where lower(table_name) = 'normativ' 
+						 		and lower(table_schema) = 'calculation'
+								and lower(column_name) not in ('house_id', 'flat_id', 'account_id'));
+				
+			_sql = 'insert into calculation.normativ (house_id, flat_id, account_id, ' || _normativ || ')
+					select house_id, flat_id, ' || _new_account_id || ', ' || _normativ || '
+					from calculation.normativ
+					where account_id = ' || _account_id;
+				
+			execute(_sql);
+	
+		  	-- перенос sumvolume
+			select 
+			 	string_agg('"' || column_name || '"', ', '),
+				string_agg('"' || column_name || '" = null', ', ')
+			into _sum_volume,_sum_volume_update
+			from information_schema."columns"
+			where lower(table_name) = 'sum_volume' 
+				and lower(table_schema) = 'calculation'
+				and lower(column_name) not in ('house_id', 'flat_id', 'account_id');
+			
+			_sql = 'insert into calculation.sum_volume (house_id, flat_id, account_id, ' || _sum_volume || ')
+					select house_id, flat_id, ' || _new_account_id || ', ' || _sum_volume || '
+					from calculation.sum_volume
+					where account_id = ' || _account_id || ';
+	
+					update calculation.sum_volume 
+						set
+						'|| _sum_volume_update || '
+					where account_id = ' || _account_id;
+			
+			execute(_sql);
+	
+			update calculation.parametr_transporate 
+				set	is_closed = 0
+			where account_id = _account_id;
+	
+			--перенос параметров
+			insert into parametr.account (account_id, parametr_id, value, date_begin)
+			select 
+				_new_account_id, 
+				parametr_id, 
+				value, 
+				case 
+					when pa.date_begin <= _date_begin 
+					then _date_begin 
+					else _open_date 
+				end
+			from parametr.account pa
+			where account_id = _account_id
+				and date_end is null
+				and parametr_id != 1362;
+	
+			delete from parametr.account 
+			where account_id = _account_id
+				and parametr_id = 1362 
+				and date_begin >= _open_date;
+	
+			insert into parametr.account (account_id, parametr_id, value, date_begin)
+			values (_account_id, 1362, 0, _open_date);
+	
+			insert into parametr.account (account_id, parametr_id, value, date_begin)
+			select _new_account_id as account_id, 1362 as parametr_id, 0 as value, _date_begin as date_begin;
+	
+			merge into parametr.account as targets
+			using (select _new_account_id as account_id, 1362 as parametr_id, 1 as value, _open_date as date_begin)
+			as sources (account_id, parametr_id, value, date_begin)
+			on (targets.account_id = sources.account_id and targets.parametr_id = sources.parametr_id and targets.date_begin = sources.date_begin)
+			when matched then
+				update set
+					targets.value = sources.value
+			when not matched then
+				insert (account_id, parametr_id, value, date_begin)
+				values (sources.account_id, sources.parametr_id, sources.value, sources.date_begin);
+	
+			 --перенос настроек вводы услуг  
+			insert into "input".account (input_id, house_id, account_id, sublist_id)
+			select input_id, house_id, _new_account_id, sublist_id
+			from "input".account ia
+			where account_id = _account_id;
+	
+			 --перенос настроек по-среднему счетчиков
+			insert into utility.sublist_group_a_detail (group_id, house_id, account_id, avg_type, get_value_type, period_id)
+			select group_id, house_id, _new_account_id, avg_type, get_value_type, period_id
+			from utility.sublist_group_a_detail
+			where account_id = _account_id;
+			
+			  --перенос payment.balance
+			insert into payment.balance (house_id, flat_id, account_id, period_id, sublist_id, tarif, normativ, volume, in_balance, current_calculate, rate_normativ, recalculate, pay, account_parent_id)
+			select pb.house_id, pb.flat_id, aa.id, pb.period_id, pb.sublist_id, 0.0 as tarif, 0.0 as normativ, 0.0 as volume, 0.0 as in_balance, 0.0 as current_calculate, 0.0 as rate_normativ, 0.0 as recalculate, 0.0 as pay, _new_account_id
+			from payment.balance pb
+				inner join adress.account a on a.id = pb.account_id
+				inner join (
+								select id, group_id
+								from adress.account 
+								where parent_id = _new_account_id
+							) aa on coalesce(aa.group_id, 255) = coalesce(a.group_id, 255)
+			where pb.account_parent_id = _account_id and pb.period_id = _working_period_id;
+			
+			begin
+				--перенос счетчиков
+				create temp table _counters (id int, new_id int, date_begin date, sublist_id int, active bool, "number" smallint, rate numeric(9,6), unit_id int, serial_number varchar(50)
+												, installation_date date, verification_date date, stamp_number varchar(50), antimagnet_stamp_number varchar(50), verification_interval int
+												, close_description_id int, mark_id int, model varchar(50), is_show_value smallint, counter_type smallint);
+		
+				_new_id = (	select max(id) 
+							from counter.list);
+		 
+				insert into _counters (id, new_id, date_begin, sublist_id, active, "number", rate, unit_id, serial_number, installation_date, verification_date, stamp_number, antimagnet_stamp_number
+									, verification_interval, close_description_id, mark_id, model, is_show_value, counter_type)
+				select 
+					id, 
+					_new_id + row_number() over (order by id)
+					, _open_date, sublist_id, active, "number", rate, unit_id, serial_number, installation_date, verification_date, stamp_number
+					, antimagnet_stamp_number, verification_interval, close_description_id, mark_id, model, is_show_value, counter_type
+				from counter.list cl
+					inner join counter.account ca on ca.counter_id = cl.id
+				where ca.account_id = _account_id
+					and active = true 
+					and cl.date_end is null
+					and cl.date_begin < _open_date;
+		
+				insert into counter.list (id, date_begin, sublist_id, active, "number", rate, unit_id, serial_number, installation_date, verification_date, stamp_number, antimagnet_stamp_number
+										, verification_interval, close_description_id, mark_id, model, is_show_value, counter_type)
+				select new_id, date_begin, sublist_id, active, "number", rate, unit_id, serial_number, installation_date, verification_date, stamp_number, antimagnet_stamp_number, verification_interval
+					, close_description_id, mark_id, model, is_show_value, counter_type
+				from _counters;
+		
+				insert into counter.account (counter_id, account_id)
+				select new_id, _new_account_id
+				from _counters; 
+		
+				update counter.list cll
+					set active = false
+						,date_begin = (case when cl.date_begin = _date_begin then (_open_date - 1) else cl.date_begin end)
+						,date_end = case when _open_date = _date_begin then (_open_date - 1) else _open_date end	
+				from counter.list cl
+					join counter.account ca on ca.counter_id = cl.id
+				where cll.id = cl.id and ca.account_id = _account_id and cl.active = true;
+	
+				if _open_date = _date_begin 
+				then
+					_rules = 1;	
+				end if;
+				
+				create temp table _flow (id int,new_id int,period_id int,new_prev_value numeric(20,10),new_value numeric(20,10),prev_value numeric(20,10),value numeric(20,10),c_value numeric(20,10)
+										,sublist_id int,rate numeric(9,6),flow numeric(20,6),new_flow_type_id int,flow_type_id int,current_flow_type_id int,prev_date date,"date" date);
+		
+				insert into _flow (id, new_id, period_id, new_prev_value, new_value, prev_value, value, c_value, sublist_id, rate, flow, new_flow_type_id, flow_type_id, prev_date, "date")
+				select 
+					c.id,
+					c.new_id, 
+					cf.period_id,
+					case _rules
+						when 0 then cf.value
+						when 1 then cf.prev_value                                            
+						when 2 then case when cf."date" > _open_date then cf.prev_value + round(cf.flow / cf.rate / pl.day_in_month * (_open_date - pl.date_begin), 5) else cf.value end
+					end as new_prev_value,
+					case _rules
+						when 0 then null
+						when 1 then cf.value
+						when 2 then case when cf."date" > _open_date then cf.value else null end
+					end as new_value,
+					cf.prev_value,
+					cf.value,
+					coalesce(cf.c_value, 0.0) as c_value,
+					cf.sublist_id,
+					cf.rate,
+					cf.flow,
+					coalesce(case _rules
+								when 0 then 0
+								when 1 then cf.flow_type_id
+								when 2 then case when cf."date"> _open_date then cf.flow_type_id else 0 end
+							end , 0) as new_flow_type_id,
+					coalesce(cf.flow_type_id,0) as flow_type_id,
+					cf.prev_date, 
+					case _rules
+						when 0 then null
+						when 1 then cf."date"
+						when 2 then case when cf."date" > _open_date then cf."date" else null end 
+					end as "date"
+				from _counters c
+					inner join counter.flow cf on cf.counter_id = c.id
+					inner join "period".list pl on pl.id = cf.period_id
+				where cf.period_id = _working_period_id;
+
+			end;
+		
+			--обновляем расходы в parametrtransporate
+			_update_volume = '';
+			_sum_volume_update = '';
+	
+			select string_agg('
+					"' || pl.short_name || '" = 
+										case 
+											when cp.account_id = ' || _account_id || ' then null
+											else f.' || pl.short_name || '
+										end', ', '),
+					 string_agg(pl.short_name || ' numeric(' || pl.len || ', ' || pl."precision" || ')', ', '),
+					 string_agg('sum(case when sublist_id = ' || ps.sublist_id || ' then case when account_id = ' || _account_id || 
+							' then value - prev_value else new_value - new_prev_value end end) as ' || pl.short_name, ','),
+					 string_agg('"v_' || us.short_name || '" = "' || pl.short_name || '"', ', ') 
+			into _update_current, _flow_transporate_column, _generate_flow , _update_volume  
+			from parametr.sublist ps
+				inner join parametr.list pl on pl.id = ps.parametr_id 
+				inner join utility.sublist us on us.id = ps.sublist_id
+			where ps.catalog_id = 1;
+	
+			if nullif(_update_current,'') is not null and nullif(_flow_transporate_column,'') is not null and nullif(_update_volume,'') is not null 
+				then 
+					begin
+						_sql = '
+						create temp table _flow_transporate (account_id int, period_id int, ' || _flow_transporate_column || ');
+						
+						insert into _flow_transporate
+						select ca.account_id, f.period_id,' || _generate_flow || '
+						from _flow f
+							inner join counter.account ca on ca.counter_id = f.id
+						group by ca.account_id, f.period_id
+						union all
+						select ca.account_id, f.period_id,' || _generate_flow ||'
+						from _flow f
+							inner join counter.account ca on ca.counter_id = f.new_id
+						group by ca.account_id, f.period_id;
+				
+						update calculation.parametr_transporate as cp
+							set 
+							' || _update_current || '
+						from _flow_transporate f
+						where f.account_id = cp.account_id and f.period_id = ' || _working_period_id;
+				
+						execute(_sql);
+					end;
+			end if;
+		
+			insert into counter.flow (counter_id, period_id, prev_value, value, c_value, flow_type_id, sublist_id, rate, prev_date, "date")
+			select 
+				f.new_id
+				,f.period_id - 1
+				,coalesce(f.new_prev_value, f.prev_value) as prev_value
+				,coalesce(f.new_prev_value, f.prev_value) as value
+				,0.0 as c_value
+				,5 as flow_type_id
+				,f.sublist_id
+				,f.rate
+				,f.prev_date
+				,f.prev_date as "date"
+			from _flow f
+			union all
+			select 
+				f.new_id
+				,f.period_id
+				,coalesce(f.new_prev_value, f.prev_value) as prev_value
+				,f.new_value as value
+				,f.c_value
+				,f.new_flow_type_id
+				,f.sublist_id
+				,f.rate
+				,f.prev_date
+				,f."date"
+			from _flow f;
+	
+			if _open_date = _date_begin
+				then 
+					begin
+						delete 
+						from counter.flow as cf
+						where cf.counter_id in (select c.id  from _counters c ) 
+							and cf.period_id = _working_period_id;
+	
+						update counter.list cl
+							set	
+								date_end = _open_date - 1,
+								active = false
+						from _counters c 
+						where c.id = cl.id;
+	
+						update counter.flow cf
+							set	value = coalesce(f.new_prev_value, f.prev_value),
+								flow_type_id = 2,
+								"date" = _open_date - 1
+						from _flow f
+						where f.id = cf.counter_id and f.period_id = cf.period_id and cf.period_id = _working_period_id - 1;
+					end; 
+				else
+					begin
+						update counter.flow as cf 
+							set	value = coalesce(f.new_prev_value, f.prev_value),
+								flow_type_id = 2,
+								"date" = coalesce(f."date", _open_date)
+						from _flow f
+						where f.id = cf.counter_id and f.period_id = cf.period_id and cf.period_id = _working_period_id;
+					end; 
+			end if;
+	
+			update counter.account ca
+				set account_id = _new_account_id
+			from counter.list cl				
+			where ca.counter_id = cl.id
+				and ca.account_id = _account_id	
+				and cl.active = true 
+				and cl.date_end is null 
+				and cl.date_begin >= _open_date;
+	
+			update counter.list as cl 
+				set unique_number = null,
+					version_guid = null,
+					root_guid = null
+			from counter.account ca 
+			where ca.counter_id = cl.id and ca.account_id = _new_account_id;
+	
+			update counter.flow as cf
+				set value = cf.value
+			from counter.account ca
+			where ca.counter_id = cf.counter_id
+				and ca.account_id in (_account_id, _new_account_id) 
+				and cf.period_id = _working_period_id;
+	
+		--------******************проведение перерасчета --**************************
+		if (_date < _date_begin) 
+			then 
+				begin
+					insert into recalculation.root ("name", "date", period_id, "type", rules, odn, period_begin, period_end, session_id)
+					select 'Разделение л/с' as "name",
+							current_date  as "date",
+							_working_period_id as period_id,
+							5 as "type",
+							1 as rules,
+							false as odn,
+							min(pl.id) as period_begin,
+							max(case when _include_pays = true then pl.id else pl.id - 1 end) as period_end,
+							_session_id
+					from "period".list pl 
+					where pl.date_end >= _date and pl.id <= _working_period_id;
+	
+					_root_id = (select max(id) from recalculation.root);
+		
+					insert into recalculation.annotation (root_id, "text")
+					select _root_id, 'Разделение л/с №' || _account_name || ' с ' || _date || case when _include_pays = true then ' (c учетом платежей в сумме перерасчета)' else '' end as "text";
+		
+					create temp table _recalc (root_id int, period_id int, house_id int, flat_id int, account_id int, sublist_id int, date_begin date, date_end date, "day" int,
+												diff_volume numeric(11,5), calc_result numeric(15,2), recalc_result numeric(15,2), diff_result numeric(15,2), account_parent_id int);
+		
+					with cte as 
+					(
+						select  pb.period_id,
+								pb.house_id,
+								pb.flat_id,
+								pb.account_id,
+								pb.sublist_id,
+								pl.date_begin,
+								pl.date_end,
+								coalesce(cpa.house_open, pl.day_in_month) as day_in_month,
+								(
+									case 
+										when _date between pl.date_begin and pl.date_end 
+										then _date - pl.date_begin
+										else coalesce(cpa.house_open, pl.day_in_month)
+									 end
+								 )::int  as "day",
+								(
+									case 
+										when _date between pl.date_begin and pl.date_end 
+										then pl.day_in_month - (_date - pl.date_begin)
+										else coalesce(cpa.house_open, pl.day_in_month)
+									 end
+								 )::int as day2,
+								- round(
+										case 
+											when pb.period_id < _working_period_id
+											then 
+												case 
+													when _date between pl.date_begin and pl.date_end 
+													then pb.volume / nullif(coalesce(cpa.account_open,coalesce(cpa.house_open,pl.day_in_month)),0) * ((pl.date_end - _date) + 1)
+													else pb.volume
+												end 
+											else 0.0
+										end
+										,5)	
+								as diff_volume,
+								 round(
+								 		case 
+											when pb.period_id < _working_period_id
+											then 
+												case 
+													when _date between pl.date_begin and pl.date_end 
+													then pb.volume / nullif(coalesce(cpa.account_open,coalesce(cpa.house_open,pl.day_in_month)),0) * ((pl.date_end - _date) + 1) 
+													else pb.volume
+												end 
+											else 0.0
+										end
+										,5) 
+									as diff_volume2,
+									case 
+										when pb.period_id < _working_period_id
+										then 
+											case 
+												when _date between pl.date_begin and pl.date_end 
+												then (pb.current_calculate + (
+																				case 
+																					when _recalc_rules = false
+																					then pb.recalculate
+																					else coalesce(re.recalculate,0.0)
+																				end
+																			)
+													)
+													- round(
+																(pb.current_calculate + (case when _recalc_rules = false then pb.recalculate else coalesce(re.recalculate,0.0) end)) 
+																/ 
+																nullif(coalesce(cpa.account_open, coalesce(cpa.house_open, pl.day_in_month)),0) 
+																* 
+																((pl.date_end - _date) + 1) 
+														, 2) 
+												else 0.0
+											end 
+										else 0.0
+									end	
+									as new_calc,
+									case 
+										when pb.period_id < _working_period_id
+											then 
+												case 
+													when _date between pl.date_begin and pl.date_end 
+													then round(
+																  (pb.current_calculate + (case when _recalc_rules = false then pb.recalculate else coalesce(re.recalculate,0.0) end)) 
+																	/ nullif(coalesce(cpa.account_open,coalesce(cpa.house_open,pl.day_in_month)),0) 
+																	* ((pl.date_end - _date) + 1)
+														   , 2) 
+													else (pb.current_calculate + (case when _recalc_rules = false then pb.recalculate else coalesce(re.recalculate,0.0) end))
+												end 
+											else 0.0
+									end	
+									as new_calc2,
+									- round(
+											case 
+												when pb.period_id < _working_period_id
+												then 
+													case 
+														when _date between pl.date_begin and pl.date_end 
+														then (pb.current_calculate + pb.recalculate) / nullif(coalesce(cpa.account_open,coalesce(cpa.house_open,pl.day_in_month)),0) * ((pl.date_end - _date) + 1)   
+														else pb.current_calculate + pb.recalculate
+													end 
+												else 0.0
+											end
+											,2)
+										+ 	case 
+												when _include_pays = true 
+												then 
+													case 
+														when _date between pl.date_begin and pl.date_end 
+														then (pb.current_calculate + (case when _recalc_rules = false then pb.recalculate else coalesce(re.recalculate,0.0) end)) 
+																/ nullif(coalesce(cpa.account_open,coalesce(cpa.house_open,pl.day_in_month)),0) 
+																* ((pl.date_end - _date) + 1)
+														else pb.current_calculate + (case when _recalc_rules = false then pb.recalculate else coalesce(re.recalculate,0.0) end)
+													end 
+												else 0.0 
+											end
+										as new_recalc,
+								  round(case 
+						when pb.period_id < _working_period_id
+						then 
+							case 
+								when _date between pl.date_begin and pl.date_end 
+								then (pb.current_calculate + (case when _recalc_rules = false then pb.recalculate else coalesce(re.recalculate,0.0) end)) 
+										/ coalesce(cpa.account_open,coalesce(cpa.house_open,pl.day_in_month)) 
+										* ((pl.date_end - _date) + 1) 
+								else pb.current_calculate + (case when _recalc_rules = false then pb.recalculate else coalesce(re.recalculate,0.0) end)
+							end 
+						else 0.0
+					end
+				,2)
+					- case when _include_pays = true then case when _date between pl.date_begin and pl.date_end then coalesce(p.pay,0) else pb.pay end else 0.0 end 
+					as new_recalc2,
+													pb.account_parent_id,
+								aa.group_id
+							from payment.balance pb
+								inner join adress.account aa on aa.id = pb.account_id
+								inner join "period".list pl on pl.id = pb.period_id 
+								left join calculation.parametr_transporate_arch cpa on cpa.period_id = pb.period_id and cpa.account_id = pb.account_parent_id 
+								left join (
+											select pd.account_id, pd.sublist_id, sum(pd.sum) as pay 
+											from payment.list pp
+												inner join payment.detal pd on pd.payment_id = pp.id
+												inner join "period".list pl on _date between pl.date_begin and pl.date_end
+											where pp.account_id = _account_id and pp.date >= _date and pp.period_id = pl.id
+											group by pd.account_id, pd.sublist_id
+										  ) p on p.account_id = pb.account_id and p.sublist_id = pb.sublist_id
+								left join (select re.account_id, re.period_id, re.sublist_id, sum(re.diff_result) as recalculate
+				from period.list pl
+					inner join recalculation.root ro on ro.period_id = pl.id
+					inner join recalculation.result re on re.root_id = ro.id
+				where re.account_parent_id = _account_id and pl.date_end >= _date
+				group by re.account_id, re.period_id, re.sublist_id) re on re.account_id = pb.account_id and re.period_id = pb.period_id and re.sublist_id = pb.sublist_id
+				where pb.account_parent_id = _account_id 
+						and (case 
+								when pb.period_id = _working_period_id 
+								then 0.0 
+								else pb.current_calculate + (case when _recalc_rules = false then pb.recalculate else coalesce(re.recalculate,0.0) end) 
+							end != 0.0 or pb.pay != 0.0 or coalesce(p.pay,0) != 0)
+						and pl.date_end >= _date
+		)
+							
+					insert into _recalc (root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, date_end, "day", diff_volume, calc_result, recalc_result, diff_result, account_parent_id)
+					select _root_id as root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, case when "day" != day_in_month then (date_end - day2) else date_end end as date_end, "day", diff_volume, new_calc, new_recalc as recalc_result, new_recalc as diff_result, account_parent_id
+					from cte
+					union
+					select _root_id  as root_id, period_id, c.house_id, c.flat_id, aa.id, sublist_id, case when "day2" != day_in_month then (date_begin - "day") else date_begin end as date_begin, date_end, day2, diff_volume2, new_calc2, new_recalc2 as recalc_result, new_recalc2 as diff_result, aa.parent_id
+					from cte c
+						inner join adress.account aa on coalesce(aa.group_id, 255) = coalesce(c.group_id, 255)
+					where aa.parent_id = _new_account_id;
+				
+					create temp table _split_recalc (root_id int, period_id int, account_id int, sublist_id int, date_begin date, date_end date
+															, recalc_result numeric(15,2), diff_result numeric(15,2), account_parent_id int);
+
+					insert into _split_recalc
+					select root_id, re.period_id, account_id, sublist_id, date_begin, date_end, -recalc_result, -diff_result, account_parent_id
+					from _recalc re
+					where sublist_id = 6 and diff_result != 0; 
+
+					insert into _split_recalc 
+					select r.root_id, r.period_id, r.account_id, r.sublist_id, r.date_begin, r.date_end, 
+					-round(c.diff_result * r.diff_result / sum(r.diff_result) over (partition by r.root_id, r.period_id, r.account_id, r.account_parent_id order by r.root_id, r.period_id, r.account_id, r.account_parent_id) ,2) as recalc_result,
+					-round(c.diff_result * r.diff_result / sum(r.diff_result) over (partition by r.root_id, r.period_id, r.account_id, r.account_parent_id order by r.root_id, r.period_id, r.account_id, r.account_parent_id) ,2) as diff_result,
+					r.account_parent_id
+					from _split_recalc c
+						inner join _recalc r on r.root_id = c.root_id 
+											and c.period_id = r.period_id 
+											and c.account_id = r.account_id 
+											and c.account_parent_id = r.account_parent_id 
+											and c.date_begin = r.date_begin 
+											and c.date_end = r.date_end
+					where c.sublist_id <> r.sublist_id and r.diff_result <> 0;
+
+					create temp table _diff (root_id int, period_id int, account_id int, account_parent_id int, diff_recalc numeric(15,2), diff numeric(15,2));
+			
+					insert into _diff
+					select root_id, period_id, account_id, account_parent_id, sum(recalc_result) as diff_recalc, sum(diff_result) as diff
+					from _split_recalc
+					group by root_id, period_id, account_id, account_parent_id;
+
+					update _split_recalc s 
+						set recalc_result = recalc_result - d.diff_recalc,
+							diff_result = diff_result - d.diff
+					from _diff d
+					where d.root_id = s.root_id 
+						and d.period_id = s.period_id 
+						and d.account_id = s.account_id 
+						and d.account_parent_id = s.account_parent_id 
+						and s.sublist_id = (
+											select sublist_id
+											from _split_recalc
+											where sublist_id <> 6 
+												and sublist_id <> 7
+											order by abs(diff_result) desc
+											limit 1
+										   );
+
+					update _recalc r
+						set recalc_result = r.recalc_result + s.recalc_result
+							, calc_result = r.calc_result - s.recalc_result
+							, diff_result = r.diff_result + s.diff_result
+					from _split_recalc s
+					where s.root_id = r.root_id 
+						and s.period_id = r.period_id 
+						and s.account_id = r.account_id 
+						and s.account_parent_id = r.account_parent_id 
+						and s.sublist_id = r.sublist_id 
+						and s.date_begin = r.date_begin 
+						and s.date_end = r.date_end;
+
+					if exists (select * from _recalc where diff_result != 0.0)
+						then			
+							begin
+								
+								insert into recalculation."result" (root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, date_end, "day", recalc_result, diff_result, account_parent_id)
+								select 
+									root_id, 
+									period_id, 
+									house_id, 
+									flat_id, 
+									account_id, 
+									sublist_id, 
+									date_begin, 
+									date_end, 
+									"day", 
+									recalc_result, 
+									diff_result, 
+									account_parent_id 
+								from _recalc 
+								where diff_result != 0.0 and sublist_id != 7
+								union all 
+								select 
+									root_id, 
+									period_id, 
+									house_id, 
+									flat_id, 
+									account_id, 
+									sublist_id, 
+									date_begin, 
+									date_end, 
+									"day", 
+									recalc_result, 
+									diff_result, 
+									account_parent_id 
+								from _recalc 
+								where diff_result != 0.0 and sublist_id = 7 and _fine = false;
+							end;
+					end if;
+								
+					if exists (select * from _recalc where diff_result != 0.0 and _fine = true and period_id < _working_period_id and sublist_id != 7)
+						then
+							begin
+							
+								update recalculation.annotation 
+									set text = text || ' + (c пересчетом пени по новой сумме долга)' 
+								where root_id = _root_id;							
+							
+								select id
+								into _active_period 
+								from "period".list 
+								where is_active = true;
+							
+								select min(pl.id), max(pl.id)
+								into _period_n, _period_x
+								from "period".list pl
+								where pl.date_end >= _date and pl.id < _working_period_id;
+							
+								create temp table _balance 
+								(
+									account_id 			int, 
+									period_id 			int, 
+									in_balance 			numeric(15,2), 
+									calc 				numeric(15,2), 
+									pay 				numeric(15,2), 
+									account_parent_id 	int
+								);
+							
+								insert into _balance (account_id, period_id, in_balance, calc, pay, account_parent_id)
+								select account_id, period_id, sum(in_balance) as in_balance, sum(current_calculate + recalculate) as calc, sum(pay), account_parent_id
+								from payment.balance 
+								where account_parent_id = _account_id and period_id >= _active_period and period_id < _period_n and sublist_id != 7
+								group by account_id, period_id, account_parent_id
+								union all
+								select aa.id as account_id, pl.id as period_id, 0.0 as in_balance, 0.0 as calc, 0.0 as pay, aa.parent_id as account_parent_id
+								from adress.account aa 
+									inner join "period".list pl on pl.id >= _active_period and pl.id < _period_n
+								where parent_id = _new_account_id
+								order by 1, 2, 5;
+					
+								insert into _balance (account_id, period_id, in_balance, calc, pay, account_parent_id)
+								select 	pg.account_id, 
+										pg.period_id, 
+										pb.in_balance, 
+										coalesce(nc.new_calc_result,0.0) as calc, 
+										pg.pay - case when _include_pays = true then coalesce(p.pay,0.0) else 0.0 end as pay,
+										pg.account_parent_id
+								from payment.balance_group pg
+									inner join (
+													select account_id, sum(in_balance) as in_balance
+													from payment.balance
+													where account_parent_id = _account_id and period_id = _period_n and sublist_id != 7
+													group by account_id
+												) pb on pg.account_id = pb.account_id
+									left join (
+													select account_id, sum(calc_result) as new_calc_result
+													from _recalc
+													where period_id = _period_n and sublist_id != 7 and account_parent_id = _account_id
+													group by account_id
+												) nc on pb.account_id = nc.account_id
+									left join (
+													select pd.account_id, sum(pd.sum) as pay 
+													from payment.list pp
+														inner join payment.detal pd on pd.payment_id = pp.id
+														inner join "period".list pl on _date between pl.date_begin and pl.date_end
+													where pp.account_id = _account_id and pp.date >= _date and pp.period_id = pl.id
+													group by pd.account_id
+												) p on p.account_id = pg.account_id
+								where pg.period_id = _period_n and pg.account_parent_id = _account_id;
+					
+								insert into _balance (account_id, period_id, in_balance, calc, pay, account_parent_id)
+								select aa.id as account_id, 
+									_period_n as period_id, 
+									0.0 as in_balance, 
+									coalesce(nc.new_calc_result,0.0) as calc, 
+									case when _include_pays = true then coalesce(p.pay,0.0) else 0.0 end as pay, 
+									aa.parent_id as account_parent_id
+								from adress.account aa 
+									left join (
+													select account_id, sum(calc_result) as new_calc_result
+													from _recalc
+													where period_id = _period_n and sublist_id != 7 and account_parent_id = _new_account_id
+													group by account_id
+												) nc on aa.id = nc.account_id
+									left join (
+													select pd.account_id, sum(pd.sum) as pay 
+													from payment.list pp
+														inner join payment.detal pd on pd.payment_id = pp.id
+														inner join "period".list pl on _date between pl.date_begin and pl.date_end
+													where pp.account_id = _account_id and pp.date >= _date and pp.period_id = pl.id
+													group by pd.account_id
+												) p on true
+								where aa.parent_id = _new_account_id;
+					
+								insert into _balance (account_id, period_id, in_balance, calc, pay, account_parent_id)
+								select
+									c.account_id,
+									c.period_id,
+									coalesce(bh.in_balance,0.0)
+										+ coalesce(sum(coalesce(cc.calc,0.0) - coalesce(pp.pay,0.0)) over (partition by c.account_id order by c.period_id), 0.0) as in_balance,
+									coalesce(bc.calc,0.0) as calc,
+									coalesce(bp.pay,0.0) as pay,
+									c.account_parent_id
+								from (
+										select pl.id as period_id, aa.id as account_id, aa.parent_id as account_parent_id 
+										from "period".list pl
+										inner join adress.account aa on aa.parent_id in (_account_id, _new_account_id)
+										where pl.id between _period_n + 1 and _period_x
+									) c
+									left join (
+													select account_id, sum(coalesce(in_balance,0.0) + coalesce(calc,0.0) - coalesce(pay,0.0)) as in_balance
+													from _balance 
+													where period_id = _period_n
+													group by account_id
+												) bh on bh.account_id = c.account_id
+									left join (
+													select account_id, sum(coalesce(calc_result,0.0)) as calc, period_id
+													from _recalc 
+													where period_id between _period_n + 1 and _period_x 
+														and sublist_id != 7
+													group by account_id, period_id
+												) cc on cc.period_id = c.period_id - 1 and cc.account_id = c.account_id
+									left join (
+													select aa.id as account_id, period_id, pay
+													from payment.balance_group pg 
+														inner join adress.account aa on aa.parent_id = (case when _include_pays = true then _new_account_id else _account_id end)
+													where period_id between _period_n + 1 and _period_x 
+														and pg.account_parent_id = _account_id
+												) pp on pp.period_id = c.period_id - 1 and pp.account_id = c.account_id
+									left join (
+													select account_id, sum(coalesce(calc_result,0.0)) as calc, period_id
+													from _recalc 
+													where period_id between _period_n + 1 and _period_x 
+														and sublist_id != 7
+													group by account_id, period_id
+												) bc on bc.period_id = c.period_id and bc.account_id = c.account_id
+									left join (
+													select aa.id as account_id, period_id, pay
+													from payment.balance_group pg 
+													inner join adress.account aa on aa.parent_id = (case when _include_pays = true then _new_account_id else _account_id end)
+													where period_id between _period_n + 1 and _period_x 
+														and pg.account_parent_id = _account_id
+												) bp on bp.period_id = c.period_id and bp.account_id = c.account_id;
+					
+								delete 
+								from fine.recalculation 
+								where account_parent_id in (_account_id, _new_account_id) 
+									and period_id between _period_n and _period_x;
+								
+								delete 
+								from recalculation."result" 
+								where root_id = _root_id 
+									and sublist_id = 7;
+					
+								insert into recalculation."result" (root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, date_end, day, recalc_result, diff_result, account_parent_id)
+								select 
+									_root_id as root_id, 
+									pl.id as period_id, 
+									pb.house_id, 
+									pb.flat_id, 
+									pb.account_id, 
+									pb.sublist_id, 
+									pl.date_begin, 
+									pl.date_end, 
+									pl.day_in_month as "day", 
+									sum(-current_calculate) as recalc_result, 
+									sum(-pb.current_calculate) as diff_result, 
+									pb.account_parent_id
+								from payment.balance pb
+									inner join "period".list pl on pl.is_working = true
+								where account_parent_id in (_account_id, _new_account_id) 
+									and period_id between _period_n and _period_x
+									and sublist_id = 7
+								group by pl.id, 
+										pb.house_id, 
+										pb.flat_id, 
+										pb.account_id, 
+										pb.sublist_id, 
+										pl.date_begin, 
+										pl.date_end, 
+										pl.day_in_month, 
+										pb.account_parent_id
+								having sum(-current_calculate) != 0.0;
+					
+								_period_n = (
+												case 
+													when _period_n between 77 and 84 
+													then 85 
+													else _period_n 
+												end
+											);
+					
+								while (_period_n <= _period_x) loop
+									begin
+							
+										select id, date_begin, case when id = 76 then '2020-04-05'::date else date_end end
+										into _period_id, _date_begin, _date_end
+										from "period".list 
+										where id = _period_n;
+							
+										drop table if exists __fine_table;
+										create temp table __fine_table 
+										(
+											account_id 			int not null primary key, 
+											free_days 			int, 
+											account_parent_id 	int
+										);
+										create index __temp_fine_table on __fine_table (account_id) include (free_days, account_parent_id);
+								
+										drop table if exists __fine_history; 
+										create temp table __fine_history 
+										(
+											account_id 			int not null, 
+											date_begin 			date not null, 
+											date_end 			date not null, 
+											fine31 				numeric (9,8), 
+											fine60 				numeric(9,8), 
+											fine91 				numeric(9,8), 
+											rate 				numeric(4,2), 
+											account_parent_id 	int
+										);
+										create index __temp_fine_history on __fine_history (account_id, date_begin desc, date_end) include (fine31, fine60, fine91, rate, account_parent_id);
+								
+										drop table if exists __calendar; 
+										create temp table __calendar 
+										(
+											date date
+										);
+										create index __temp_calendar on __calendar (date); 
+								
+										drop table if exists __old_payment; 
+										create temp table __old_payment 
+										(
+											account_id 	int, 
+											pay 		numeric(8,2)
+										);
+										create index __temp_old_payment on __old_payment (account_id, pay); 
+								
+										drop table if exists __cte1; 
+										create temp table __cte1 
+										(
+											account_id 		int, 
+											period_id 		int, 
+											date_end 		date, 
+											free_days 		int, 
+											sum_for_fine 	numeric(9,2),
+											unique (account_id, period_id)
+										);
+										create index __temp_cte1 on __cte1 (account_id, period_id desc) include (sum_for_fine, date_end);
+								
+										drop table if exists __cte2; 
+										create temp table __cte2
+										(
+											 account_id		int
+											,date_begin 	date
+											,date_end		date
+											,sum_for_fine31	numeric(10,2)
+											,sum_for_fine60	numeric(10,2)
+											,sum_for_fine91	numeric(10,2)
+											,pay			numeric(9,2)
+										);
+									
+										insert into __fine_table (account_id, free_days, account_parent_id)
+										select fa.account_id, fr.free_days - 1 as free_days, al.parent_id
+										from fine.account fa
+											inner join fine.rate fr on fr.list_id = fa.fine_id
+											inner join adress.account al on al.id = fa.account_id
+										where al.parent_id in (_account_id, _new_account_id);
+							
+									---- с историей ключевой ставки
+										insert into __fine_history (account_id, date_begin, date_end, fine31, fine60, fine91, rate, account_parent_id)
+										select 
+											fa.account_id, 
+											case when fh.date_begin < _date_begin then _date_begin else fh.date_begin end as date_begin,
+											case when coalesce(fh.date_end, _date_end) >= _date_end then _date_end else fh.date_end end as date_end,
+											round(fh.refinancing_rate / fr.part_refinancing_rate31,8) as fine31, 
+											round(fh.refinancing_rate / fr.part_refinancing_rate60,8) as fine60, 
+											round(fh.refinancing_rate / fr.part_refinancing_rate91,8) as fine91, 
+											fh.refinancing_rate, 
+											al.parent_id
+										from fine.account fa
+											inner join fine.rate fr on fr.list_id = fa.fine_id
+											inner join adress.account al on al.id = fa.account_id
+											inner join fine.history fh on fh.date_begin <= _date_end and coalesce(fh.date_end,_date_end) >= _date_begin
+										where fr.refinancing_rate > 0 and al.parent_id in (_account_id, _new_account_id);
+							
+										with recursive calendar as 
+										(
+											select _date_begin as t_date
+											union all
+											select (1 + t_date) as t_date
+											from calendar
+											where (1 + t_date) <= _date_end
+										) 
+										insert into __calendar
+										select t_date 
+										from calendar;
+							
+										insert into __old_payment
+										select pd.account_id, sum (pd.sum) as sum
+										from payment.list pl 
+											inner join payment.detal pd on pd.payment_id = pl.id
+										where pl.period_id = _period_id 
+											and pl.date < _date_begin 
+											and pl.date < _date 
+											and pl.account_id = _account_id
+										group by pd.account_id
+										union all
+										select case when _include_pays = true then aa.id else pd.account_id end, sum (pd.sum) as sum
+										from payment.list pl 
+											inner join payment.detal pd on pd.payment_id = pl.id
+											inner join adress.account aa on aa.parent_id = _new_account_id
+										where pl.period_id = _period_id and pl.date < _date_begin and pl.date >= _date and pl.account_id = _account_id
+										group by pd.account_id, aa.id;
+							
+										insert into __cte1 (account_id, period_id, date_end, free_days,sum_for_fine)
+										select 
+											t.account_id
+											,t.period_id
+											,pl.date_end
+											,ft.free_days
+											,t.sum_for_fine
+										from (
+												select 
+													 pb.account_id
+													,b.period_id
+													,case   
+														when  (pb.in_balance - coalesce (op.pay,0)) - sum (b.calc) over (partition by b.account_id order by b.period_id desc, ord asc ) > 0
+															then b.calc
+														when (b.calc) - (sum (b.calc) over (partition by b.account_id order by b.period_id desc, ord asc ) - (pb.in_balance - coalesce (op.pay,0))) > 0 
+															then  (b.calc) - (sum (b.calc) over (partition by b.account_id order by b.period_id desc, ord asc) - (pb.in_balance - coalesce (op.pay,0)))
+														else 0.0
+													end sum_for_fine
+												from (
+														select
+															account_id
+															,sum(in_balance) as in_balance
+														from _balance pb
+														where period_id = _period_id 
+														group by account_id
+													) pb
+													inner join 	(
+																	select 
+																			abs(sum(calc)) as calc
+																			,pb.account_id
+																			,period_id
+																			,1 as ord
+																	 from  _balance pb
+																	 where period_id < _period_id 
+																	 group by pb.period_id, pb.account_id
+																	 having abs(sum(calc)) <> 0.0
+											 							 union all
+																	 select 
+																		sum(in_balance)
+																		,account_id
+																		,_active_period - 1
+																		,2
+																	 from _balance
+																	 where period_id = _active_period
+																	 group by account_id
+																	 having sum (in_balance) > 0.0 
+															) b on pb.account_id = b.account_id
+													left join __old_payment op on op.account_id = pb.account_id	
+											) t
+											inner join "period".list pl on pl.id = t.period_id 
+											inner join __fine_table ft on ft.account_id = t.account_id
+										where sum_for_fine <>  0.0 and t.period_id <> _period_id - 1;
+							
+										insert into __cte2
+										with cte as
+										(
+											select 
+												c.account_id
+												,cc.date
+												,sum (case when (cc.date - (c.free_days + date_end)) between 31  and 60 then sum_for_fine else 0 end) sum_for_fine31
+												,sum (case when (cc.date - (c.free_days + date_end)) between 61  and 90 then sum_for_fine else 0 end) sum_for_fine60
+												,sum (case when (cc.date - (c.free_days + date_end)) >= 91 then sum_for_fine else 0 end) sum_for_fine91
+												,coalesce (sum (p.sum) over (partition by c.account_id order by cc.date),0.0) as pay
+											from __cte1 c
+												left join lateral (select * from __calendar) cc on true
+												left join (
+																select pd.account_id, sum(pd.sum) as sum, (pl.date + 1) as date
+																from payment.detal pd
+																	inner join payment.list pl on pl.id = pd.payment_id
+																where pl.period_id = _period_id and pl.date >= _date_begin and pl.date < _date and pl.account_id = _account_id
+																group by pd.account_id, pl.date
+																union all
+																select case when _include_pays = true then aa.id else pd.account_id end, sum(pd.sum) as sum, (pl.date + 1) as date
+																from payment.detal pd
+																	inner join payment.list pl on pl.id = pd.payment_id
+																	inner join adress.account aa on aa.parent_id = _new_account_id
+																where pl.period_id = _period_id and pl.date >= _date_begin and pl.date >= _date and pl.account_id = _account_id 
+																group by pd.account_id, pl.date, aa.id
+															) p on c.account_id = p.account_id and cc.date = p.date
+											group by c.account_id,cc.date,p.sum 
+										)
+										select 
+											 account_id
+											,min(date) as date_begin
+											,max(date) as date_end
+											,sum_for_fine31
+											,sum_for_fine60
+											,sum_for_fine91
+											,pay
+										from cte c
+										group by account_id, sum_for_fine31, sum_for_fine60, sum_for_fine91, pay;
+							
+										insert into fine.recalculation (root_id, account_id, period_id, date_begin, date_end, ref_rate, sum_for_fine31, sum_for_fine60, sum_for_fine91, rate31, rate60, rate91, count_day, account_parent_id)
+										select _root_id as root_id
+											,c.account_id
+											,_period_id as period_id
+											,case when c.date_begin < fh.date_begin then fh.date_begin else c.date_begin end as date_begin
+											,case when c.date_end > fh.date_end then fh.date_end else c.date_end end as date_end
+											,fh.rate
+											,case
+												when sum_for_fine60 + sum_for_fine91 -  c.pay  < 0.0
+												then 
+													case
+														when sum_for_fine31 + sum_for_fine60 + sum_for_fine91 - c.pay > 0.0 
+														then sum_for_fine31 + sum_for_fine60 + sum_for_fine91 - c.pay
+														else  0.0
+													end
+												else sum_for_fine31
+											end as sum_fine31
+											,case
+												when sum_for_fine91 - c.pay < 0.0
+												then 
+													case
+														when sum_for_fine60 + sum_for_fine91 - c.pay > 0.0
+														then sum_for_fine60  + sum_for_fine91 - c.pay 
+														else 0.0
+													 end
+												else sum_for_fine60
+											end as sum_fine60	
+											,case  
+												when sum_for_fine91 - c.pay > 0.0
+												then sum_for_fine91 - c.pay
+												else 0.0
+											end as sum_fine91
+											,fh.fine31
+											,fh.fine60
+											,fh.fine91
+											,((case when c.date_end > fh.date_end then fh.date_end else c.date_end end) 
+												- (case when c.date_begin < fh.date_begin then fh.date_begin else c.date_begin end)) + 1
+											 as days
+											,fh.account_parent_id
+										from __cte2 c
+											inner join __fine_history fh on c.account_id = fh.account_id and (c.date_begin between fh.date_begin and fh.date_end or c.date_end between fh.date_begin and fh.date_end)
+										order by 2, 3, 4;
+							
+										_temp_id = _period_n + 1;
+										_period_n = (case when _temp_id between 77 and 84 then 85 else _temp_id end);
+							
+										delete from __fine_table;
+										delete from __old_payment;
+										delete from __calendar;
+										delete from __cte1;
+										delete from __cte2;
+--							
+										if (_period_n > _period_x) 
+											then
+												exit;
+										end if;
+										continue;
+									end;
+								end loop;
+					
+						insert into recalculation."result" (root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, date_end, day, recalc_result, diff_result, account_parent_id)
+						select fr.root_id, fr.period_id, aa.house_id, aa.flat_id, fr.account_id, 7 as sublist_id, fr.date_begin, fr.date_end, fr.count_day as "day", fr.fine as recalc_result, fr.fine as diff_result, fr.account_parent_id
+						from fine.recalculation fr
+							inner join adress.account aa on aa.id = fr.account_id
+						where fr.root_id = _root_id;
+					end;
+				end if;
+		end; 
+	end if;
+	
+		----*********************************************************************
+			_is_use_reserve = (select (case 
+			 								when array_to_string(xpath('Root/Calculation/IsUseReserve/text()', p.xml_data)::text[] , '') = '' 
+			 								then false 
+			 								else array_to_string(xpath('Root/Calculation/IsUseReserve/text()', p.xml_data)::text[], '')::bool
+			 							end)
+		 						 from special.parametr p);				
+					 						 
+			_ca = (select '[{"account_id":' || _account_id || '},{"account_id":' || _new_account_id || '}]');
+			
+			if _is_use_reserve = true
+				then 
+					call calculation.contragent (_ca);
+			end if;
+	
+			call calculation.tool (true, 900 ,_ca);
+	
+			call calculation.calc_in_balance (_working_period_id, _working_period_id, _ca);		
+		
+			alter table adress.account 
+			enable trigger insert_into_p_account;
+		
+			alter table calculation.account_sublist
+			enable trigger insert_account_sublist_edit;
+		
+			alter table calculation.account_sublist 
+			enable trigger update_account_sublist_edit;
+	
+			alter table calculation.account_sublist_for_change
+			enable trigger insert_account_sublist;
+		
+			alter table calculation.account_sublist_for_change
+			enable trigger update_account_sublist;
+		
+			drop table if exists _flats;
+			drop table if exists _contragent;
+			drop table if exists _counters;
+			drop table if exists _flow;
+			drop table if exists _flow_transporate;
+			drop table if exists _split_recalc;
+			drop table if exists _recalc;
+			drop table if exists _diff;
+			drop table if exists __fine_table;
+			drop table if exists _balance;
+			drop table if exists __fine_history; 
+			drop table if exists __calendar;
+			drop table if exists __old_payment;
+			drop table if exists __cte1;
+			drop table if exists __cte2;
+		
+		exception 
+		when others
+			then 
+				
+				GET STACKED DIAGNOSTICS
+    			err_code = RETURNED_SQLSTATE,
+				msg_text = MESSAGE_TEXT,
+    			exc_context = PG_CONTEXT;
+
+   				RAISE NOTICE 'ERROR CODE: % MESSAGE TEXT: % CONTEXT: %' , 
+   				err_code, msg_text, exc_context using errcode = '0F000';
+				
+		end;												
+end
+"""
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _date
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _session_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _rules
+      type = smallint
+      mode = IN
+      default = 0
+    }
+
+    {
+      name = _include_pays
+      type = boolean
+      mode = IN
+      default = true
+    }
+
+    {
+      name = _fine
+      type = boolean
+      mode = IN
+      default = true
+    }
+
+    {
+      name = _recalc_rules
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 15.10.2014
+ =============================================
+ author:		юркин е.ю.
+ date modify: 11.06.2021
+ description:	создание нового лицевого счета на основе существующего
+				_rules - правило для переноса показаний счетчиков
+				0 - расход по счетчикам остается за закрываемым лицевым счетом
+				1 - расход по счетчикам переносится на новый лицевой счет
+				2 - расход по счетчикам делится пропорционально между лицевыми счетами
+				_Include_Pays - учитывать или нет платежи в сумме перерасчета (в закрытых месяцах и по дате)
+				0 - не включать в сумму
+				1 - включать в сумму
+ Date modify: 29.09.2023
+				_Fine - правило перерасчета пени за периоды с даты переоткрытия
+				0 - перераспределить сумму ранее начисленной пени
+				1 - заново расчет пени по новой сумме долга
+Date modify: 22.06.2025
+				_Recalc_Rules - правило учета суммы перерасчетов
+				0 - не учитываем периоды (сумму берем из Payment.Balance)
+				1 - проверяем периоды перерасчета (сумму берем из ReCalculation.Result) 
+ =============================================
+"""
+}
+

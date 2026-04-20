@@ -1,0 +1,65 @@
+table "domyland"."sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sub_list_2"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.sublist_id_seq'::regclass)
+    }
+    column "counting_id" {
+      type = integer
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "tarif" {
+      type = numeric(10,2)
+      null = NOT NULL
+    }
+    column "domyland_id" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "status" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "is_kp" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+
+index "domyland"."sublist_ix_domyland_sublist_countind_sublist_tarif_is_kp" {
+  table = "domyland"."sublist"
+  type = btree
+  columns = <
+    {
+      definition = counting_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+    {
+      definition = tarif
+    }
+
+    {
+      definition = is_kp
+    }
+
+  >
+  isUnique = True
+}
+

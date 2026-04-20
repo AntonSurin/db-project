@@ -1,0 +1,26 @@
+table "eco"."work_pricelist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_work_pricelist"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.work_pricelist_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(250)
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+  )
+}
+

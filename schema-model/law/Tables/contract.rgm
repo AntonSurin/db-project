@@ -1,0 +1,36 @@
+table "law"."contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contract_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('law.contract_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "law"."contract"."fk_contract_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+

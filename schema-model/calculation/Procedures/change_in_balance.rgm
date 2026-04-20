@@ -1,0 +1,64 @@
+procedure "calculation"."change_in_balance(integer, integer, numeric)" {
+  text = """
+
+declare 
+		_period_id	int;
+		_house_id	int;
+		_flat_id	int;
+		_tarif		numeric(11, 2) = 1.0;
+begin
+
+	_period_id = (select id from period.list where is_active = true);
+
+	select house_id, flat_id
+	into _house_id, _flat_id
+	from adress.account
+	where id = _account_id;
+
+	merge into payment.balance as targets
+	using (select _house_id as house_id, _flat_id as flat_id, _account_id as account_id, _sublist_id as sublist_id, _tarif as tarif, _value as value, _period_id as period_id)
+	as sources(house_id, flat_id, account_id, sublist_id, tarif, value, period_id)
+	on(targets.account_id = sources.account_id
+		and targets.period_id = sources.period_id
+		and targets.sublist_id = sources.sublist_id)
+	when matched then
+		update set
+			in_balance = sources.value
+	when not matched then
+		insert(house_id, flat_id, account_id, sublist_id, in_balance, period_id)
+		values(sources.house_id, sources.flat_id, sources.account_id, sources.sublist_id, sources.value, sources.period_id);
+
+end
+"""
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _sublist_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _value
+      type = numeric
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+
+ =============================================
+ author:		глещинский д.в.
+ create date: 24.03.2015
+ description:	изменение входящего сальдо
+ =============================================
+"""
+}
+

@@ -1,0 +1,90 @@
+table "eco"."approved_work" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_eco_approved_work"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.approved_work_id_seq'::regclass)
+    }
+    column "organization_work_id" {
+      type = integer
+    }
+    column "year_plan_id" {
+      type = integer
+    }
+    column "year" {
+      type = integer
+    }
+    column "index" {
+      type = integer
+    }
+    column "amount" {
+      type = numeric(18,3)
+    }
+    column "price" {
+      type = numeric(18,4)
+    }
+    column "freq" {
+      type = integer
+    }
+    column "excluded" {
+      type = boolean
+    }
+    column "work_list_item_guid" {
+      type = uuid
+    }
+    column "working_plan_guid" {
+      type = uuid
+    }
+    column "work_guid_gis" {
+      type = uuid
+    }
+    column "amount_gis" {
+      type = numeric(18,3)
+    }
+    column "price_gis" {
+      type = numeric(18,4)
+    }
+    column "freq_gis" {
+      type = integer
+    }
+    column "total_cost_gis" {
+      type = numeric(18,2)
+    }
+    column "is_from_gis" {
+      type = boolean
+    }
+    column "is_create_arkus" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "eco"."approved_work"."fk_eco_approved_work_eco_org_work_org_work_id" {
+  columns = [
+    "organization_work_id"
+  ]
+  referencedTable = "eco"."organization_work"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "eco"."approved_work"."fk_eco_approved_work_eco_year_plan_year_plan_id" {
+  columns = [
+    "year_plan_id"
+  ]
+  referencedTable = "eco"."year_plan"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

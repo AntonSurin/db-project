@@ -1,0 +1,232 @@
+procedure "recalculation"."tool(integer, integer, smallint, smallint, jsonb, integer, numeric, text, text, integer)" {
+  text = """
+
+declare
+	 _root_id 	int;
+	 _period_id int; 
+	 _type_arch bool = true;
+	 _account 	jsonb;
+	 _time		time;
+begin
+	
+	if exists (select 1
+			   from pg_proc pg
+					inner join pg_namespace ns on ns."oid" = pg.pronamespace 
+				where lower(proname) = 'custom_tool' and lower(ns.nspname) = 'recalculation') 
+		then 
+			begin
+				call recalculation.custom_tool (_period_start, _period_end, _recalculation_type, _rules_calculation, _sublist, _decimal_value, _numerator, _denominator, _re_create_rules, _session_id);
+				return;
+			end;
+	end if;
+	
+	_period_id = (select id from "period".list where is_working = true);
+
+	if (_period_start = _period_id or _period_end = _period_id) 
+		then 
+			_type_arch = false;
+	end if;
+
+	if (_recalculation_type = 4)
+		then 
+			_root_id = (select id 
+						from recalculation.root 
+						where "type" = 4 and _period_id = period_id);
+		else 
+			_root_id = (select max(id)
+						from recalculation.root);
+	end if;
+
+	delete 
+	from recalculation.account_sublist 
+	where root_id = _root_id;
+
+	if _recalculation_type = 0
+		then 
+			begin
+				if exists(select distinct 1 from recalculation.parametr_for_change) 
+					then				
+						call recalculation.parametr_change (_type_arch, _root_id);
+					else 
+						begin 
+							call recalculation.cp_transporate   (_period_start, _period_end, _root_id);
+						end;
+				end if;
+			
+				call recalculation.create_calc (_period_start, _period_end, _rules_calculation, _re_create_rules, _root_id, _sublist, _decimal_value);
+				call recalculation.calc (_root_id, _sublist);
+			end;
+	end if;
+
+	if _recalculation_type = 1
+		then 
+			begin
+				call recalculation.parametr_change  (true, _root_id);
+				call recalculation.create_calc (_period_start, _period_end, _rules_calculation, _re_create_rules, _root_id, _sublist);
+				call recalculation.calc (_root_id, _sublist);
+			end;
+	end if;
+
+	if _recalculation_type = 2
+		then
+			begin
+				select c_volume._period_start, c_volume._period_end, c_volume._root_id
+				into _period_start, _period_end, _root_id
+				from recalculation.c_volume (_session_id, _period_start, _period_end, _root_id);
+	
+				if (_period_start is not null and _period_end is not null) 
+					then
+						begin
+							
+							drop table if exists tests;
+							create temp table tests (period_start int, period_end int, rules_calculation smallint, re_create_rules int, root_id int, sublist jsonb);
+							insert into tests
+							select _period_start, _period_end, _rules_calculation, _re_create_rules, _root_id, _sublist;
+							
+							
+							call recalculation.create_calc (_period_start, _period_end, _rules_calculation, _re_create_rules, _root_id, _sublist);
+							call recalculation.calc (_root_id, _sublist);
+						
+							_account = (select jsonb_agg(jsonb_build_object('account_id', account_id))
+										from recalculation.account);
+		  
+							call recalculation.save (_period_start, _period_end, false, _root_id, _account, _sublist);
+						end;
+					end if;
+			end; 
+	end if;
+
+	if _recalculation_type = 3
+		then
+			begin
+				call recalculation.create_calc (_period_start, _period_end, _rules_calculation, _re_create_rules, _root_id, _sublist);
+				call recalculation.calc (_root_id, _sublist);
+			end;
+	end if;
+
+	if _recalculation_type = 4
+		then
+			begin
+				call recalculation.parametr_change (false, _root_id);
+				call recalculation.create_calc (_period_start, _period_end, _rules_calculation, _re_create_rules, _root_id, _sublist);
+				call recalculation.calc (_root_id, _sublist);
+			end;
+	end if;
+
+	if _recalculation_type = 5
+		then
+			begin
+				if exists(select distinct 1 from recalculation.parametr_for_change) 
+					then 
+						call recalculation.parametr_change (_type_arch, _root_id);
+					else				
+						call recalculation.cp_transporate (_period_start, _period_end, _root_id);
+				end if;			
+				
+				call recalculation.create_calc (_period_start, _period_end, _rules_calculation, _re_create_rules, _root_id, _sublist, _decimal_value, _numerator, _denominator);
+				call recalculation.calc (_root_id, _sublist);
+			
+			end;
+	end if; 
+
+	if (_recalculation_type = 8)
+		then 
+			begin
+				delete from recalculation.account;
+
+				insert into recalculation.account
+				select distinct ca.account_id
+				from recalculation.contragent_reserve rc
+					inner join contragent.account ca on ca.id = rc.contragent_account_id
+				where rc.root_id = _root_id;
+		
+				_account = (select jsonb_agg(jsonb_build_object('account_id', account_id))
+						 	from recalculation.account);
+
+				call recalculation.contragent (_root_id);
+				call recalculation.parametr_change (true, _root_id);
+				call recalculation.create_calc (_period_start, _period_end, _rules_calculation, _re_create_rules, _root_id, _sublist);
+				call recalculation.calc (_root_id, _sublist);
+				call recalculation.save (_period_start, _period_end, 0, _root_id, _account, _sublist);
+			end;
+	end if;
+
+end
+"""
+  arguments = <
+    {
+      name = _period_start
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _recalculation_type
+      type = smallint
+      mode = IN
+    }
+
+    {
+      name = _rules_calculation
+      type = smallint
+      mode = IN
+    }
+
+    {
+      name = _sublist
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _session_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _decimal_value
+      type = numeric
+      mode = IN
+      default = NULL::numeric
+    }
+
+    {
+      name = _numerator
+      type = text
+      mode = IN
+      default = NULL::text
+    }
+
+    {
+      name = _denominator
+      type = text
+      mode = IN
+      default = NULL::text
+    }
+
+    {
+      name = _re_create_rules
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		поляков п.г.
+ create date: 10-03-2015
+ description:	общая процедура перерасчетов
+ =============================================
+"""
+}
+

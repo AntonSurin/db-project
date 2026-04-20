@@ -1,0 +1,34 @@
+table "temp"."parametr_transporate" {
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "territory_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+      null = NOT NULL
+    }
+  )
+}
+

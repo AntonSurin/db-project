@@ -1,0 +1,21 @@
+table "counter"."mark" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_mark"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('counter.mark_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+    }
+  )
+}
+

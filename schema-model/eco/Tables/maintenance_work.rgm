@@ -1,0 +1,64 @@
+table "eco"."maintenance_work" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_maintenance_work"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.maintenance_work_id_seq'::regclass)
+    }
+    column "organization_work_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "maintenance_id" {
+      type = integer
+    }
+    column "sum" {
+      type = numeric(9,2)
+    }
+    column "advance" {
+      type = numeric(9,2)
+    }
+    column "number_document" {
+      type = character varying(50)
+    }
+    column "date_document" {
+      type = date
+    }
+    column "status" {
+      type = integer
+      null = NOT NULL
+    }
+    column "provider_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "eco"."maintenance_work"."fk_maintenance_work_org_work" {
+  columns = [
+    "organization_work_id"
+  ]
+  referencedTable = "eco"."organization_work"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "eco"."maintenance_work"."fk_maintenance_work_provider" {
+  columns = [
+    "provider_id"
+  ]
+  referencedTable = "utility"."provider"
+  referencedColumns = [
+    "id"
+  ]
+}
+

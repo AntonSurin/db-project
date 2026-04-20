@@ -1,0 +1,21 @@
+table "contragent"."reserve_type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_reserve_type"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = smallint
+      null = NOT NULL
+      default = nextval('contragent.reserve_type_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(15)
+    }
+  )
+}
+

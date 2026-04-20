@@ -1,0 +1,38 @@
+table "counter"."group" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_group"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('counter.group_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "sublist_id_by" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "counter"."group"."fk_group_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+}
+

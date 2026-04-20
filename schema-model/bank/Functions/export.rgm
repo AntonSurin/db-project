@@ -1,0 +1,91 @@
+function "bank"."export(integer, jsonb)" {
+  text = """
+
+begin 
+	
+	return query
+	select
+		ai.account_id 
+		,pl.date_begin
+		,pl.date_end
+		,ai.account_name
+		,(
+			select string_agg(ltrim(rtrim(cl.full_name)),', ') 
+		  	from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+		  where ca.account_id = pb.account_parent_id and ca.is_responsible = true and od.date_end is null
+		  ) as owners
+		,(
+			select string_agg(cast (cll.id as varchar(10)) || ':' || us.name || ' ' || cast (cll."number" as varchar(2)) || ':' || coalesce(cast(coalesce(cf.value, cf.prev_value) as varchar(20)), '') ,':')
+		  	from counter.list cll
+				inner join counter.flow cf on cf.counter_id = cll.id
+				inner join utility.sublist us on us.id = cll.sublist_id
+				inner join counter.account ca on ca.counter_id = cll.id
+		  where cll.active = true and cf.period_id = _period_id and ca.account_id = pb.account_parent_id 
+		  ) as counter_values
+		,ai.short_name_flat as adress
+		,to_char(pl.date_begin,'MMyy')::varchar(4) as "period"
+		,pb.current_calc + pb.recalc as current_calc
+		,case
+			when pb.in_balance + pb.current_calc + pb.recalc - pb.pay <= 0 
+			then 0 
+			else pb.in_balance + pb.current_calc + pb.recalc - pb.pay 
+		end as calc_with_debt
+		,oc.rs
+		,ah.organization_counting_id as countingid
+		,ai."index"
+		,ai.city
+		,ai.street_name
+		,ah."number" as house_number
+		,ah.korpus
+		,ai.flat_book_short_name || ' ' || ai.flat_name as flat
+		,ha.unique_number as els
+		,case 
+			when nullif(cast(hc.fias_house_guid as varchar(36)),'') is not null 
+			then cast(hc.fias_house_guid as varchar(36)) || ',' || cast(ai.flat_name as varchar(36)) 
+		end as fias
+	from payment.balance_group pb 
+		inner join "period".list pl on pl.id = pb.period_id
+		inner join adress.info ai on ai.account_id = pb.account_id
+		inner join adress.house ah on ah.id = ai.house_id
+		inner join organization.counting oc on oc.id = ah.organization_counting_id
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+		left join house.characteristic hc on hc.house_id = ah.id
+		left join (select 
+						hha.account_id, 
+						hha.unique_number,
+						row_number() over (partition by hha.account_id order by hha.unique_number) rn
+					from house.account hha
+					where hha.unique_number is not null
+				  ) ha on ha.account_id = pb.account_parent_id and ha.rn = 1
+	where pb.period_id = _period_id;
+
+end;
+"""
+  returnType = TABLE(account_id integer, date_begin date, date_end date, account_name character varying, owners text, counter_values text, adress text, period character varying, current_calc numeric, calc_with_debt numeric, rs character varying, counting_id integer, index character varying, city text, street_name text, house_number character varying, korpus character varying, flat text, els character varying, fias text)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 07.03.2018
+ description:	экспорт начислений в банк
+ =============================================
+"""
+}
+

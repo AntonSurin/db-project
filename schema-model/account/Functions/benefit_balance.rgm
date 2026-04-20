@@ -1,0 +1,43 @@
+function "account"."benefit_balance(integer, jsonb)" {
+  text = """
+
+begin
+	
+	return query
+	select 
+		al::varchar(12) as account_name
+		,cast(pb.in_balance as numeric(12, 2)) as in_balance
+		,cast(pb.pay as numeric(12, 2)) as pay
+	from payment.balance_group pb
+		inner join adress.account aa on aa.id = pb.account_id
+		inner join jsonb_populate_recordset(null::account.list_name, _account_list) al on al.account_name = aa.name
+	where pb.period_id = _period_id;
+
+end;
+"""
+  returnType = TABLE(account_name character varying, in_balance numeric, pay numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account_list
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 20.10.2016
+ description:	входящее сальдо для усзн
+ =============================================
+"""
+}
+

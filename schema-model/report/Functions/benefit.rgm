@@ -1,0 +1,178 @@
+function "report"."benefit(integer, jsonb, jsonb)" {
+  text = """
+
+
+	select 
+		 cl.full_name as fio
+		,cl.surname
+		,cl."name"
+		,cl.middlename
+		,al.city || ' ' || al.short_name_adress as short_name_adress
+		,al.city as city
+		,al.account_name
+		,bl.code
+		,bl.percent_housing
+		,bl.percent_utility
+		,bp.count_benefit
+		,cp.osq
+		,cp.col_reg
+		,pl."year"
+		,pl.name_month
+		,pl.day_in_month
+		,case 
+			when us.id in (23,43) 	then 'Водоотведение (0500)'  
+			when us.id in (27,72) 	then 'Электроэнергия (0900)' 
+			when us.id in (22,24) 	then 'Холодная вода (0400)' 
+			when us.id = 41			then 'Нагрев ГВС (0300)' 
+			when us.id = 38			then 'Отопление (0201)' 
+			when us.id = 78			then 'Отопление ЭЭ (0202)' 
+			when us.id = 20			then 'Содержание и ремонт жилья (0100)' 
+			when us.id = 58			then 'Газ (0800)' 
+			else us."name" 
+		end as sublist_name
+		,case 
+			when us.id in (23,43) 	then 6
+			when us.id in (27,72) 	then 8
+			when us.id in (22,24) 	then 5
+			when us.id = 41			then 4
+			when us.id = 38			then 2
+			when us.id = 78			then 3
+			when us.id = 20			then 1
+			when us.id = 58			then 7
+			else  0
+		end as code_sublist
+		,case 
+			when us.id = 38 then 'м2.' 
+			when us.id = 41 then 'м3.'
+			else uu."name"
+		end as unit_name
+		,sum (
+				case 
+					when pb.sublist_id = 38 and pb.house_id <> 29 	then round (bc.benefit_result/nullif(pb_old.current_calculate / nullif(cp.osq, 0), 0) * 100 / bl.percent_utility, 2) 
+					when pb.sublist_id = 38 and pb.house_id = 29 	then round (bc.benefit_result/nullif(pb.current_calculate / nullif(cp.osq, 0), 0) * 100 / bl.percent_utility, 2) 
+					when pb.sublist_id = 41 and pb.house_id <> 29 	then round (bc.benefit_result/nullif(hvold.hv_tarif, 0) * 100 / bl.percent_utility, 2) 
+					when pb.sublist_id = 41 and pb.house_id = 29 	then round (bc.benefit_result/nullif(hv.hv_tarif, 0) * 100 / bl.percent_utility, 2) 
+					else  bc.lgot_volume 
+			  	end
+			) as lgot_volume
+		,min (
+				case 
+					when pb.sublist_id = 38 and pb.house_id <> 29 	then round(pb_old.current_calculate / nullif(cp.osq, 0), 2) 
+					when pb.sublist_id = 38 and pb.house_id = 29  	then round(pb.current_calculate / nullif(cp.osq, 0), 2) 
+					when pb.sublist_id = 41 and pb.house_id <> 29 	then round(hvold.hv_tarif, 2)
+					when pb.sublist_id = 41 and pb.house_id = 29 	then round(hv.hv_tarif, 2)
+					else pb.tarif 
+			  	end
+			) as tarif
+		,max(pb.normativ) * cp.col_reg as norm
+		,sum (bc.benefit_result) as benefit_result
+		,al.order_id
+		,al.account_order_id
+	from benefit.calculation bc
+		inner join jsonb_populate_recordset(null::special.objects, _benefits) b on b.object_id = bc.benefit_id
+		inner join adress.info al on al.account_id = bc.account_id
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = al.house_id
+		inner join benefit.people bp on bp.contragent_id = bc.contragent_id and bp.account_id = bc.account_parent_id and bc.benefit_id = bp.benefit_id
+		inner join benefit.list bl on bl.id = bc.benefit_id
+		inner join calculation.parametr_transporate cp on cp.account_id = bc.account_parent_id
+		inner join "period".list pl on pl.id = bc.period_id
+		inner join contragent.list cl on cl.id = bc.contragent_id
+		inner join utility.sublist us on us.id = bc.sublist_id
+		inner join utility.unit  uu on uu.id = us.unit_id
+		inner join payment.balance pb on pb.account_id = bc.account_id and pb.sublist_id = bc.sublist_id and pb.period_id = bc.period_id
+		left join payment.balance pb_old on pb_old.account_id = pb.account_id and pb_old.sublist_id = pb.sublist_id and pb_old.period_id = (_period_id - 1)
+		left join lateral (	
+							select pb.current_calculate / nullif(pb_old.volume, 0) as hv_tarif
+							from payment.balance pb
+								inner join payment.balance pb_old on pb.account_id = pb_old.account_id and pb_old.sublist_id = 24 and pb_old.period_id = pb.period_id
+							where pb.account_id = bc.account_id and pb.period_id = (_period_id - 1) and pb.sublist_id = 41
+						) hvold on true
+		left join lateral (
+							select pb.current_calculate / nullif(pb_old.volume, 0) as hv_tarif
+							from payment.balance pb
+								inner join payment.balance pb_old on pb.account_id = pb_old.account_id and pb_old.sublist_id = 24 and pb_old.period_id = pb.period_id
+							where pb.account_id = bc.account_id and pb.period_id = bc.period_id and pb.sublist_id = 41
+						) hv on true
+	where bc.period_id = _period_id and bc.benefit_result <> 0.0
+	group by
+		al.city
+		,cl.full_name
+		,cl.surname
+		,cl."name"
+		,cl.middlename
+		,al.short_name_adress
+		,al.account_name
+		,bl.code
+		,bl.percent_housing
+		,bl.percent_utility
+		,bp.count_benefit
+		,cp.osq
+		,cp.col_reg
+		,pl."year"
+		,pl.name_month
+		,pl.day_in_month
+		,case
+			when us.id in (23,43) 	then 'водоотведение (0500)'  
+			when us.id in (27,72) 	then 'электроэнергия (0900)' 
+			when us.id in (22,24) 	then 'холодная вода (0400)' 
+			when us.id = 41			then 'нагрев гвс (0300)' 
+			when us.id = 38			then 'отопление (0201)' 
+			when us.id = 78			then 'отопление ээ (0202)' 
+			when us.id = 20			then 'содержание и ремонт жилья (0100)' 
+			when us.id = 58			then 'газ (0800)' 
+			else us."name" 
+		end
+		,case 
+			when us.id = 38 then 'м2.' 
+			when us.id = 41 then 'м3.'
+			else uu."name"
+		end 
+		,al.order_id
+		,al.account_order_id
+		,case 
+			when us.id in (23,43) 	then 6
+			when us.id in (27,72) 	then 8
+			when us.id in (22,24) 	then 5
+			when us.id = 41			then 4
+			when us.id = 38			then 2
+			when us.id = 78			then 3
+			when us.id = 20			then 1
+			when us.id = 58			then 7
+			else  0
+		end
+		,us.id
+		order by al.city, cl.full_name;
+
+"""
+  returnType = TABLE(fio text, surname text, name text, middlename text, short_name_adress text, city text, account_name character varying, code text, percent_housing text, percent_utility text, count_benefit text, osq numeric, col_reg smallint, year smallint, name_month text, day_in_month smallint, sublist_name text, code_sublist smallint, unit_name text, lgot_volume numeric, tarif numeric, norm numeric, benefit_result numeric, order_id integer, account_order_id integer)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _benefits
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		поляков павел
+ create date: 04.05.2017
+ description:	табличная часть для отчета по льготникам
+ =============================================
+"""
+}
+

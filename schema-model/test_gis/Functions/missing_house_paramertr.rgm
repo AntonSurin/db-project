@@ -1,0 +1,48 @@
+function "test_gis"."missing_house_paramertr(integer)" {
+  text = """
+
+declare 
+	_access_count int; 
+begin
+	
+	_access_count = (select count(*) from house.access ha where ha.house_id = _house_id);
+
+	return query
+	select 
+		 hi.house_id as object_id
+		,hi.short_adress as "location"
+		,case when status_id is null then true else false end
+		,case when time_zone_id is null then true else false end
+		,case when oktmo is null then true else false end
+		,case when house_management_type is null then true else false end
+		,case when coalesce(area,0.0) = 0.0  then true else false end
+		,case when coalesce(year_begin,0) = 0 then true else false end
+		,case when floor_count_max > 0 then false else true end
+		,case when fias_house_guid is not null then false else true end
+		,case when year_begin is not null then false else true end
+	from house.info hi 
+		left join house.characteristic hc on hc.house_id = hi.house_id
+	where hc.house_id = _house_id and is_export = true;
+
+end;
+"""
+  returnType = TABLE(object_id integer, location text, "Не указан статус дома" boolean, "Не указана временная зона" boolean, "Не указан ОКТМО" boolean, "Не указан тип управления МКД" boolean, "Не указана общая площадь здания" boolean, "Не указан год ввода в эксплуатацию" boolean, "Не указано кол-во этажей" boolean, "Отсутствует ФИАС" boolean, "Не указан год постройки" boolean)
+  arguments = <
+    {
+      name = _house_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 28.06.2016
+ Description:	Проверка заполненности параметров на дом
+ =============================================
+"""
+}
+

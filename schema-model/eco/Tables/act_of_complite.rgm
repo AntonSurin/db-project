@@ -1,0 +1,76 @@
+table "eco"."act_of_complite" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_eco_act_of_complite"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.act_of_complite_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+    }
+    column "year_plan_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "number" {
+      type = text
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "report_period_guid" {
+      type = uuid
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "area" {
+      type = numeric(18,2)
+    }
+    column "date_load_gis_act" {
+      type = timestamp(3) without time zone
+    }
+    column "user_id_load_gis_act" {
+      type = integer
+    }
+    column "is_delete_work" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "eco"."act_of_complite"."fk_eco_act_of_complite_house_characteristic_house_id" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "eco"."act_of_complite"."fk_eco_act_of_complite_year_plan_eco_year_plan" {
+  columns = [
+    "year_plan_id"
+  ]
+  referencedTable = "eco"."year_plan"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

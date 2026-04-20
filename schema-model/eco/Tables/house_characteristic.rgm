@@ -1,0 +1,35 @@
+table "eco"."house_characteristic" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_house_characteristic"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.house_characteristic_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "area" {
+      type = numeric(18,2)
+    }
+  )
+}
+
+foreignKey "eco"."house_characteristic"."fk_house_characteristic_characteristic" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+}
+

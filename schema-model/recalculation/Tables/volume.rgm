@@ -1,0 +1,221 @@
+table "recalculation"."volume" {
+  primaryKey = {
+    columns = [
+      "root_id"
+      "account_id"
+      "period_id"
+      "date_begin"
+    ]
+    name = "pk_re_calculation_volume"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "root_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+      null = NOT NULL
+    }
+    column "v_avance" {
+      type = numeric(11,5)
+    }
+    column "v_cg" {
+      type = numeric(11,5)
+    }
+    column "v_domofon" {
+      type = numeric(11,5)
+    }
+    column "v_dop1" {
+      type = numeric(11,5)
+    }
+    column "v_dop2" {
+      type = numeric(11,5)
+    }
+    column "v_dop3" {
+      type = numeric(11,5)
+    }
+    column "v_dop4" {
+      type = numeric(11,5)
+    }
+    column "v_dop5" {
+      type = numeric(11,5)
+    }
+    column "v_ed" {
+      type = numeric(11,5)
+    }
+    column "v_eddt" {
+      type = numeric(11,5)
+    }
+    column "v_el_lgot" {
+      type = numeric(11,5)
+    }
+    column "v_el_lgot_day" {
+      type = numeric(11,5)
+    }
+    column "v_el_lgot_night" {
+      type = numeric(11,5)
+    }
+    column "v_el_oi" {
+      type = numeric(11,5)
+    }
+    column "v_elodnday" {
+      type = numeric(11,5)
+    }
+    column "v_elodnnight" {
+      type = numeric(11,5)
+    }
+    column "v_en" {
+      type = numeric(11,5)
+    }
+    column "v_eodn" {
+      type = numeric(11,5)
+    }
+    column "v_gv" {
+      type = numeric(11,5)
+    }
+    column "v_gv_oi" {
+      type = numeric(11,5)
+    }
+    column "v_gvodn" {
+      type = numeric(11,5)
+    }
+    column "v_gz" {
+      type = numeric(11,5)
+    }
+    column "v_k" {
+      type = numeric(11,5)
+    }
+    column "v_kaprem" {
+      type = numeric(11,5)
+    }
+    column "v_knl_oi" {
+      type = numeric(11,5)
+    }
+    column "v_left_peop" {
+      type = numeric(11,5)
+    }
+    column "v_lift" {
+      type = numeric(11,5)
+    }
+    column "v_nxv" {
+      type = numeric(11,5)
+    }
+    column "v_nxvgaz" {
+      type = numeric(11,5)
+    }
+    column "v_odnxv" {
+      type = numeric(11,5)
+    }
+    column "v_ot" {
+      type = numeric(11,5)
+    }
+    column "v_pen" {
+      type = numeric(11,5)
+    }
+    column "v_rg" {
+      type = numeric(11,5)
+    }
+    column "v_vm" {
+      type = numeric(11,5)
+    }
+    column "v_vm_kom" {
+      type = numeric(11,5)
+    }
+    column "v_vm1" {
+      type = numeric(11,5)
+    }
+    column "v_xv" {
+      type = numeric(11,5)
+    }
+    column "v_xv_oi" {
+      type = numeric(11,5)
+    }
+    column "v_gv_oi_xv" {
+      type = numeric(11,5)
+    }
+    column "v_gv_oi_nxv" {
+      type = numeric(11,5)
+    }
+    column "v_gvr" {
+      type = numeric(11,5)
+    }
+    column "v_xvr" {
+      type = numeric(11,5)
+    }
+    column "v_edr" {
+      type = numeric(11,5)
+    }
+    column "v_el_span" {
+      type = numeric(11,5)
+    }
+    column "v_el_span_day" {
+      type = numeric(11,5)
+    }
+    column "v_el_span_night" {
+      type = numeric(11,5)
+    }
+    column "v_gjyyfgh" {
+      type = numeric(11,5)
+    }
+    column "v_gjyygh" {
+      type = numeric(11,5)
+    }
+    column "v_hhjjfg" {
+      type = numeric(11,5)
+    }
+    column "v_nxvodn" {
+      type = numeric(11,5)
+    }
+    column "v_opressovka" {
+      type = numeric(11,5)
+    }
+    column "v_radio" {
+      type = numeric(11,5)
+    }
+    column "v_sverh_norm_s" {
+      type = numeric(11,5)
+    }
+    column "v_term" {
+      type = numeric(11,5)
+    }
+    column "v_to_gaz" {
+      type = numeric(11,5)
+    }
+    column "v_uslugi_banka" {
+      type = numeric(11,5)
+    }
+    column "v_remstkov" {
+      type = numeric(11,5)
+    }
+    column "v_dymv" {
+      type = numeric(11,5)
+    }
+    column "v_plgazch" {
+      type = numeric(11,5)
+    }
+  )
+}
+

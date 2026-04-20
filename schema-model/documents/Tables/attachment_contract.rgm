@@ -1,0 +1,72 @@
+table "documents"."attachment_contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_attachment_contract"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.attachment_contract_id_seq'::regclass)
+    }
+    column "contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "attachment_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "documents"."attachment_contract"."fk_doc_attach_contr_doc_contr_contr_id" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "documents"."contract"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "documents"."attachment_contract"."fk_doc_attach_contract_doc_attach_attach_id" {
+  columns = [
+    "attachment_id"
+  ]
+  referencedTable = "documents"."attachment"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "documents"."attachment_contract_ix_attachment_id" {
+  table = "documents"."attachment_contract"
+  type = btree
+  columns = <
+    {
+      definition = attachment_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "documents"."attachment_contract_ix_contract_id" {
+  table = "documents"."attachment_contract"
+  type = btree
+  columns = <
+    {
+      definition = contract_id
+    }
+
+  >
+  isUnique = False
+}
+

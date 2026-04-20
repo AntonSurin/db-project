@@ -1,0 +1,30 @@
+table "report"."custom_pivot_form_report" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_custom_pivot_form_report"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.custom_pivot_form_report_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "parameters" {
+      type = character varying(100)
+    }
+    column "value" {
+      type = text
+    }
+    column "layout" {
+      type = text
+    }
+  )
+}
+

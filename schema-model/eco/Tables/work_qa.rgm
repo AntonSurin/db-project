@@ -1,0 +1,82 @@
+table "eco"."work_qa" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_work_qa"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.work_qa_id_seq'::regclass)
+    }
+    column "quality_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "organization_work_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "act_quality_id" {
+      type = integer
+    }
+    column "date_update" {
+      type = timestamp(3) without time zone
+    }
+    column "status_gis" {
+      type = integer
+      null = NOT NULL
+    }
+    column "work_guid_gis" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "work_code_gis" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "work_group_guid_gis" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "work_group_code_gis" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "eco"."work_qa"."fk_work_qa_act_qa" {
+  columns = [
+    "act_quality_id"
+  ]
+  referencedTable = "eco"."act_qa"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "eco"."work_qa"."fk_work_qa_organization_work" {
+  columns = [
+    "organization_work_id"
+  ]
+  referencedTable = "eco"."organization_work"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "eco"."work_qa"."fk_work_qa_quality_assessment" {
+  columns = [
+    "quality_id"
+  ]
+  referencedTable = "eco"."quality_assessment"
+  referencedColumns = [
+    "id"
+  ]
+}
+

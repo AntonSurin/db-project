@@ -1,0 +1,35 @@
+table "utility"."formula_annotation" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_utility_formula_annotation"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.formula_annotation_id_seq'::regclass)
+    }
+    column "formula_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "annotation" {
+      type = character varying(500)
+    }
+  )
+}
+
+foreignKey "utility"."formula_annotation"."utility_formula_annotation_utility_formula" {
+  columns = [
+    "formula_id"
+  ]
+  referencedTable = "utility"."formula"
+  referencedColumns = [
+    "id"
+  ]
+}
+

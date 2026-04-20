@@ -1,0 +1,110 @@
+table "person"."agent" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_agent"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('person.agent_id_seq'::regclass)
+    }
+    column "contragent_id" {
+      type = integer
+    }
+    column "title_id" {
+      type = integer
+    }
+    column "surname" {
+      type = character varying(250)
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "middlename" {
+      type = character varying(100)
+    }
+    column "genitive_surname" {
+      type = character varying(250)
+    }
+    column "genitive_name" {
+      type = character varying(100)
+    }
+    column "genitive_middlename" {
+      type = character varying(100)
+    }
+    column "document" {
+      type = character varying(500)
+    }
+    column "is_confidant" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "full_name" {
+      type = character varying
+      generatedAs = """-
+(((((surname)::text || ' '::text) || (COALESCE(name, ''::character varying))::text) || ' '::text) || (COALESCE(middlename, ''::character varying))::text)
+"""
+    }
+    column "genitive_full_name" {
+      type = character varying
+      generatedAs = """-
+(((((genitive_surname)::text || ' '::text) || (COALESCE(genitive_name, ''::character varying))::text) || ' '::text) || (COALESCE(genitive_middlename, ''::character varying))::text)
+"""
+    }
+    column "genitive_short_name" {
+      type = character varying
+      generatedAs = """-
+((((genitive_surname)::text || ' '::text) ||
+CASE
+    WHEN (length((COALESCE(genitive_name, ''::character varying))::text) > 0) THEN ("left"((genitive_name)::text, 1) || '.'::text)
+    ELSE ''::text
+END) ||
+CASE
+    WHEN (length((COALESCE(genitive_middlename, ''::character varying))::text) > 0) THEN ("left"((genitive_middlename)::text, 1) || '.'::text)
+    ELSE ''::text
+END)
+"""
+    }
+    column "short_name" {
+      type = character varying
+      generatedAs = """-
+((((surname)::text || ' '::text) ||
+CASE
+    WHEN (length((COALESCE(name, ''::character varying))::text) > 0) THEN ("left"((name)::text, 1) || '.'::text)
+    ELSE ''::text
+END) ||
+CASE
+    WHEN (length((COALESCE(middlename, ''::character varying))::text) > 0) THEN ("left"((middlename)::text, 1) || '.'::text)
+    ELSE ''::text
+END)
+"""
+    }
+  )
+}
+
+foreignKey "person"."agent"."fk_agent_people" {
+  columns = [
+    "contragent_id"
+  ]
+  referencedTable = "contragent"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "person"."agent"."fk_agent_title" {
+  columns = [
+    "title_id"
+  ]
+  referencedTable = "organization"."title"
+  referencedColumns = [
+    "id"
+  ]
+}
+

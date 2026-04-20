@@ -1,0 +1,34 @@
+function "utility"."create_detail_account()" {
+  text = """
+
+declare 
+	_group 		jsonb;
+	_account 	jsonb;
+begin
+
+   	_account = (select to_jsonb(array_agg(id)) 
+   				from adress.account 
+   				where parent_id is null);
+
+	_group = (select to_jsonb(array_agg(id)) from inserted);
+
+	call account.create_detail (_account, _group);
+
+	return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 13.12.2017
+ Description:	Запрос на создание зависимых лицевых счетов
+ =============================================
+"""
+}
+

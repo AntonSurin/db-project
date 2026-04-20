@@ -1,0 +1,43 @@
+function "calculation"."change_account_sublist()" {
+  text = """
+
+declare 
+	_period_id int;
+begin
+
+	_period_id = (select * from "period".get_work_period_id());
+
+	with cte as 
+	(
+		select 
+			 fc.date_end
+			,(lead(date_begin, 1, (select (max(c.date_end)+ interval '1 day') from calculation.account_sublist_for_change c where c.period_id = fc.period_id and c.account_id = fc.account_id and c.sublist_id = fc.sublist_id)) over (partition by c.account_id, c.sublist_id order by c.account_id, c.sublist_id, c.date_begin))
+				- interval '1 day' as new_date_end
+			,fc.id 
+		from calculation.account_sublist_for_change fc
+		where fc.period_id = _period_id
+			and fc.account_id in (select i.account_id from i.inserted)
+			and fc.sublist_id in (select i.sublist_id from i.inserted)
+	)
+	
+	update calculation.account_sublist_for_change asf
+		set date_end = ct.new_date_end
+	from cte ct
+	where asf.id = ct.id;
+	
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Create date: <Create Date,,>
+ Description:	<Description,,>
+ =============================================
+"""
+}
+

@@ -1,0 +1,10 @@
+function "public"."getdate()" {
+  text = select now()
+  returnType = timestamp without time zone
+  arguments = [
+  ]
+  language = sql
+  volatility = IMMUTABLE
+  owner = postgres
+}
+

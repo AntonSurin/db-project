@@ -1,0 +1,21 @@
+table "recalculation"."type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_type_2"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = smallint
+      null = NOT NULL
+      default = nextval('recalculation.type_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+    }
+  )
+}
+

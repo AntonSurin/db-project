@@ -1,0 +1,186 @@
+procedure "partner"."sublist(jsonb)" {
+  text = """
+
+declare 
+	_max_period_id 		int;
+	_active_period_id 	int; 
+	_period_begin 		int;
+	_period_end 		int;
+begin
+	
+	begin /*генерация документов для загрузки*/
+		create temp table _generate_document (period_id int, provider_id int, period_begin int, sublist_provider_id int, guid uuid, document_name varchar(150));
+
+		insert into _generate_document
+		select p.period_id, p.provider_id, p.period_begin, usp.id, p.guid, p.document_name
+		from jsonb_populate_recordset(null::partner.data_from_1c, _payment) p
+			inner join utility.sublist_provider usp on usp.provider_id = p.provider_id
+														and usp.house_id = p.house_id;
+
+		insert into partner."document" (provider_id, guid, "name")
+		select distinct gd.provider_id, gd.guid, gd.document_name 
+		from _generate_document gd
+		where gd.guid not in (select distinct pd.guid from partner."document" pd);
+	
+		with cte as 
+		(
+			select pd.id as document_id, pd.guid, t.provider_id, period_begin as period_id
+			from _generate_document t
+				inner join partner."document" pd on pd.guid = t.guid
+		)
+
+		insert into utility.documents (sublist_provider_id, document_id, period_begin)
+		select distinct t.sublist_provider_id, c.document_id, c.period_id
+		from _generate_document t
+			inner join cte c on c.provider_id = t.provider_id and c.guid = t.guid
+		where not exists (
+							select * 
+							from utility.documents ud 
+							where ud.sublist_provider_id = t.sublist_provider_id and ud.document_id = c.document_id
+						);
+
+		_max_period_id = (select max(period_id) from jsonb_populate_recordset(null::partner.data_from_1c, _payment) as p);
+
+		with cte as 
+		(
+			select ud.sublist_provider_id, ud.document_id, pd."name", ud.period_begin, max(p.period_id) as period_id
+			from utility.documents ud
+				inner join partner."document" pd on pd.id = ud.document_id
+				inner join jsonb_populate_recordset(null::partner.data_from_1c, _payment) p on p.guid = pd.guid
+										and exists(
+													select * 
+													from jsonb_populate_recordset(null::partner.data_from_1c, _payment) 
+													where provider_id = pd.provider_id 
+															and house_id = p.house_id 
+															and guid != p.guid 
+															and period_begin > p.period_begin
+												)
+			group by ud.sublist_provider_id, ud.document_id, pd.name, ud.period_begin
+		), cte2 as 
+		(
+			select *
+			from cte 
+			where period_id != _max_period_id
+		)
+		update utility.documents ud 
+			set period_end = c.period_id
+		from cte2 c 
+		where c.sublist_provider_id = ud.sublist_provider_id and ud.document_id = c.document_id;
+
+		--переносим период начала договора
+		_active_period_id = (select id from period.list where is_active = true); 
+	
+		with cte as 
+		(
+			select distinct ud.*
+			from utility.documents ud
+			where ud.period_begin > _active_period_id
+				and not exists(
+								select * 
+								from utility.documents udd 
+								where udd.sublist_provider_id = ud.sublist_provider_id and udd.period_begin < ud.period_begin
+							)
+		)
+		update utility.documents ud
+			set period_begin = _active_period_id
+		from cte ct
+		where ud.id=ct.id;
+
+	end;
+
+	create temp table _house (house_id int);
+
+	select min(period_id), max(period_id) 
+	into _period_begin, _period_end
+	from jsonb_populate_recordset(null::partner.data_from_1c, _payment) p;
+
+	insert into _house
+	select distinct p.house_id 
+	from jsonb_populate_recordset(null::partner.data_from_1c, _payment) p;
+
+	with cte as 
+	(
+		select 
+			p.period_id,
+			usp.provider_id,
+			ud.document_id,
+			pb.house_id, 
+			p."sum",
+			sum(pb.current_calculate + pb.recalculate) as calc,
+			p.is_split
+		from jsonb_populate_recordset(null::partner.data_from_1c, _payment) p
+			inner join partner."document" pd on pd.guid = p.guid
+			inner join utility.documents ud on ud.document_id = pd.id
+			inner join utility.sublist_provider usp on usp.id = ud.sublist_provider_id
+														and usp.house_id = p.house_id
+			inner join payment.balance pb on pb.house_id = usp.house_id
+											and pb.sublist_id = usp.sublist_id
+											and pb.period_id = p.period_id
+		where p.period_id between ud.period_begin and coalesce(ud.period_end, pb.period_id)
+		group by p.period_id, pb.house_id, usp.provider_id, ud.document_id, p."sum", is_split
+	),cte2 as 
+	(
+		select *, 
+			case 
+				when ct.is_split = false then "sum"
+				else round("sum" * calc / nullif(sum(calc) over (partition by period_id, provider_id, document_id, is_split), 0.0), 2) 
+			end as "result"
+		from cte ct
+	)
+	,_table as 
+	(
+		update partner.balance pb 
+			set calculate = coalesce(c."result", 0.0)
+		from (
+				select ct.period_id, ct.provider_id, ct.document_id, ct.house_id, sum(ct."sum") as "sum", sum(ct."result") as "result"
+		      	from cte2 ct 
+		      	group by ct.period_id, ct.provider_id, ct.document_id, ct.house_id
+		      ) c
+		where pb.period_id = c.period_id 
+			and pb.provider_id = c.provider_id 
+			and pb.house_id = c.house_id 
+			and pb.document_id = c.document_id
+		returning pb.period_id, pb.provider_id, pb.house_id, pb.document_id
+	)
+	insert into partner.balance (period_id, provider_id, house_id, document_id, calculate)
+	select c.period_id, c.provider_id, c.house_id, c.document_id, c."result"
+	from (	
+			select ct.period_id, ct.provider_id, ct.house_id, ct.document_id, sum(coalesce(ct."result",0.0)) as "result"
+			from cte2 ct 
+			group by ct.period_id, ct.provider_id, ct.document_id, ct.house_id
+		) c
+	where not exists (
+						select * 
+						from _table t 
+						where t.period_id = c.period_id 
+							and t.provider_id = c.provider_id 
+							and t.house_id = c.house_id 
+							and t.document_id = c.document_id
+					); 
+	
+	call partner.calc_in_balance (_period_begin, _period_end);
+
+	drop table if exists _generate_document;
+	drop table if exists _house;
+
+end
+"""
+  arguments = <
+    {
+      name = _payment
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 26.10.2016
+ description:	импорт суммы оплаты поставщику жку по договору
+ =============================================
+"""
+}
+

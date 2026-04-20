@@ -1,0 +1,46 @@
+table "counter"."missing_verification" {
+  primaryKey = {
+    columns = [
+      "counter_id"
+    ]
+    name = "pk_missing_verification"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "reason" {
+      type = character varying(100)
+    }
+    column "verification_date" {
+      type = date
+    }
+    column "last_update_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "verification_id" {
+      type = bigint
+    }
+    column "next_verification_date" {
+      type = date
+    }
+    column "is_ignore" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "counter"."missing_verification"."fk_missing_verification_list" {
+  columns = [
+    "counter_id"
+  ]
+  referencedTable = "counter"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,81 @@
+table "house"."lift" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_lift"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('house.lift_id_seq'::regclass)
+    }
+    column "access_id" {
+      type = integer
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "factory_num" {
+      type = character varying(100)
+    }
+    column "inventory_num" {
+      type = character varying(100)
+    }
+    column "is_use" {
+      type = character varying(20)
+    }
+    column "capacity" {
+      type = integer
+    }
+    column "sum" {
+      type = numeric(10,2)
+    }
+    column "type_id" {
+      type = smallint
+    }
+    column "number_of_stop" {
+      type = integer
+    }
+    column "operating_limit" {
+      type = integer
+    }
+    column "year_begin" {
+      type = integer
+    }
+    column "year_last_reapir" {
+      type = integer
+    }
+    column "hp" {
+      type = numeric(5,2)
+    }
+    column "guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "house"."lift"."fk_lift_access" {
+  columns = [
+    "access_id"
+  ]
+  referencedTable = "house"."access"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "house"."lift"."fk_lift_characteristic" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+}
+

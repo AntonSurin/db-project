@@ -1,0 +1,94 @@
+table "calculation"."account_sublist_arch" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_account_sublist_arch"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('calculation.account_sublist_arch_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_parent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+    }
+  )
+}
+
+foreignKey "calculation"."account_sublist_arch"."fk_account_sublist_arch_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "calculation"."account_sublist_arch_idx_period_id" {
+  table = "calculation"."account_sublist_arch"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    account_parent_id
+    sublist_id
+    value
+  ]
+}
+
+index "calculation"."account_sublist_arch_idx_period_id_account_parent_id" {
+  table = "calculation"."account_sublist_arch"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+    {
+      definition = account_parent_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    sublist_id
+    value
+  ]
+}
+

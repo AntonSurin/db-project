@@ -1,0 +1,108 @@
+function "parametr"."new_param()" {
+  text = """
+
+declare 
+		_pl_table		varchar(255);
+		_pl_query		text;
+		_p_table		varchar(255);
+		_parent_table	varchar(50);
+		_type			int;
+		_parametr_id	int;
+		_catalog_id		int;
+		_value			int;
+		_date_begin		date;
+		_default_value	varchar(200);
+		_p_table_id		varchar(100);
+		_short_name		varchar(15);
+		_len			smallint;
+		_precision		int2;
+		_sql 			text = '';
+		_type_name 		varchar(15);
+		_capacity 		text = '';	
+begin
+	
+	if not exists(select * from inserted) 
+		then
+			return null;
+	end if;
+
+	_parametr_id = (select max(pl.ID) from parametr.list pl);
+	_date_begin = (select pl.date_begin from "period".list pl where pl.is_working = true);
+
+	select pd.pl_table, pd.p_table, pd.parent_table, pl.catalog_id, pl.type_id, pl.default_value, pd.p_table_id, pl.short_name, pl.len, pl."preision"
+	into _pl_table, _p_table, _parent_table, _catalog_id, _type, _default_value, _p_table_id, _short_name, _len, _precision
+	from parametr."catalog" pd
+		inner join parametr.list pl on pd.id = pl.catalog_id and pl.id = _parametr_id
+	where pl.catalog_id != 6;
+
+	if (_pl_table is not null)
+		then
+			begin
+				_pl_query = 'if not exists(select 1 from ' || _pl_table || ' where parametr_id = ' || _parametr_id || ')
+							 insert into ' || _pl_table || ' values (' || _parametr_id || ')';
+				
+				execute(_pl_query);
+			end;
+	end if;
+
+	if (_parent_table is not null and _p_table is not null and _p_table <> 'parametr.person')
+		then
+			begin
+				_pl_query = 'if not exists(select 1 from ' || _p_table || ' where parametr_id = ' || _parametr_id || ')
+								then
+									insert into ' || _p_table || ' (' || _p_table_id || ', parametr_id, value, date_begin) 
+									select id,'  
+											|| _parametr_id || ','
+											|| case when _default_value is null then 'null' else '''' || _default_value || ''''  end
+											|| ',''' || _date_begin || '''
+									from ' || _parent_table ||
+									case when _parent_table = 'adress.account' then ' where parent_id is null limit 1' else '' end || ';
+							end if;';
+						
+				execute(_pl_query);
+			end;
+	end if;
+
+	if (_catalog_id = 9)
+		then
+			begin
+				
+				_capacity = case 
+								when coalesce(_len, 0) != 0 
+								then '(' || _len || case 
+														when coalesce(_precision, 0) != 0 
+														then ',' || _precision || ')' 
+														else ')' 
+													end 
+								else ''
+							end;
+		
+				_type_name = (select pt.system_type from parametr."type" pt where pt.id = _type);
+		
+				_sql = 'alter table calculation.sum_volume add ' 		|| _short_name || ' ' || _type_name || _capacity || '
+						alter table recalculation.sum_volume add ' 		|| _short_name || ' ' || _type_name || _capacity || '
+						alter table calculation.sum_volume_arch add '	|| _short_name || ' ' || _type_name || _capacity || ';';
+					
+				execute(_sql);
+			end;
+	end if;
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 17.04.2014
+ Description:	Триггер на добавление праметра и подстановки занчений в дочерние таблицы
+ =============================================
+ Modified Author:			Глещинский Д.В.
+ Modified date:			26.09.2018
+ Modified description:	Добавил автоматическое создание колонок в  [Calculation].[SumVolume], [Calculation].[SumVolumeArch]
+ =============================================
+"""
+}
+

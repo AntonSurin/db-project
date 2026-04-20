@@ -1,0 +1,93 @@
+function "parametr"."update_house_parametr_transporate()" {
+  text = """
+
+declare 
+	_sql		text = '';
+	_date_end	date;
+
+begin  
+
+	if not exists (select * from inserted) 
+		then 
+			return null;
+	end if;	
+					
+	drop table if exists _parametrs;
+	create temp table _parametrs (house_id int, parametr_id int, short_name text, value text);
+									
+	_date_end = (select date_end from "period".list where is_working = true);
+	
+	with cte as 
+	(
+		select 
+			ph.id,
+			ph.house_id, 
+			ph.parametr_id, 
+			ph.date_end,
+		 	(lead(ph.date_begin, 1, null) over (partition by ph.house_id, ph.parametr_id order by ph.house_id, ph.parametr_id, ph.date_begin)) - 1 as new_date_end
+		from parametr.house ph
+		where ph.parametr_id in (select parametr_id from inserted)
+			and house_id in (select house_id from inserted)
+	)
+	select ct.new_date_end into old.date_end 	
+	from cte  ct		
+	where ((ct.date_end is null or ct.date_end <> ct.new_date_end) or new_date_end is null); 
+
+	insert into _parametrs
+	select 
+		 i.house_id
+		,i.parametr_id
+		,pl.short_name
+		,i.value
+	from inserted i
+		inner join parametr.list pl on pl.id = i.parametr_id
+	where is_calculation = true
+		and i.date_end is null;
+
+	if not exists(select 1 from _parametrs) 
+		then 
+			return null;
+	end if;
+
+	_sql =  _sql || (select string_agg( p,'
+		')
+					from (
+					 select '
+		update calculation.parametr_transporate as cp 
+			set 
+				' || p.short_name || ' = cast(p.value as ' || pt.system_type || 
+																case 
+																	when pl.len is not null and pl."precision" is null then '(' || cast(pl.len as varchar(10)) || ')'
+																	when pl.len is not null and pl."precision" is not null then '(' || cast(pl.len as varchar(10)) || ',' || cast(pl."precision" as varchar(3)) || ')'
+																	else ''
+																end || ')
+		from _parametrs p 
+		where p.house_id = cp.house_id and p.parametr_id = ' || cast(p.parametr_id as varchar(10))||';' as p
+	from _parametrs p
+		inner join parametr.list pl on pl.id = p.parametr_id
+		inner join parametr.type pt on pt.id = pl.type_id
+	group by p.short_name, p.parametr_id, pt.system_type, pl.len, pl."precision" ) as d) ;
+	
+	execute (_sql);
+
+
+drop table if exists _parametrs;	
+
+return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 11.08.2015
+ Description:	Автоматическое редактирование Calculation.ParametrTransporate
+ =============================================
+"""
+}
+

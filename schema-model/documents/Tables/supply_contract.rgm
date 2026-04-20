@@ -1,0 +1,42 @@
+table "documents"."supply_contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_supply_contract"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.supply_contract_id_seq'::regclass)
+    }
+    column "root_guid" {
+      type = uuid
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "number" {
+      type = character varying(100)
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+    }
+    column "date_end" {
+      type = timestamp(3) without time zone
+    }
+    column "status" {
+      type = character varying(20)
+    }
+    column "is_offer" {
+      type = boolean
+    }
+    column "organization_guid" {
+      type = uuid
+    }
+  )
+}
+

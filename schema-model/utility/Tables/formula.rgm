@@ -1,0 +1,52 @@
+table "utility"."formula" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_formula_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.formula_id_seq'::regclass)
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "formula_type" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "formula" {
+      type = text
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "is_origin" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "utility"."formula"."fk_formula_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

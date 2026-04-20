@@ -1,0 +1,179 @@
+procedure "law"."actualize_installment()" {
+  text = """
+
+declare 
+	_payment_date date;
+begin
+	
+	_payment_date = (select min(date_begin) from "period".list where is_open = true);
+	
+	/* поиск исполняемых рассрочек */
+	create temp table _current_debt 
+	(
+		folder_id		int, 
+		account_id		int,
+		period_id		int,
+		current_debt 	numeric(20,2)
+	);
+
+	create temp table _installment_debt 
+	(
+		folder_id 			int,
+		installment_date 	date,
+		current_debt 		numeric(20,2)
+	);
+
+	create temp table _result 
+	(
+		folder_id			int, 
+		period_id			int,
+		account_id			int, 
+		installment_date 	date, 
+		full_debt			numeric(20,2), 
+		doc_debt			numeric(20,2), 
+		pay					numeric(20,2), 
+		payment_date		date, 
+		last_payment_date 	date, 
+		root_notifyed		int,
+		"result"			numeric(20,2)
+	);
+
+	begin
+		-- задолженность по начислениям
+		insert into _current_debt (folder_id, period_id, account_id, current_debt)
+		select lf.id as folder_id, lf.period_id, lf.account_id, sum(pb.current_calc + pb.recalc) as current_debt
+		from law.folder lf 
+			inner join payment.balance_group pb on pb.account_id = lf.account_id
+				and pb.period_id > lf.period_id
+		where lf.block_id = 4 and lf.is_open = true
+		group by lf.id, lf.account_id, lf.period_id;
+
+		insert into _installment_debt (folder_id, installment_date, current_debt)
+		select li.folder_id, max(li."date"), sum("sum")
+		from law.installment li
+			inner join law.folder lf on lf.id = li.folder_id
+		where lf.is_open = true and (li."date" + 3) <= cast(current_date as date)
+		group by li.folder_id;
+
+		with cte as 
+		(	
+			select c.folder_id, 
+					c.period_id, 
+					c.account_id, 
+					i.installment_date, 
+					c.current_debt + i.current_debt as full_debt, 
+					coalesce(l.payment_date, _payment_date) as payment_date, 
+					l.root_notifyed, 
+					l."sum"
+			from _current_debt c
+				inner join _installment_debt i on i.folder_id = c.folder_id
+				left join lateral 	(
+										select ld.id as root_notifyed, ld.payment_date, ld."sum"
+										from law.docs ld 
+										where ld.folder_id = c.folder_id
+											and ld.notifyed_id = 10 and ld.status_id = 1
+									) l on true
+		), cte2 as 
+		(
+			select c.*, sum(pd."sum") as pay, max(pl."date") as last_payment_date
+			from cte c
+				inner join adress.account aa on aa.id = c.account_id
+				left join payment.list pl on pl.account_id = aa.parent_id
+					and pl."date" between (c.payment_date + 1) and (c.installment_date + 3)
+				left join payment.detal pd on pd.payment_id = pl.id
+					and pd.account_id = c.account_id
+			group by c.folder_id, c.period_id, c.account_id, c.installment_date, c.full_debt, c.payment_date, c.root_notifyed, c."sum"
+		), cte3 as 
+		(
+			select 
+				folder_id,
+				period_id,
+				account_id,
+				installment_date,
+				full_debt,
+				pay,
+				payment_date,
+				last_payment_date,
+				root_notifyed,
+				"sum",
+				full_debt - coalesce(pay, 0.0) as "result"
+			from cte2
+		)
+
+		insert into _result (folder_id, period_id, account_id, installment_date, full_debt, doc_debt, pay, payment_date, last_payment_date, root_notifyed, "result")
+		select folder_id, period_id, account_id, installment_date, full_debt, "sum", pay, payment_date, last_payment_date, root_notifyed, "result"
+		from cte3;
+
+		insert into law.docs as target (parent_id, folder_id, date, payment_date, date_status_change, sum, status_id, notifyed_id, period_id)
+		select r.root_notifyed, 
+				r.folder_id, 
+				r.installment_date, 
+				r.last_payment_date, 
+				cast(current_date as date), 
+				case when r.doc_debt - r.pay < 0.0 then 0.0 else r.doc_debt - r.pay end, 
+				13, 
+				10, 
+				r.period_id
+		from _result r
+		where r."result" <= 0.0 
+			and not exists (select *
+							from law.docs ld
+							where ld.folder_id = r.folder_id and ld."date" = r.installment_date and ld.id <> r.root_notifyed and ld.notifyed_id  = 10);
+	
+		--закрываем дела, у которых сумма задолженности - платеж < 0
+		update law.folder as lf 
+			set
+				is_open = false,
+				date_end = cast(current_date as date)
+		from _result r 
+		where r.folder_id = lf.id and coalesce(r.doc_debt,0) <= r.pay and lf.is_open = true;
+
+		delete 
+		from _result 
+		where result <= 0.0 or (installment_date+4) > cast(current_date as date);
+
+		insert into law.docs as target (parent_id, folder_id, date, payment_date, date_status_change, sum, status_id, notifyed_id, period_id)
+		select r.root_notifyed, 
+				r.folder_id, 
+				r.installment_date, 
+				r.last_payment_date, 
+				cast(current_date as date), 
+				case when r.doc_debt - r.pay < 0.0 then 0.0 else r.doc_debt - r.pay end,
+				14, 
+				10, 
+				r.period_id 
+		from _result r
+		where not exists (select *
+						  from law.docs ld
+						  where ld.folder_id = r.folder_id and ld."date" = r.installment_date and ld.id <> r.root_notifyed and ld.notifyed_id = 10);
+		
+		update law.folder lf 
+			set
+				block_id = 1
+		from _result r 
+		where  r.folder_id = lf.id;
+
+	exception when others 
+		then 
+			raise exception '%',sqlstate ;
+	end;
+
+	drop table if exists _current_debt;
+	drop table if exists _installment_debt;
+	drop table if exists _result;
+
+end
+"""
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 28.08.2016
+ description:	актуализация данных по рассрочке
+ =============================================
+"""
+}
+

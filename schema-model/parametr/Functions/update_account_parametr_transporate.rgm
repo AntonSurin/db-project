@@ -1,0 +1,164 @@
+function "parametr"."update_account_parametr_transporate()" {
+  text = """
+
+declare 
+		_sql				text = '';
+		_tarif_column		text = '';
+		_volume_column		text = '';
+		_normativ_column	text = '';
+		_sum_volume_column	text = '';
+begin
+ 
+	if (lower(tg_op) = 'insert')
+		then
+			begin 	
+				set session_replication_role = replica;
+					with cte as (
+						select 	pa.id,
+								pa.account_id, 
+								pa.parametr_id, 
+								pa.date_end,
+								(lead(pa.date_begin, 1, null) over (partition by pa.account_id, pa.parametr_id order by pa.account_id, pa.parametr_id, pa.date_begin)- interval '1 day') as new_date_end
+						from parametr.account pa 
+						where pa.parametr_id in (select i.parametr_id from inserted i)
+							and pa.account_id in (select ii.account_id from inserted ii)
+					)
+				
+					update parametr.account pa 
+						set date_end = ct.new_date_end
+					from cte ct
+					where ct.id = pa.id
+						and ((ct.date_end is null or ct.date_end <> ct.new_date_end) or ct.new_date_end is null);
+				
+					set session_replication_role = default;
+			end;
+		else 
+			begin
+				drop table if exists _parametr;
+				create temp table _parametr (account_id int, parametr_id int, short_name varchar(50), value varchar(200)); 
+ 
+				insert into _parametr
+				select i.account_id, i.parametr_id, pl.short_name, i.value
+				from inserted i
+					inner join parametr.list pl on pl.id = i.parametr_id
+				where is_calculation = true	and i.date_end is null;
+			
+				if not exists(select 1 from _parametr limit 1) 
+				then
+					begin
+						return null;
+						drop table if exists _parametr;
+					end;
+				end if;
+			
+				_sql = (select string_agg(f.d,'')
+						from (
+									select '
+										update calculation.parametr_transporate cp 
+											set ' || lower(p.short_name) || ' = cast(p.value as ' || lower(pt.system_type) || 
+																			case 
+																				when pl.len is not null and pl."precision" is null then '(' || pl.len || ')'
+																				when pl.len is not null and pl."precision" is not null then '(' || pl.len || ',' || pl."precision" || ')'
+																				else ''
+																			end || ')
+										from _parametr p 
+										where p.account_id = cp.account_id and p.parametr_id = ' || p.parametr_id || '; ' as d
+									from _parametr p
+										inner join parametr.list pl on pl.id = p.parametr_id
+										inner join parametr."type" pt on pt.id = pl.type_id
+									group by p.short_name, p.parametr_id, pt.system_type, pl.len, pl."precision"
+								) as f
+							);
+					
+				execute (_sql);
+			
+				_sql = '';
+				drop table if exists _parametr;
+			end;	
+	end if;
+
+	/*
+		В случае закрытия лицевого счета обнуляем таблицы с объемами, нормативами, тарифами и суммарными объемами 
+		для того, чтобы расчитанные ранее показатели не влияли на новые расчета
+	*/
+
+	if exists (select * from inserted where parametr_id = 1362 and value != '1')
+		then
+			begin
+		
+				select volume_column, tarif_column, normativ_column, sum_volume_column
+				into _volume_column, _tarif_column, _normativ_column, _sum_volume_column
+				from (
+						select 
+							 string_agg(case when lower(table_name) = 'volume' 		then lower(column_name) || ' = null,' else '' end, '') as volume_column
+							,string_agg(case when lower(table_name) = 'tarif' 		then lower(column_name) || ' = null,' else '' end, '') as tarif_column
+							,string_agg(case when lower(table_name) = 'normativ'	then lower(column_name) || ' = null,' else '' end, '') as normativ_column
+							,string_agg(case when lower(table_name) = 'sum_volume'	then lower(column_name) || ' = null,' else '' end, '') as sum_volume_column
+						from information_schema."columns" ic
+						where lower(ic.table_schema) = 'calculation' 
+							and lower(ic.table_name) in ('volume', 'tarif', 'normativ', 'sum_volume')
+							and lower(ic.column_name) not in ('house_id', 'flat_id', 'account_id')	
+					 ) d;
+		
+				_volume_column 		= substring(_volume_column, 	1, length(_volume_column)	  - 1);
+				_tarif_column 		= substring(_tarif_column, 		1, length(_tarif_column)	  - 1);
+				_normativ_column 	= substring(_normativ_column, 	1, length(_normativ_column)	  - 1);
+				_sum_volume_column	= substring(_sum_volume_column, 1, length(_sum_volume_column) - 1);
+		
+				create temp table _account (account_id int);
+		
+				insert into _account
+				/* 
+					Если лицевой счет открывался и закрывался по несколько раз в разных месяцах,  
+					то получим ошибку, поэтому distinct
+				*/
+				select distinct account_id 
+				from inserted
+				where parametr_id = 1362 and value != '1';
+		
+		
+				_sql = '
+				update calculation.normativ cn 
+					set ' || _normativ_column || '
+				from _account a 
+				where a.account_id = cn.account_id;
+		
+				update calculation.volume cv 
+					set ' || _volume_column || '
+				from _account a 
+				where a.account_id = cv.account_id;
+		
+				update calculation.tarif ct 
+					set ' || _tarif_column || '
+				from _account a 
+				where a.account_id = ct.account_id;
+					
+				update calculation.sum_volume cs 
+					set ' || _sum_volume_column || '
+				from _account a 
+				where a.account_id = cs.account_id;';
+				
+				execute (_sql);
+			drop table if exists _account;
+			
+			end;
+	end if;
+	
+	return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 11.08.2015
+ Description:	Автоматическое редактирование Calculation.ParametrTransporate
+ =============================================
+"""
+}
+

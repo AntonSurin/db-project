@@ -1,0 +1,30 @@
+table "documents"."storage" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_storage"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.storage_id_seq'::regclass)
+    }
+    column "storage_type" {
+      type = integer
+      null = NOT NULL
+    }
+    column "options" {
+      type = text
+      null = NOT NULL
+    }
+    column "is_deleted" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+

@@ -1,0 +1,30 @@
+table "export"."uszn" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_uszn"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('export.uszn_id_seq'::regclass)
+    }
+    column "script" {
+      type = text
+      null = NOT NULL
+    }
+    column "field_condition" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "encoding" {
+      type = smallint
+      null = NOT NULL
+    }
+  )
+}
+

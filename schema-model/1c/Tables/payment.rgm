@@ -1,0 +1,59 @@
+table "1c"."payment" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_payment"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('"1c".payment_id_seq'::regclass)
+    }
+    column "payment_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "payment_guid" {
+      type = uuid
+    }
+    column "customers_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "1c"."payment"."fk_payment_list" {
+  columns = [
+    "payment_id"
+  ]
+  referencedTable = "payment"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "1c"."payment_idx_payment_id" {
+  table = "1c"."payment"
+  type = btree
+  columns = <
+    {
+      definition = payment_id
+    }
+
+    {
+      definition = customers_guid
+    }
+
+    {
+      definition = payment_guid
+    }
+
+  >
+  isUnique = False
+}
+

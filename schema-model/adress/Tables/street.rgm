@@ -1,0 +1,78 @@
+table "adress"."street" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_street"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.street_id_seq'::regclass)
+    }
+    column "street_book_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "settlement_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "address_parser_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "adress"."street"."fk_street_settlement" {
+  columns = [
+    "settlement_id"
+  ]
+  referencedTable = "adress"."settlement"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "adress"."street"."fk_street_sprav_street" {
+  columns = [
+    "street_book_id"
+  ]
+  referencedTable = "adress"."street_book"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "adress"."street_ix_street_settlement_id" {
+  table = "adress"."street"
+  type = btree
+  columns = <
+    {
+      definition = settlement_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "adress"."street_ix_street_street_book_id" {
+  table = "adress"."street"
+  type = btree
+  columns = <
+    {
+      definition = street_book_id
+    }
+
+  >
+  isUnique = False
+}
+

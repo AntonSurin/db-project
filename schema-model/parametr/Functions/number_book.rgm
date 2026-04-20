@@ -1,0 +1,43 @@
+function "parametr"."number_book()" {
+  text = """
+
+begin
+
+	with cte
+	as
+	(
+	select pb.*, row_number() over (partition by i.parametr_id order by i.id) + coalesce(p.ord_n,-1) c
+	from parametr.book pb
+		inner join inserted i on i.id = pb.id
+		left join	(
+						select pb.parametr_id, max(order_number) ord_n
+						from parametr.book pb
+						where pb.parametr_id in (select parametr_id from inserted)
+						group by pb.parametr_id
+					) p on p.parametr_id = i.parametr_id
+	)
+	
+	update parametr.book pb
+	set "number" = cast(ct.c as varchar(5))
+		,order_number = ct.c
+	from cte ct
+	where ct.id = pb.id; 
+		
+	return new;
+	
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		ООО ЖилФондСервис
+ Create date: 03.12.2013
+ Description:	Нумерация справочника для пользователя
+ =============================================
+"""
+}
+

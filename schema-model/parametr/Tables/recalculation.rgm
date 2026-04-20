@@ -1,0 +1,81 @@
+table "parametr"."recalculation" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_re_calculation"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('parametr.recalculation_id_seq'::regclass)
+    }
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "root_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = character varying(200)
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+foreignKey "parametr"."recalculation"."fk_re_calculation_list" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "parametr"."recalculation"."fk_re_calculation_root" {
+  columns = [
+    "root_id"
+  ]
+  referencedTable = "recalculation"."root"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "parametr"."recalculation_ix_re_calculation_parametr_id" {
+  table = "parametr"."recalculation"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "parametr"."recalculation_ix_re_calculation_root_id" {
+  table = "parametr"."recalculation"
+  type = btree
+  columns = <
+    {
+      definition = root_id
+    }
+
+  >
+  isUnique = False
+}
+

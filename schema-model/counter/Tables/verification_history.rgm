@@ -1,0 +1,62 @@
+table "counter"."verification_history" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__verifica__3214ec073b0fa339"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('counter.verification_history_id_seq'::regclass)
+    }
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "created_at" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+      default = now()
+    }
+    column "session_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "verification_date" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "verification_interval" {
+      type = integer
+    }
+    column "resource" {
+      type = smallint
+    }
+  )
+}
+
+foreignKey "counter"."verification_history"."fk_verification_history_counter" {
+  columns = [
+    "counter_id"
+  ]
+  referencedTable = "counter"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "counter"."verification_history"."fk_verification_history_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+

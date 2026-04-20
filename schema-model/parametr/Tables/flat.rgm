@@ -1,0 +1,154 @@
+table "parametr"."flat" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_p_apartment"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('parametr.flat_id_seq'::regclass)
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = character varying(200)
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+foreignKey "parametr"."flat"."fk_p_apartment_apartment" {
+  columns = [
+    "flat_id"
+  ]
+  referencedTable = "adress"."flat"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+foreignKey "parametr"."flat"."fk_p_apartment_pl_apartment" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."pl_flat"
+  referencedColumns = [
+    "parametr_id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+index "parametr"."flat_idx_date_end" {
+  table = "parametr"."flat"
+  type = btree
+  columns = <
+    {
+      definition = date_end
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    flat_id
+    parametr_id
+    value
+    date_begin
+  ]
+}
+
+index "parametr"."flat_ix_flat_flat_id" {
+  table = "parametr"."flat"
+  type = btree
+  columns = <
+    {
+      definition = flat_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "parametr"."flat_ix_flat_parametr_id" {
+  table = "parametr"."flat"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+    {
+      definition = flat_id
+    }
+
+    {
+      definition = date_begin
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    value
+  ]
+}
+
+trigger "parametr"."flat"."delete_flat_parametr_transporate" {
+  timing = AFTER
+  events = [
+    DELETE
+  ]
+  level = STATEMENT
+  function = parametr.delete_flat_parametr_transporate
+  functionArguments = [
+  ]
+  table = "parametr"."flat"
+  constraint = False
+  oldTableReference = deleted
+}
+
+trigger "parametr"."flat"."insert_flat_parametr_transporate" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = parametr.update_flat_parametr_transporate
+  functionArguments = [
+  ]
+  table = "parametr"."flat"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "parametr"."flat"."update_flat_parametr_transporate" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = parametr.update_flat_parametr_transporate
+  functionArguments = [
+  ]
+  table = "parametr"."flat"
+  constraint = False
+  newTableReference = inserted
+}
+

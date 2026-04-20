@@ -1,0 +1,43 @@
+function "adress"."get_responsible(integer)" {
+  text = """
+
+begin
+		
+	_fio =	(
+				select string_agg(cl.full_name, ', ')
+				from contragent.account ca
+					inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+					inner join contragent.list cl on cl.id = ca.contragent_id
+				where ca.account_id = _account_id 
+					and od.date_end is null 
+					and ca.is_responsible = true
+			);
+
+end;
+"""
+  returnType = text
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _fio
+      type = text
+      mode = OUT
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: <Create Date, ,>
+ Description:	Возвращает имя собственника организации
+ =============================================
+"""
+}
+

@@ -1,0 +1,28 @@
+table "adress"."region" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_region"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.region_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "code" {
+      type = character varying(3)
+    }
+    column "address_parser_guid" {
+      type = uuid
+    }
+  )
+}
+

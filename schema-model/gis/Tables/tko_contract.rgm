@@ -1,0 +1,31 @@
+table "gis"."tko_contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_tko_contract"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.tko_contract_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+    }
+    column "number_contract" {
+      type = character varying(150)
+    }
+    column "org_name" {
+      type = character varying(200)
+    }
+  )
+}
+

@@ -1,0 +1,29 @@
+table "parametr"."pl_house" {
+  primaryKey = {
+    columns = [
+      "parametr_id"
+    ]
+    name = "pk_pl_house"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "parametr"."pl_house"."fk_pl_house_list" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+

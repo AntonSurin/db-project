@@ -1,0 +1,35 @@
+view "adress"."view_short_name" {
+  text = """-
+SELECT ah.id AS house_id,
+    ((((((((((COALESCE(ast.name, ''::character varying))::text || ', '::text) || (COALESCE(asb.short_name, ''::character varying))::text) || ' '::text) || (COALESCE(ass.name, ''::character varying))::text) || ', '::text) || (COALESCE(aht.short_name, ''::character varying))::text) || ' '::text) || (COALESCE(ah.number, ''::character varying))::text) ||
+        CASE
+            WHEN ((COALESCE(ah.korpus, ''::character varying))::text <> ''::text) THEN (((', '::text || (COALESCE(ahk.short_name, ''::character varying))::text) || ' '::text) || (ah.korpus)::text)
+            ELSE ''::text
+        END) AS short_name,
+    ah.territory_id,
+    ah.order_id
+   FROM (((((adress.house ah
+     JOIN adress.house_type aht ON ((aht.id = ah.house_type_id)))
+     JOIN adress.street ass ON ((ass.id = ah.street_id)))
+     JOIN adress.street_book asb ON ((asb.id = ass.street_book_id)))
+     JOIN adress.settlement ast ON ((ast.id = ass.settlement_id)))
+     JOIN adress.house_kind ahk ON ((ahk.id = ah.house_kind_id)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+    }
+    column "short_name" {
+      type = text
+    }
+    column "territory_id" {
+      type = integer
+    }
+    column "order_id" {
+      type = integer
+    }
+  )
+}
+

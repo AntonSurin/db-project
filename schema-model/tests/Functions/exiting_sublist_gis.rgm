@@ -1,0 +1,112 @@
+function "tests"."exiting_sublist_gis(integer, integer, jsonb)" {
+  text = """
+
+begin
+
+	create temp table _errors (account_name varchar(20), sublist_name varchar(150));
+	create temp table _sublist_id_s (sublist_id int);
+	create temp table _not_guid_sublist (sublist_id int);
+
+	insert into _sublist_id_s
+	select pb.sublist_id
+	from payment.balance pb
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+		inner join adress.account aa on a.account_id = aa.id
+	where period_id >= _period_begin and period_id <= _period_end and sublist_id not in (6, 32, 34, 37) and print = 1
+	group by sublist_id;
+	
+	--ком. услуги
+	insert into _not_guid_sublist
+	select gis_sublist.sublist_id
+	from gis.sublist gis_sublist
+		join _sublist_id_s s on gis_sublist.sublist_id = s.sublist_id
+	where gis_sublist.gis_type = 1 and (resourse_code is null or resourse_guid is null or gis_code is null or gis_guid is null);
+
+--	--ком. ресурсы
+	insert into _not_guid_sublist
+	select gis_sublist.sublist_id
+	from gis.sublist gis_sublist
+		join _sublist_id_s s on gis_sublist.sublist_id = s.sublist_id
+	where gis_sublist.gis_type = 4 and (group_code is null or group_guid is null);
+
+--	--необходимо чтобы в "группах" ком. ресурсов все ком. ресурсы были с гуидами. на остальных достаточно указание ресурса
+	insert into _not_guid_sublist
+	select gis_sublist.sublist_id
+	from gis.sublist gis_sublist
+	where gis_sublist.gis_type = 4
+		and (gis_guid is null or gis_code is null)
+		and group_guid in
+		(
+			select
+				group_guid
+			from gis.sublist gis_sublist
+				join _sublist_id_s s on gis_sublist.sublist_id = s.sublist_id
+			where gis_sublist.gis_type = 4
+			group by group_code, group_guid
+			having count(*) > 1
+		);
+
+	--остальные
+	insert into _not_guid_sublist
+	select gis_sublist.sublist_id
+	from gis.sublist gis_sublist
+	where gis_sublist.gis_type not in (1, 4)
+		and (gis_guid is null or gis_code is null);
+
+	--на всякий случай если не найдется в gis.sublist услуги (такого быть не должно, т.к. все автоматом добавляется)
+	insert into _not_guid_sublist
+	select s.sublist_id
+	from _sublist_id_s s
+		left join gis.sublist gis_sublist on s.sublist_id = gis_sublist.sublist_id
+	where gis_sublist.id is null;
+	
+	return query
+	select 
+		aa.name as account_name
+		,s.name as sublist_name
+	from payment.balance pb
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+		inner join utility.sublist s on pb.sublist_id = s.id
+		inner join _not_guid_sublist not_guid on not_guid.sublist_id = pb.sublist_id
+		inner join adress.account aa on a.account_id = aa.id
+	where period_id >= _period_begin and period_id <= _period_end and print = 1
+	order by pb.account_parent_id,pb.sublist_id;
+	
+	drop table if exists _errors;
+	drop table if exists _sublist_id_s;
+	drop table if exists _not_guid_sublist;
+
+end;
+"""
+  returnType = TABLE(account_name character varying, sublist_name character varying)
+  arguments = <
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:	Ильющенко Денис
+ Create date: 03.10.2017
+ Description:	Тест перед выгрузкой ПД на ГИС 
+ =============================================
+"""
+}
+

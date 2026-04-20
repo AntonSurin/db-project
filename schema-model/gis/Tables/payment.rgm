@@ -1,0 +1,57 @@
+table "gis"."payment" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_payment_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.payment_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "payment_id" {
+      type = integer
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_load_to_gis" {
+      type = timestamp(3) without time zone
+    }
+    column "sum" {
+      type = numeric(13,2)
+      null = NOT NULL
+    }
+    column "unique_number" {
+      type = character varying(32)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "status" {
+      type = integer
+    }
+    column "error_text" {
+      type = character varying(300)
+    }
+    column "service_id" {
+      type = character varying(15)
+    }
+    column "batch_id" {
+      type = integer
+    }
+    column "period_id" {
+      type = integer
+    }
+  )
+}
+

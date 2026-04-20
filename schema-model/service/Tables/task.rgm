@@ -1,0 +1,93 @@
+table "service"."task" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_task"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.task_id_seq'::regclass)
+    }
+    column "service_guid" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "parent_service_guid" {
+      type = character varying(50)
+    }
+    column "title" {
+      type = character varying(150)
+      null = NOT NULL
+    }
+    column "responsible_name" {
+      type = character varying(50)
+    }
+    column "responsible_surname" {
+      type = character varying(50)
+    }
+    column "description" {
+      type = text
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "status" {
+      type = character varying(50)
+    }
+    column "date_begin" {
+      type = timestamp(6) without time zone
+    }
+    column "date_end" {
+      type = timestamp(6) without time zone
+    }
+    column "responsible_service_guid" {
+      type = character varying(50)
+    }
+    column "number" {
+      type = character varying(20)
+    }
+    column "service_category_guid" {
+      type = character varying(50)
+    }
+    column "user_name" {
+      type = character varying(50)
+    }
+    column "phone" {
+      type = character varying(50)
+    }
+    column "rating" {
+      type = smallint
+    }
+    column "date_rating" {
+      type = timestamp(3) without time zone
+    }
+    column "signature_id" {
+      type = smallint
+    }
+    column "favorites" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+  )
+}
+
+index "service"."task_ac_service_guid" {
+  table = "service"."task"
+  type = btree
+  columns = <
+    {
+      definition = service_guid
+    }
+
+  >
+  isUnique = True
+}
+

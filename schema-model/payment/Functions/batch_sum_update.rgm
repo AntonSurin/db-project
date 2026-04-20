@@ -1,0 +1,81 @@
+function "payment"."batch_sum_update()" {
+  text = """
+
+begin
+
+	if (lower(tg_op) = 'delete')
+		then
+			begin
+	
+				with batch as 
+				(
+					select distinct d.batch_id
+					from deleted d
+				)
+				,sums as (
+					select pl.batch_id, sum(pl."sum") as "sum"
+					from payment.list pl
+					where pl.batch_id in (select b.batch_id from batch b)
+					group by pl.batch_id
+				)
+				
+				update payment.batch pbb 
+					set "sum" = coalesce(sb."sum", 0.0)
+				from 
+				(
+					select pb.id, s."sum"
+					from payment.batch pb
+						left join sums s on s.batch_id = pb.id
+					where pb.id in (select b.batch_id from batch b)
+				) sb
+				where sb.id=pbb.id;
+
+			end;
+		else 
+			begin
+				
+				with batch as 
+				(
+					select distinct i.batch_id
+					from inserted i
+			
+				)
+				,sums as (
+					select pl.batch_id, sum(pl."sum") as "sum"
+					from payment.list pl
+					where pl.batch_id in (select b.batch_id from batch b)
+					group by pl.batch_id
+				)
+				
+				update payment.batch pbb 
+					set "sum" = coalesce(sb."sum", 0.0)
+				from 
+				(
+					select pb.id, s."sum"
+					from payment.batch pb
+						left join sums s on s.batch_id = pb.id
+					where pb.id in (select b.batch_id from batch b)
+				) sb
+				where sb.id=pbb.id;
+				
+			end;
+	end if;
+			
+return null;				
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Трофимов Б.И.
+ Create date: 16.10.2019
+ Description:	Триггер на перерасчет суммы пачки при изменении/удалении/добавлении платежей
+ =============================================
+"""
+}
+

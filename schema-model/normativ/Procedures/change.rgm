@@ -1,0 +1,156 @@
+procedure "normativ"."change(integer, integer, character varying, numeric, date, character varying, numeric, boolean, date, integer, integer)" {
+  text = """
+
+declare 
+		_old_value	numeric(9, 5);
+		_count		int;
+		_period_id	int;
+		_short_name	varchar(20);
+		_sql		text = '';
+begin
+
+	
+
+	_period_id = (select id from period.list where is_working = true);
+	_short_name = (select 'r_' || short_name from utility.sublist where id = _sublist_id);
+
+	if (coalesce(_normativ_id, 0) != 0)
+		then 
+			begin 
+				_old_value = (select value from normativ.list where id = _normativ_id);
+				_count = (select count(*) from payment.balance where sublist_id = _sublist_id and normativ = _old_value and period_id = _period_id);
+				
+				if (_count > 0 and _old_value <> _value)
+					then 
+						begin
+							raise notice 'Невозможно изменить норматив, т.к. он учавствовал в начислениях в предыдущих периодах.' using errcode='55000';
+							return; 
+						end;
+				end if;
+			end;
+	end if;
+
+	if not exists (select * from normativ.list where id = _normativ_id)
+		then 
+			insert into normativ.list as nl (sublist_id, territory_id, "name", value, date_begin, date_end, "document", rate, is_global) 
+			select _sublist_id, _territory_id, _name, _value, _date_begin, _date_end, _document, _rate, _is_global;
+		else
+			update normativ.list nl
+			set "name" 			= _name,
+				value 			= _value,
+				date_begin 		= _date_begin,
+				date_end 		= _date_end,
+				"document" 		= _document,
+				territory_id 	= _territory_id,
+				rate 			= _rate,
+				"number" 		= _number
+			where nl.id = _normativ_id;
+	end if;
+
+	if (coalesce(_normativ_id, 0) = 0)
+		then
+			begin
+				_normativ_id = (select max(id) from normativ.list);
+			
+				with cte as 
+				(
+					select id,
+						row_number() over (partition by territory_id, date_begin order by territory_id, date_begin) as n
+					from normativ.list
+					where sublist_id = _sublist_id
+				)
+			
+				update normativ.list nl 
+				set "number" = c.n
+				from cte c 
+				where c.id = nl.id and nl.id = _normativ_id;			
+			end;
+	end if;
+
+	call utility.actualize_column_rate ();
+
+
+end
+"""
+  arguments = <
+    {
+      name = _sublist_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _territory_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _name
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _value
+      type = numeric
+      mode = IN
+    }
+
+    {
+      name = _date_begin
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _document
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _rate
+      type = numeric
+      mode = IN
+    }
+
+    {
+      name = _is_global
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _date_end
+      type = date
+      mode = IN
+      default = NULL::date
+    }
+
+    {
+      name = _normativ_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _number
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 12.04.2016
+ Description:	Редактирование списка нормативов
+ =============================================
+"""
+}
+

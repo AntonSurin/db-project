@@ -1,0 +1,43 @@
+function "report"."benefit_header(jsonb)" {
+  text = """
+
+
+	select
+		ol.id, 
+		ot."name" || ' ' || ol."name" as organization_name,
+		(
+			select string_agg(bl."name", ', ')
+			from benefit.list bl
+				inner join jsonb_populate_recordset(null::special.objects, _benefits) b on b.object_id = bl.id
+		) as "name",
+		(
+			select string_agg(distinct case when bl.source_by_name = 1 then 'Федеральный бюджет' else 'Региональный бюджет' end , ', ')
+			from benefit.list bl
+				inner join jsonb_populate_recordset(null::special.objects, _benefits) b on b.object_id = bl.id
+		) as source_by_name
+	from organization.list ol
+		inner join organization."type" ot on ot.id = ol.type_id
+		inner join adress.house ah on ah.work_id = ol.id
+	limit 1;
+"""
+  returnType = TABLE(id integer, organization_name text, name text, source_by_name text)
+  arguments = <
+    {
+      name = _benefits
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+
+=============================================
+Author:		Глещинский Дмитрий
+Create date: 05.05.2017
+Description:	Для отчета по льготникам (шапка)
+=============================================
+"""
+}
+

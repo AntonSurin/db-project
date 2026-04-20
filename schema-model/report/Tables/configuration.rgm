@@ -1,0 +1,26 @@
+table "report"."configuration" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_configuration"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.configuration_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "json_values" {
+      type = text
+      null = NOT NULL
+    }
+  )
+}
+

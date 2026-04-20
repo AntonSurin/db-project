@@ -1,0 +1,18 @@
+composite "account"."new_flat" {
+  owner = postgres
+  fields = (
+    field "account_id" {
+      type = integer
+    }
+    field "new_flat_book_id" {
+      type = integer
+    }
+    field "new_flat_number" {
+      type = character varying(10)
+    }
+    field "old_flat_id" {
+      type = integer
+    }
+  )
+}
+

@@ -1,0 +1,80 @@
+function "recalculation"."insert_values()" {
+  text = """
+
+declare 
+	_period_id		int;
+	_period_work 	int;
+	_account		jsonb;
+begin
+
+	_period_work = (select id from "period".list where is_working = true);
+
+	if lower(tg_op) = 'insert' 
+		then 
+			begin			
+				insert into payment.balance as pb (house_id, flat_id, account_id, period_id, sublist_id, tarif, normativ, volume, in_balance, current_calculate, recalculate
+			      									,rate_normativ, pay, account_parent_id)
+			   	select new.house_id, new.flat_id, new.account_id, new.period_id, new.sublist_id, 0 as tarif, 0 as normativ, 0 as volume, 0 as in_balance
+			   			, 0 as current_calculate, new.diff_result as recalculate, 1.0 as rate_normativ, 0 as pay, new.account_parent_id
+				on conflict (account_id, period_id, sublist_id)	
+			    	do update 
+			    		set recalculate = coalesce(pb.recalculate, 0) + excluded.recalculate;
+			    	
+				if new.period_id <> _period_work
+					then
+						begin 
+							_account =  (select jsonb_agg(jsonb_build_object('account_id', new.account_parent_id)));
+									
+							call calculation.calc_in_balance (new.period_id, _period_work, _account);
+						end;
+				end if;
+			end;
+		
+			return null;
+		
+		else
+			begin			
+				insert into payment.balance as pb (house_id, flat_id, account_id, period_id, sublist_id, tarif, normativ, volume, in_balance, current_calculate, recalculate
+			      									,rate_normativ, pay, account_parent_id)
+			    select new.house_id, new.flat_id, new.account_id, new.period_id as period_id, new.sublist_id, 0 as tarif, 0 as normativ, 0 as volume, 0 as in_balance
+			    		, 0 as current_calculate, new.diff_result - coalesce (old.diff_result,0) as recalculate, 1.0 as rate_normativ, 0 as pay
+			    		, new.account_parent_id
+			    on conflict (account_id, period_id, sublist_id)	
+			    	do update 
+			    		set recalculate = coalesce(pb.recalculate, 0) + excluded.recalculate;
+			    	
+				if new.period_id <> _period_work
+					then
+						begin 
+							_account =  (select jsonb_agg(jsonb_build_object('account_id', di.account_parent_id))
+											from(
+													select new.account_parent_id
+													union
+													select old.account_parent_id
+												) di
+										);
+									
+							call calculation.calc_in_balance (new.period_id, _period_work, _account);
+						end;
+				end if;
+				return null;
+			end;		
+	
+	end if;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:	Поляков Павел
+ Create date: 11.03.2016
+ Description:	Триггер на добавление или обнвление перерасчета
+ =============================================
+"""
+}
+

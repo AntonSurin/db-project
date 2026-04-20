@@ -1,0 +1,147 @@
+view "payment"."calc_for_1c" {
+  text = """-
+SELECT ol.inn AS organization_inn,
+    pl.date_end,
+    ai.account_name,
+    us.name AS utility_name,
+    us.id AS sublist_id,
+    pb.current_calculate AS calc,
+    pb.in_balance,
+    pb.tarif,
+    COALESCE(pb.volume, (0)::numeric) AS volume,
+    uu.name AS unit_name,
+    uu.code AS okei,
+        CASE
+            WHEN (pc.person_id IS NOT NULL) THEN
+            CASE
+                WHEN (TRIM(BOTH FROM pc.inn) = ''::text) THEN NULL::text
+                ELSE TRIM(BOTH FROM pc.inn)
+            END
+            ELSE NULL::text
+        END AS contract_inn,
+    ('Д-'::text || ai.house_id) AS house_id,
+    pc.contract_id
+   FROM ((((((payment.balance pb
+     JOIN period.list pl ON ((pl.id = pb.period_id)))
+     JOIN adress.info ai ON ((ai.account_id = pb.account_id)))
+     JOIN organization.list ol ON ((ol.id = ai.work_id)))
+     JOIN utility.sublist us ON ((us.id = pb.sublist_id)))
+     JOIN utility.unit uu ON ((uu.id = us.unit_id)))
+     LEFT JOIN LATERAL ( SELECT cl.inn,
+            c.id AS contract_id,
+            cl.surname,
+            cl.name,
+            cl.middlename,
+            cl.type,
+            cl.full_name,
+            ca.id AS person_id
+           FROM ((((contragent.account ca
+             JOIN adress.account aa ON ((aa.id = ca.account_id)))
+             JOIN contragent.owner_documents od ON ((od.contragent_account_id = ca.id)))
+             JOIN contragent.list cl ON ((cl.id = ca.contragent_id)))
+             LEFT JOIN LATERAL ( SELECT cc.id
+                   FROM (contragent.contract cc
+                     JOIN contragent.contract_account ac ON ((ac.contract_id = cc.id)))
+                  WHERE ((ac.account_id = ca.account_id) AND (cc.date_end IS NULL))) c ON (true))
+          WHERE ((ca.is_responsible = true) AND (od.date_end IS NULL) AND (ca.account_id = ai.account_parent_id))
+          ORDER BY cl.id
+         LIMIT 1) pc ON (true))
+  WHERE (pb.print = 1)
+UNION ALL
+ SELECT ol.inn AS organization_inn,
+    pl.date_end,
+    ai.account_name,
+    us.name AS utility_name,
+    us.id AS sublist_id,
+    pb.recalculate AS calc,
+    pb.in_balance,
+    0.0 AS tarif,
+    0.0 AS volume,
+    uu.name AS unit_name,
+    uu.code AS okei,
+        CASE
+            WHEN (pc.person_id IS NOT NULL) THEN
+            CASE
+                WHEN (TRIM(BOTH FROM pc.inn) = ''::text) THEN NULL::text
+                ELSE TRIM(BOTH FROM pc.inn)
+            END
+            ELSE NULL::text
+        END AS contract_inn,
+    ('Д-'::text || ai.house_id) AS house_id,
+    pc.contract_id
+   FROM ((((((payment.balance pb
+     JOIN period.list pl ON ((pl.id = pb.period_id)))
+     JOIN adress.info ai ON ((ai.account_id = pb.account_id)))
+     JOIN organization.list ol ON ((ol.id = ai.work_id)))
+     JOIN utility.sublist us ON ((us.id = pb.sublist_id)))
+     JOIN utility.unit uu ON ((uu.id = us.unit_id)))
+     LEFT JOIN LATERAL ( SELECT cl.inn,
+            c.id AS contract_id,
+            cl.surname,
+            cl.name,
+            cl.middlename,
+            cl.type,
+            cl.full_name,
+            ca.id AS person_id
+           FROM ((((contragent.account ca
+             JOIN adress.account aa ON ((aa.id = ca.account_id)))
+             JOIN contragent.owner_documents od ON ((od.contragent_account_id = ca.id)))
+             JOIN contragent.list cl ON ((cl.id = ca.contragent_id)))
+             LEFT JOIN LATERAL ( SELECT cc.id
+                   FROM (contragent.contract cc
+                     JOIN contragent.contract_account ac ON ((ac.contract_id = cc.id)))
+                  WHERE ((ac.account_id = ca.account_id) AND (cc.date_end IS NULL))) c ON (true))
+          WHERE ((ca.is_responsible = true) AND (od.date_end IS NULL) AND (ca.account_id = ai.account_parent_id))
+          ORDER BY cl.id
+         LIMIT 1) pc ON (true))
+  WHERE ((pb.print = 1) AND (pb.recalculate <> 0.0));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  comment = ****** Object:  View Payment.CalcFor1C    Script Date: 11.10.2022 16:02:07 ******
+  columns = (
+    column "organization_inn" {
+      type = character varying(12)
+    }
+    column "date_end" {
+      type = date
+    }
+    column "account_name" {
+      type = character varying(12)
+    }
+    column "utility_name" {
+      type = character varying(100)
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "calc" {
+      type = numeric(9,2)
+    }
+    column "in_balance" {
+      type = numeric(9,2)
+    }
+    column "tarif" {
+      type = numeric
+    }
+    column "volume" {
+      type = numeric
+    }
+    column "unit_name" {
+      type = character varying(50)
+    }
+    column "okei" {
+      type = character varying(50)
+    }
+    column "contract_inn" {
+      type = text
+    }
+    column "house_id" {
+      type = text
+    }
+    column "contract_id" {
+      type = integer
+    }
+  )
+}
+

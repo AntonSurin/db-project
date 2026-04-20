@@ -1,0 +1,160 @@
+procedure "recalculation"."save(integer, integer, boolean, integer, jsonb, jsonb)" {
+  text = """
+
+declare 
+	_period_id 	int;
+	_date_begin date;
+	_date_end 	date;
+	_type 		int;
+	_diff 		numeric(5,2);
+begin
+	begin
+
+		select pl.id, date_begin, date_end 
+		into _period_id, _date_begin, _date_end  
+		from "period".list pl
+			inner join recalculation.root rr on rr.period_id = pl.id 
+		where rr.id = _root_id;
+
+		_type = (select "type" from recalculation.root where id = _root_id);
+	
+		_diff = case when _type in (0,5) then 0.0 else 0.04 end;
+		
+		if not exists(select 1 from jsonb_populate_recordset(null::account.list, _account) as s limit 1)
+			then 
+				delete from recalculation."result" where root_id = _root_id;
+			else 
+				begin
+					delete 
+					from recalculation."result" rr				
+					where rr.root_id = _root_id and exists (select 1 from jsonb_populate_recordset(null::account.list, _account) as a where rr.account_parent_id = a.account_id);
+				end;
+		end if;
+
+		insert into recalculation."result" (root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, date_end, "day", calc_tarif, recalc_tarif, diff_tarif, calc_volume, recalc_volume, diff_volume, calc_result, recalc_result, diff_result, account_parent_id)
+		with cte as
+		(
+			
+			select 
+				 t.root_id
+				,t.period_id
+				,t.house_id
+				,t.flat_id
+				,t.account_id
+				,t.sublist_id
+				,t.date_begin
+				,t.date_end
+				,t."day"
+				,case when _type = 5 then 0.0 else  t.tarif_value end recalc_tarif
+				,case when _type = 5 then 0.0 else  coalesce(p.tarif, 0) end calc_tarif
+				,case when _type = 5 then 0.0 else  coalesce(t.tarif_value, 0) - coalesce (p.tarif, 0) end diff_tarif
+				,case when _type = 5 then 0.0 else  coalesce(t.volume_value, 0) end recalc_volume
+				,case when _type = 5 then 0.0 else  coalesce(p.volume, 0) end calc_volume
+				,case when _type = 5 then 0.0 else  coalesce(t.volume_value, 0) - coalesce(p.volume, 0) end diff_volume
+				,(coalesce(t."result", 0)) recalc_result
+				,case when _type = 5 then 0.0 else  (coalesce(p.current_calculate, 0)) end calc_result
+				,case when _type = 5 then 0.0 else  sum(coalesce(p.volume,0)) over (partition by t.root_id, t.period_id, t.house_id, t.flat_id, t.account_id, t.sublist_id) - sum(coalesce(t.volume_value, 0)) over (partition by t.root_id, t.period_id, t.house_id, t.flat_id, t.account_id, t.sublist_id) end as sum_volume
+				,sum(coalesce(p.current_calculate, 0)) over (partition by t.root_id, t.period_id, t.house_id, t.flat_id, t.account_id, t.sublist_id) - sum(coalesce(t."result",0)) over (partition by t.root_id, t.period_id, t.house_id, t.flat_id, t.account_id, t.sublist_id) as sum_result
+				,t.account_parent_id
+			from  recalculation.list_preview t
+				left join (
+							select pb.*, pl.date_begin, pl.date_end
+							from payment.balance pb
+								inner join "period".list pl on pl.id = pb.period_id
+						) p on t.period_id = p.period_id
+							and t.account_id = p.account_id 
+							and t.sublist_id = p.sublist_id 
+							and t.date_begin = p.date_begin
+			where root_id = _root_id
+		) 
+
+		select distinct 
+			 root_id::int4
+			,period_id::int4
+			,house_id::int4
+			,flat_id::int4
+			,c.account_id::int4
+			,c.sublist_id::int4
+			,c.date_begin::date
+			,c.date_end::date
+			,"day"::int4
+			,calc_tarif::numeric(9, 2)
+			,recalc_tarif::numeric(9, 2)
+			,diff_tarif::numeric(9, 2)
+			,calc_volume::numeric(11, 5)
+			,recalc_volume::numeric(11, 5)
+			,diff_volume::numeric(11, 5)
+			,calc_result::numeric(9, 2)
+			,recalc_result::numeric(9, 2)
+			,(recalc_result - calc_result)::numeric(9, 2) as diff_result
+			,c.account_parent_id::int4
+		from cte c
+			inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = c.account_parent_id
+			inner join jsonb_populate_recordset(null::report.sublist, _sublist) s on s.sublist_id = c.sublist_id
+			inner join utility.sublist us on us.id = s.sublist_id
+		where ((sum_result not between -_diff and _diff) 
+				and s.sublist_id <> 7)
+			or (abs(sum_volume) > 0.00001 and us."type" = 1) ;
+
+		delete from recalculation.list_preview where root_id = _root_id;
+	
+		exception 
+			when others
+				then 
+					raise exception 'Ошибка, обратитесь в тех. поддержку.';
+	end;		
+
+end
+"""
+  arguments = <
+    {
+      name = _period_start
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _odn
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _root_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _sublist
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 06.08.2014
+ description:	сохранение результатов перерасчета в таблицы
+ Modify date: 02.10.2023
+ Modify:      Юркин Е.Ю. - при сохранении отсеиваются данные, результат которых находится в промежутке от -0.04 до 0.04 
+							(кроме типов "перерасчет по тарифу", "перерасчет по сумме")
+ =============================================
+"""
+}
+

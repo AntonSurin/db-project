@@ -1,0 +1,32 @@
+table "account"."contact" {
+  primaryKey = {
+    columns = [
+      "account_id"
+    ]
+    name = "pk_account_contact"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "phone" {
+      type = character varying(1000)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "account"."contact"."fk_contact_contact" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,111 @@
+function "payment"."get_balance_documents_diff(integer)" {
+  text = """
+
+begin
+	-- баланс согласно payment.balance.
+	return query
+	with balance as 
+	(
+		select
+			pb.account_parent_id,
+			pb.account_id,
+			pb.sublist_id,
+			pb.in_balance - pb.pay as "sum"
+		from payment.balance pb
+		where pb.period_id = _period_id
+	)
+	,document_details as 
+	(
+		select 
+			doc.id as document_id, 
+			doc.period_id, 
+			doc.account_id as account_parent_id, 
+			doc_details.account_id, 
+			doc_details.sublist_id, 
+			doc_details."sum"
+		from payment."document" doc
+			join payment.document_detail doc_details on doc.id = doc_details.payment_document_id
+		where doc.period_id < _period_id and doc.type_id = 3 or doc.period_id <= _period_id and doc.type_id in (1,2)
+	)
+	,history_ids as 
+	(
+		select 
+			closed.period_id, 
+			closed.account_id as account_parent_id, 
+			phd.account_id, 
+			phd.source_sublist_id,  
+			phd.sublist_id, 
+			phd."sum"
+		from payment.document_history ph
+			join payment.document_history_detail phd on ph.id = phd.history_id
+			join payment."document" closed on ph.closed_document_id = closed.id
+			join payment."document" closed_by on ph.closed_by_document_id = closed_by.id
+		where (closed.type_id in (1, 2) and closed.period_id <= _period_id
+				or closed.type_id = 3 and closed.period_id < _period_id)
+			and closed_by.period_id <= _period_id
+			-- исключаем взаимозачеты, т.к. у них общая сумма по детали будет 0
+			and phd.source_sublist_id != phd.sublist_id
+	)	
+	,document_balance as -- баланс согласно документов.
+	(
+		select dd.period_id, dd.account_parent_id, dd.account_id, dd.sublist_id, dd."sum", 'd' as origin
+		from document_details dd
+		union all
+		select hd.period_id, hd.account_parent_id, hd.account_id, hd.sublist_id, hd."sum", 't'
+		from history_ids hd
+		union all
+		select hd.period_id, hd.account_parent_id, hd.account_id, hd.source_sublist_id, -hd."sum", 's'
+		from history_ids hd
+	)
+	,balance_diff as 
+	(
+		select
+			q.account_parent_id,
+			q.account_id,
+			q.sublist_id,
+			sum(case when q.origin = 'd' then q."sum" else 0.0 end) as docs_sum,
+			sum(case when q.origin = 'b' then q."sum" else 0.0 end) as balance_sum
+		from
+		(
+			select d.account_parent_id, d.account_id, d.sublist_id, d."sum", 'd' as origin
+			from document_balance d
+
+			union all
+
+			select b.account_parent_id, b.account_id, b.sublist_id, b."sum", 'b' as origin
+			from balance b
+		) q
+		group by q.account_parent_id, q.account_id, q.sublist_id
+	)
+	select
+		d.account_parent_id,
+		d.account_id,
+		a.group_id,
+		d.sublist_id,
+		d.balance_sum - d.docs_sum as diff
+	from balance_diff d
+		join adress.account a on a.id = d.account_id
+	where d.balance_sum - d.docs_sum != 0;
+
+end;
+"""
+  returnType = TABLE(account_parent_id integer, account_id integer, group_id smallint, sublist_id integer, diff numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		трофимов б.и.
+ create date: 03.07.20
+ description:	сверка баланса с документами за период
+ =============================================
+"""
+}
+

@@ -1,0 +1,52 @@
+table "report"."question" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_table_1_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.question_id_seq'::regclass)
+    }
+    column "voting_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "question" {
+      type = character varying(4000)
+      null = NOT NULL
+    }
+    column "comment" {
+      type = character varying(4000)
+    }
+  )
+}
+
+foreignKey "report"."question"."fk_report_protocol_question_report_protocol_question" {
+  columns = [
+    "voting_id"
+  ]
+  referencedTable = "report"."voting"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "report"."question_ix_report_protocol_question" {
+  table = "report"."question"
+  type = btree
+  columns = <
+    {
+      definition = id
+    }
+
+  >
+  isUnique = False
+}
+

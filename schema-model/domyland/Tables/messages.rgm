@@ -1,0 +1,50 @@
+table "domyland"."messages" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_messages"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.messages_id_seq'::regclass)
+    }
+    column "type" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_create" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_response" {
+      type = timestamp(3) without time zone
+    }
+    column "is_error" {
+      type = boolean
+    }
+    column "error_text" {
+      type = text
+    }
+    column "message_guid" {
+      type = uuid
+    }
+    column "task_log_id" {
+      type = character varying(50)
+    }
+    column "status" {
+      type = boolean
+    }
+    column "object_id" {
+      type = integer
+    }
+    column "sub_info" {
+      type = character varying(50)
+    }
+  )
+}
+

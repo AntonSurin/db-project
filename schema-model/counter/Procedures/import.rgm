@@ -1,0 +1,52 @@
+procedure "counter"."import(jsonb, integer, timestamp without time zone)" {
+  text = """
+
+declare 
+	_period_id int;
+begin
+
+	_period_id = (select id from "period".list where is_working = true);
+
+	update counter.flow cf
+		set value = c.value 
+			,"date" = c."date"
+			,flow_type_id = c.flow_type_id
+			,session_id = _session_id
+			,security_date = _security_date
+			,gis_status_upload = case when c.flow_type_id = 7 then true else false end
+	from jsonb_populate_recordset(null::"import".counter, _counter) as  c 
+	where cf.counter_id = c.counter_id and cf.period_id = _period_id and coalesce(cf.value, 0.0) <= c.value;
+	
+end
+"""
+  arguments = <
+    {
+      name = _counter
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _session_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _security_date
+      type = timestamp without time zone
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 13.10.2016
+ description:	сохранение показаний с сайта
+ =============================================
+"""
+}
+

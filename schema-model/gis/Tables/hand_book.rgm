@@ -1,0 +1,78 @@
+table "gis"."hand_book" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_gis_hand_book"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.hand_book_id_seq'::regclass)
+    }
+    column "is_actual" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "modified" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "parent_guid" {
+      type = uuid
+    }
+    column "registry_number" {
+      type = integer
+      null = NOT NULL
+    }
+    column "code" {
+      type = character varying(20)
+    }
+    column "name" {
+      type = character varying(255)
+    }
+    column "value" {
+      type = character varying(4000)
+    }
+    column "type_name" {
+      type = character varying(50)
+    }
+    column "organization_setting_id" {
+      type = integer
+    }
+  )
+}
+
+index "gis"."hand_book_idx_name" {
+  table = "gis"."hand_book"
+  type = btree
+  columns = <
+    {
+      definition = name
+    }
+
+    {
+      definition = registry_number
+    }
+
+    {
+      definition = type_name
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    guid
+    parent_guid
+    code
+    value
+  ]
+}
+

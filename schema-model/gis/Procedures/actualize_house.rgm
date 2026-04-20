@@ -1,0 +1,122 @@
+procedure "gis"."actualize_house(jsonb)" {
+  text = """
+
+declare 
+		_org_type 					varchar(10);
+		_house_managment_type 		int2;
+		_parametr_id 				int;
+		_organization_setting_id 	int;
+begin
+	_parametr_id = (select id from parametr.list where Lower(short_name) = 'sq_mop');
+
+	_org_type = (select lower(ot.short_name) 
+				 from organization.list ol
+					 inner join organization."type" ot on ot.id = ol.type_id);
+				
+	-- способ управления домом
+	_house_managment_type = (case lower(_org_type)
+								 when 'тсж' then 2
+								 when 'тсн' then 2
+							 	 when 'жск' then 3
+							 	 else 5
+							 end);
+	
+	drop table if exists __house;
+	create temp table __house (house_id int);
+	
+	if exists(select * from jsonb_populate_recordset(null::house.list, _house))
+		then 
+			begin
+				insert into __house (house_id)
+				select house_id from jsonb_populate_recordset(null::house.list, _house);
+			end;
+		else 
+			begin
+				insert into __house (house_id)
+				select id from adress.house;
+			end;
+	end if;
+
+	merge into house.characteristic as targets
+	using (
+			select ah.id as house_id
+				,2 as status_id
+				,2 as time_zone_id
+				,_house_managment_type as house_management_type
+				,0.0 as area
+				,gdp.value::int2 as year_begin
+				,coalesce(etd.value, '0')::int as floor_count_max
+				,0 as floor_underground_count
+				,false as is_culture
+				,null as cadastral_number
+				,false as is_upload
+				,current_date as modification_date 
+				,sqmop.value::numeric(9,2) as sqmop
+			from adress.house ah
+				inner join __house h on h.house_id = ah.id
+				inner join parametr.house gdp on ah.id = gdp.house_id and gdp.parametr_id = 260 and gdp.date_end is null
+				inner join parametr.house etd on ah.id = etd.house_id and etd.parametr_id = 257 and etd.date_end is null
+				left join parametr.house sqmop on ah.id = sqmop.house_id and sqmop.parametr_id = _parametr_id and sqmop.date_end is null
+				)
+	as sources (house_id, status_id, time_zone_id,house_management_type, area,year_begin,floor_count_max,floor_underground_count, is_culture,cadastral_number, is_upload,modification_date,sqmop)
+	on 
+		(targets.house_id = sources.house_id)
+	when matched 
+		then update
+			set house_management_type= sources.house_management_type
+			,floor_count_min = case when targets.floor_count_min = 0 or targets.floor_count_min is null then sources.floor_count_max else targets.floor_count_min end
+	when not matched 
+		then insert (house_id, status_id, time_zone_id,house_management_type, area,year_begin, year_of_construction, floor_count_min,floor_count_max,floor_underground_count, is_culture,cadastral_number, is_upload,modification_date, document_type,house_type, common_propery_water, common_propery_el)
+			values  (sources.house_id, sources.status_id, sources.time_zone_id,sources.house_management_type,  sources.area,sources.year_begin, sources.year_begin, sources.floor_count_max,sources.floor_count_max,sources.floor_underground_count, sources.is_culture, sources.cadastral_number, sources.is_upload,sources.modification_date,3, 1, sources.sqmop, sources.sqmop);
+			
+	drop table if exists __house;
+
+	if (select count(*) from gis.organization_settings) = 1
+	then 
+		begin
+
+	_organization_setting_id = (
+									select id 
+									from gis.organization_settings
+									limit 1
+								);
+
+	insert into gis.organization_house (house_id, organization_setting_id)
+	select hc.house_id, _organization_setting_id 
+	from house.characteristic hc
+		left join gis.organization_house oh on hc.house_id = oh.house_id
+	where oh.house_id is null;
+
+	delete 
+	from gis.organization_house hh
+	where exists (
+					select 1 
+					from gis.organization_house oh
+						left join house.characteristic hc on hc.house_id = oh.house_id
+					where hc.house_id is null and hh = oh
+				);
+
+		end;
+	end if;
+										
+end;
+"""
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		дмитрий глещинский
+ create date: 19.06.2017
+ description:	актуализирует данные 
+ =============================================
+"""
+}
+

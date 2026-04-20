@@ -1,0 +1,53 @@
+table "adress"."house_visibility" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_adress_house_visibility"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.house_visibility_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "user_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_visible" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+  )
+}
+
+foreignKey "adress"."house_visibility"."fk_adress_house_visibility_to_adress_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "adress"."house_visibility"."fk_adress_house_visibility_to_security_users" {
+  columns = [
+    "user_id"
+  ]
+  referencedTable = "security"."users"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,52 @@
+function "partner"."in_balance()" {
+  text = """
+
+declare 
+	_period_id int;
+begin
+
+	_period_id = (select id from period.list where is_active = true);
+
+	return query
+	select 
+		hi.short_adress
+		,usp.house_id
+		,usp.provider_id
+		,usp.sublist_id
+		,up."name" || '/' || us."name" as sublist_name
+		,pb.in_balance
+	from utility.sublist_provider usp
+		inner join utility.provider up on up.id = usp.provider_id
+		inner join utility.sublist us on us.id = usp.sublist_id
+		inner join house.info hi on hi.house_id = usp.house_id
+		inner join utility.documents ud on ud.sublist_provider_id = usp.id
+		inner join partner."document" pd on pd.id = ud.document_id
+		left join partner.balance pb on pb.provider_id = usp.provider_id
+			and pb.document_id = ud.document_id
+			and pb.period_id = _period_id
+	group by hi.short_adress, 
+			usp.provider_id, 
+			usp.sublist_id, 
+			up."name", 
+			us."name", 
+			pb.in_balance, 
+			order_id, 
+			usp.house_id
+	order by order_id, sublist_id;
+
+end
+"""
+  returnType = TABLE(short_adress text, house_id integer, provider_id integer, sublist_id integer, sublist_name text, in_balance numeric)
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 28.10.2016
+ description:	заполнение начального сальдо по поставщику
+ =============================================
+"""
+}
+

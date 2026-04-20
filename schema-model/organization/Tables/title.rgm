@@ -1,0 +1,25 @@
+table "organization"."title" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_title"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('organization.title_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "genitive_name" {
+      type = character varying(100)
+    }
+  )
+}
+

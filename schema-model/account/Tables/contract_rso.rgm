@@ -1,0 +1,42 @@
+table "account"."contract_rso" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__contract__3214ec2709e5d746"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('account.contract_rso_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "provider_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "contragent_id" {
+      type = integer
+    }
+    column "contract_number" {
+      type = character varying(50)
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "comment" {
+      type = character varying(100)
+    }
+  )
+}
+

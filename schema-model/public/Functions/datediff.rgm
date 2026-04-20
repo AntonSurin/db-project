@@ -1,0 +1,49 @@
+function "public"."datediff(text, timestamp without time zone, timestamp without time zone)" {
+  text = """
+
+begin
+	if $1 = 'century' then
+      return extract(century from $2) - extract(century from $3);
+	elseif $1 = 'year' then
+      return extract(year from $2) - extract(year from $3);
+	elseif $1 = 'month' then
+      return extract(month from $2) - extract(month from $3);
+	elseif $1 = 'day' then
+      return extract(day from $2) - extract(day from $3);
+	elseif $1 = 'hour' then
+      return extract(hour from $2) - extract(hour from $3);
+	elseif $1 = 'minute' then
+      return extract(minute from $2) - extract(minute from $3);
+    elseif $1 = 'second' then
+      return extract(second from $2) - extract(second from $3);
+    else
+      raise exception 'type field $1 do not find';
+    end if;
+end;
+"""
+  returnType = integer
+  arguments = <
+    {
+      name = 
+      type = text
+      mode = IN
+    }
+
+    {
+      name = 
+      type = timestamp without time zone
+      mode = IN
+    }
+
+    {
+      name = 
+      type = timestamp without time zone
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  volatility = IMMUTABLE
+  owner = postgres
+}
+

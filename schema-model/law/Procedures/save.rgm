@@ -1,0 +1,55 @@
+procedure "law"."save(jsonb, integer)" {
+  text = """
+
+declare 
+	_status_id		int = 1; --??? (по умолчанию - статус 1 (сформирован)
+	_error_message 	text;
+begin
+	begin 
+		
+		insert into law.docs as target (parent_id, folder_id, "date", payment_date, "sum", status_id, notifyed_id, period_id)
+		select a.parent_id, a.folder_id, a."date", a.payment_date, a.debt, 1 as status_id, _notifyed_id as notifyed_id, a.period_id 
+		from jsonb_populate_recordset(null::law.notifyed_type, _account) a 
+		where not exists 	(
+								select * 
+								from law.docs ld 
+								where ld.parent_id = a.parent_id 
+									and ld.notifyed_id = _notifyed_id 
+									and a.period_id = ld.period_id
+							);	
+
+		exception when others
+		then 
+			get stacked diagnostics
+			_error_message = pg_exception_detail;
+		
+		raise exception '%', _error_message;
+		
+	end; 
+end
+"""
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _notifyed_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 24.05.2016
+ description:	массовое создание дела и документа 
+ =============================================
+"""
+}
+

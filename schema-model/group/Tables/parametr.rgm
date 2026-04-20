@@ -1,0 +1,53 @@
+table "group"."parametr" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_parametr"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('"group".parametr_id_seq'::regclass)
+    }
+    column "group_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "group"."parametr"."fk_parametr_group" {
+  columns = [
+    "group_id"
+  ]
+  referencedTable = "group"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+foreignKey "group"."parametr"."fk_parametr_parametr" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+

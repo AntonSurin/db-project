@@ -1,0 +1,31 @@
+table "payment"."info" {
+  primaryKey = {
+    columns = [
+      "payment_id"
+    ]
+    name = "pk_info_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "payment_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "comment" {
+      type = character varying(300)
+    }
+  )
+}
+
+foreignKey "payment"."info"."fk_info_list" {
+  columns = [
+    "payment_id"
+  ]
+  referencedTable = "payment"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

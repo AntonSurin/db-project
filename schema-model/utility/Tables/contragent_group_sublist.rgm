@@ -1,0 +1,83 @@
+table "utility"."contragent_group_sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contragent_group_sub_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.contragent_group_sublist_id_seq'::regclass)
+    }
+    column "sublist_provider_id" {
+      type = integer
+    }
+    column "group_id" {
+      type = integer
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+index "utility"."contragent_group_sublist_idx_house_id" {
+  table = "utility"."contragent_group_sublist"
+  type = btree
+  columns = <
+    {
+      definition = sublist_id
+    }
+
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    group_id
+  ]
+}
+
+index "utility"."contragent_group_sublist_idx_util_cgs_house_id_gp_id" {
+  table = "utility"."contragent_group_sublist"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+    {
+      definition = group_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "utility"."contragent_group_sublist_idx_util_cgs_sub_prov_id" {
+  table = "utility"."contragent_group_sublist"
+  type = btree
+  columns = <
+    {
+      definition = sublist_provider_id
+    }
+
+  >
+  isUnique = False
+}
+

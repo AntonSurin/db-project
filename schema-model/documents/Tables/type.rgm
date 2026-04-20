@@ -1,0 +1,22 @@
+table "documents"."type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_type_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.type_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+  )
+}
+

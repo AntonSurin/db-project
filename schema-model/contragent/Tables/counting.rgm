@@ -1,0 +1,80 @@
+table "contragent"."counting" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_counting_3"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('contragent.counting_id_seq'::regclass)
+    }
+    column "contragent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "bik" {
+      type = character varying(9)
+      null = NOT NULL
+    }
+    column "rs" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "ks" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "bank_adress" {
+      type = character varying(300)
+      null = NOT NULL
+    }
+    column "is_default" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+  )
+}
+
+foreignKey "contragent"."counting"."fk_counting_list" {
+  columns = [
+    "contragent_id"
+  ]
+  referencedTable = "contragent"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "contragent"."counting_idx_contragent" {
+  table = "contragent"."counting"
+  type = btree
+  columns = <
+    {
+      definition = contragent_id
+    }
+
+    {
+      definition = is_default
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    bik
+    rs
+    ks
+    bank_adress
+  ]
+}
+

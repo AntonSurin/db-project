@@ -1,0 +1,120 @@
+table "tarif"."house_tarif" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_house_tarif"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('tarif.house_tarif_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "tarif_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "number" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+foreignKey "tarif"."house_tarif"."fk_house_tarif_to_adress_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "tarif"."house_tarif"."fk_house_tarif_to_tarif_list" {
+  columns = [
+    "tarif_id"
+  ]
+  referencedTable = "tarif"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "tarif"."house_tarif_ix_house_tarif_date" {
+  table = "tarif"."house_tarif"
+  type = btree
+  columns = <
+    {
+      definition = date_end
+    }
+
+    {
+      definition = date_begin
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    house_id
+    tarif_id
+  ]
+}
+
+index "tarif"."house_tarif_ix_house_tarif_house_id_date" {
+  table = "tarif"."house_tarif"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+    {
+      definition = date_end
+    }
+
+    {
+      definition = date_begin
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    tarif_id
+  ]
+}
+
+index "tarif"."house_tarif_ix_house_tarif_tarif_id" {
+  table = "tarif"."house_tarif"
+  type = btree
+  columns = <
+    {
+      definition = tarif_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+    number
+    date_end
+  ]
+}
+

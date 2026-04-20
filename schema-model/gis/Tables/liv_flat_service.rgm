@@ -1,0 +1,55 @@
+table "gis"."liv_flat_service" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_liv_flat_service"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.liv_flat_service_id_seq'::regclass)
+    }
+    column "contract_id" {
+      type = integer
+    }
+    column "charter_id" {
+      type = integer
+    }
+    column "code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "payment" {
+      type = numeric(10,2)
+    }
+  )
+}
+
+foreignKey "gis"."liv_flat_service"."fk_liv_flat_service_liv_flat_charter" {
+  columns = [
+    "charter_id"
+  ]
+  referencedTable = "gis"."liv_flat_charter"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "gis"."liv_flat_service"."fk_liv_flat_service_liv_flat_contract" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "gis"."liv_flat_contract"
+  referencedColumns = [
+    "id"
+  ]
+}
+

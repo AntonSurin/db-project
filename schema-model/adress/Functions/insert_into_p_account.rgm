@@ -1,0 +1,188 @@
+function "adress"."insert_into_p_account()" {
+  text = """
+
+declare 
+	_date_begin		date;
+	_period_id		int;
+	_house_id		int;
+	_group 			jsonb;
+	_parametr_id 	int;
+	_houses 		jsonb;
+	_account		jsonb;
+begin 
+	
+	select date_begin, id
+	into _date_begin, _period_id  
+	from "period".list pl
+	where pl.is_working = true;
+
+	if (select parent_id from _inserted limit 1) is null
+		then
+			begin
+				
+				_group = (select jsonb_agg(jsonb_build_object('object_id',id)) from utility.contragent_group); 
+			
+				if not exists(select g.object_id from jsonb_populate_recordset(null::special.objects, _group) g)
+				then 
+					_group = null;				
+				end if;
+				
+				if exists (select * from _inserted where password_site is null)
+					then 
+						update adress.account as aa 
+							set password_site = left(regexp_replace(md5(aa.name), '\D',  '', 'g'), 6)::int 
+						from _inserted i
+						where i.id = aa.id;
+				end if;
+			
+				insert into calculation.parametr_transporate (house_id, flat_id, account_id, territory_id)
+				select distinct a.house_id, a.flat_id, a.id, ah.territory_id
+				from adress.house ah
+					inner join _inserted a on a.house_id = ah.id ;
+			
+				if not exists(select *
+							  from pg_tables
+							  where tablename = '_temp' and schemaname in ( select nspname 
+																		 	from pg_catalog.pg_namespace
+																		 	where "oid" = pg_my_temp_schema()
+																		 	)
+							)
+					then 
+						insert into parametr.account (account_id, parametr_id, value, date_begin)
+						select i.id, pl.id, pl.default_value, _date_begin 
+						from parametr.list pl
+							cross join _inserted i
+						where pl.catalog_id = 1;
+				end if;
+			
+				insert into "input".account (input_id, house_id, account_id, sublist_id)
+				select distinct ia.input_id, ia.house_id, i.id, ia.sublist_id
+				from "input".account ia
+					cross join lateral (select distinct flat_id from adress.account where id = ia.account_id) f
+					inner join _inserted i on i.flat_id = f.flat_id;
+			
+				insert into utility.sublist_group_a_detail (group_id, house_id, account_id, avg_type, get_value_type)
+				select us.id, i.house_id, i.id, true, false
+				from _inserted i 
+					inner join utility.sublist_group us on 1 = 1;
+				
+				if not exists(select *
+							  from pg_tables
+							  where tablename = '_temp' and schemaname in ( select nspname 
+																		 	from pg_catalog.pg_namespace
+																		 	where "oid" = pg_my_temp_schema()
+																		 	)
+							)
+					then
+						begin
+							
+							insert into parametr.house (house_id, parametr_id, value, date_begin)
+							select distinct h.house_id, pl.id, pl.default_value, _date_begin 
+							from parametr.list pl 
+								cross join (select i.house_id from _inserted i group by i.house_id) h
+							where catalog_id = 3 
+								and not exists (select * from parametr.sublist ps where ps.parametr_id = pl.id and ps.catalog_id = pl.catalog_id)
+								and not exists (select * from parametr.house ph where ph.parametr_id = pl.id and ph.house_id = h.house_id );
+							
+							update parametr.house ph
+								set value = ph.value 
+							where ph.date_end is null 
+								and exists (select * from _inserted i where i.house_id = ph.house_id);
+							
+							call gis.actualize_house ('[]');
+						end;
+				end if;
+			
+				_parametr_id  = (select id from parametr.list where lower(short_name) = 'flat_type' and catalog_id = 2);
+			
+				if not exists(select *
+							  from pg_tables
+							  where tablename = '_temp' and schemaname in ( select nspname 
+																		 	from pg_catalog.pg_namespace
+																		 	where "oid" = pg_my_temp_schema()
+																		 	)
+							)
+					then 
+						insert into parametr.flat (parametr_id, flat_id, value, date_begin) 		
+						select distinct
+									pl.id,		
+									i.flat_id, 
+									case 
+										when pl.id = _parametr_id then  
+											case when af.flat_book_id = 1 then 0 else 1 end
+										else pl.default_value::int 
+									end, 
+									_date_begin
+							  from parametr.list pl
+								inner join _inserted i on true
+								inner join adress.flat af on af.id = i.flat_id
+							  where catalog_id = 2 
+							 	and not exists (select * from parametr.flat pf where pf.flat_id = i.flat_id and pf.parametr_id = pl.id);
+				
+						update parametr.flat as pf 
+							set value = pf.value
+						where pf.date_end is null
+							and exists (select * from _inserted i where i.flat_id = pf.flat_id);
+
+				end if;
+			
+				update counter.flow cf
+					set	value = cf.value
+				from counter.house ch 
+				where ch.counter_id = cf.counter_id 
+					and ch.house_id in (select i.house_id from _inserted i group by i.house_id)
+					and cf.period_id = _period_id;
+			
+				insert into calculation.tarif (house_id, flat_id, account_id)
+				select i.house_id, i.flat_id, i.id
+				from _inserted i;
+			
+				insert into calculation.normativ (house_id, flat_id, account_id)
+				select i.house_id, i.flat_id, i.id
+				from _inserted i;
+			
+				insert into calculation.volume (house_id, flat_id, account_id)
+				select i.house_id, i.flat_id, i.id
+				from _inserted i;
+			
+				insert into calculation.sum_volume (house_id, flat_id, account_id)
+				select i.house_id, i.flat_id, i.id
+				from _inserted i;
+				 
+				select jsonb_agg(jsonb_build_object('house_id', i.house_id)) 
+				into _houses
+				from _inserted i 
+				group by i.house_id;
+			
+				select jsonb_agg(jsonb_build_object('account_id', i.id)) 
+				into _account
+				from _inserted i;
+			
+				call flat."ordering" (_houses);
+				call account."ordering" (_houses);
+				call account.create_detail (_account, _group);
+			
+				return null;
+		end;
+	end if;
+
+	return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		ООО ЖилФондСервис
+ Create date: 21.10.2013
+ Description:	Триггер для автоматического создания записей в таблице PLAccount
+ Modyfied date: При создании квартиры, заполняются только домовые параметры, 
+				  При добавлении лицевого счета к существующей квартире обновляются параметры дома и квартиры на новом лицевом счете
+ =============================================
+"""
+}
+

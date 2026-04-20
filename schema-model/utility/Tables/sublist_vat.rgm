@@ -1,0 +1,96 @@
+table "utility"."sublist_vat" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sublist_vat"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.sublist_vat_id_seq'::regclass)
+    }
+    column "date" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_vat_applies" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "start_period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "end_period_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "utility"."sublist_vat"."fk_sublist_vat_list" {
+  columns = [
+    "start_period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."sublist_vat"."fk_sublist_vat_list1" {
+  columns = [
+    "end_period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."sublist_vat"."fk_sublist_vat_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."sublist_vat"."fk_sublist_vat_sublist" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "utility"."sublist_vat_ix_sublist_vat" {
+  table = "utility"."sublist_vat"
+  type = btree
+  columns = <
+    {
+      definition = sublist_id
+    }
+
+    {
+      definition = start_period_id
+    }
+
+  >
+  isUnique = True
+}
+

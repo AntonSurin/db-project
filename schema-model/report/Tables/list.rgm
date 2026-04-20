@@ -1,0 +1,28 @@
+table "report"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list_9"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.list_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "type_id" {
+      type = integer
+    }
+    column "parameters" {
+      type = text
+    }
+  )
+}
+

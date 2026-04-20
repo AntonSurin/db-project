@@ -1,0 +1,33 @@
+procedure "eco"."calc_freq(integer)" {
+  text = """
+
+begin 
+
+	update eco.approved_work as aw 
+		set freq  = t.new_freq
+	from  (
+			select pw.approved_work_id, sum(pw.freq) as new_freq
+    		from eco.planned_work pw
+ 		   	where pw.year_plan_id = _year_plan
+    		group by pw.year_plan_id, pw.approved_work_id
+    	  ) t 
+    where aw.id = t.approved_work_id;
+  
+end
+"""
+  arguments = <
+    {
+      name = _year_plan
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  StoredProcedure [Eco].[CalcFreq]    
+ Script Date: 15.09.2023 15:53:10
+"""
+}
+

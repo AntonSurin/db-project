@@ -1,0 +1,72 @@
+table "utility"."provider" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_provider"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.provider_id_seq'::regclass)
+    }
+    column "type_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(150)
+      null = NOT NULL
+    }
+    column "short_name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "inn" {
+      type = character varying(12)
+      null = NOT NULL
+    }
+    column "kpp" {
+      type = character varying(9)
+    }
+    column "ogrn" {
+      type = character varying(15)
+    }
+    column "adress" {
+      type = character varying(250)
+    }
+    column "actual_address" {
+      type = character varying(250)
+    }
+    column "phone" {
+      type = character varying(50)
+    }
+    column "email" {
+      type = character varying(20)
+    }
+    column "license" {
+      type = character varying(100)
+    }
+    column "is_global" {
+      type = boolean
+    }
+    column "guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "utility"."provider"."fk_provider_type" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "organization"."type"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+

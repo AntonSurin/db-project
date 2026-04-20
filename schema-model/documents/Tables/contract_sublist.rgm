@@ -1,0 +1,53 @@
+table "documents"."contract_sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contract_sublist_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.contract_sublist_id_seq'::regclass)
+    }
+    column "contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "sublist_code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "start_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "end_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "is_house" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "documents"."contract_sublist"."fk_contract_sublist_contract1" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "documents"."contract"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,54 @@
+table "support"."comment" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_comment_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "task_id" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "created_date" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "is_suport_user" {
+      type = boolean
+    }
+    column "commentator_name" {
+      type = character varying(50)
+    }
+    column "text" {
+      type = text
+    }
+    column "last_update_date" {
+      type = timestamp(6) without time zone
+    }
+    column "attachments" {
+      type = text
+      null = NOT NULL
+    }
+    column "created_utc_date" {
+      type = timestamp(6) without time zone
+    }
+  )
+}
+
+foreignKey "support"."comment"."fk_comment_task" {
+  columns = [
+    "task_id"
+  ]
+  referencedTable = "support"."task"
+  referencedColumns = [
+    "id"
+  ]
+}
+

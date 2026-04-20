@@ -1,0 +1,46 @@
+table "service"."balance" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_balance"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.balance_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(50)
+    }
+    column "contract_name" {
+      type = character varying(150)
+    }
+    column "contract_number" {
+      type = character varying(50)
+    }
+    column "type" {
+      type = character varying(150)
+    }
+    column "advance" {
+      type = numeric(9,2)
+    }
+    column "debt" {
+      type = numeric(9,2)
+    }
+    column "overdue" {
+      type = numeric(9,2)
+    }
+    column "overdue90" {
+      type = numeric(9,2)
+    }
+  )
+}
+

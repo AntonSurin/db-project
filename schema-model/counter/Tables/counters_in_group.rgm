@@ -1,0 +1,57 @@
+table "counter"."counters_in_group" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_counters_in_group"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('counter.counters_in_group_id_seq'::regclass)
+    }
+    column "group_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "parent_counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "child_counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "counter"."counters_in_group"."fk_counters_in_group_group" {
+  columns = [
+    "group_id"
+  ]
+  referencedTable = "counter"."group"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+foreignKey "counter"."counters_in_group"."fk_counters_in_group_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+

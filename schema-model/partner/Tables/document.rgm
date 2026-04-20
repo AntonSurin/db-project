@@ -1,0 +1,39 @@
+table "partner"."document" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contract_2"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('partner.document_id_seq'::regclass)
+    }
+    column "provider_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "name" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "partner"."document"."fk_document_provider" {
+  columns = [
+    "provider_id"
+  ]
+  referencedTable = "utility"."provider"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,217 @@
+function "gis"."statistics()" {
+  text = """
+
+declare 
+	_period_id 			int;
+	_start_period_id 	int;
+	_start_date 		date;
+	_settings_count 	int;
+begin
+	
+	_period_id = (select id from "period".list where is_working = true);
+
+	drop table if exists _counter;
+	drop table if exists _account;
+
+	create table _account (account_id int);
+	create table _counter (organization_id int, counter_count int, not_uploaded_counter_count int);
+
+	select id, date_begin
+	into _start_period_id, _start_date
+	from "period".list 
+	where id = (_period_id - 6);
+	
+	insert into _counter
+	select
+		 ol.id as org_id
+		,count(*)
+		,count(*) - sum(case 
+							when cl.unique_number is not null and cl.version_guid is not null 
+							then 1 
+							else 0 
+						end)
+	from counter.list cl
+		inner join counter.account ca on ca.counter_id = cl.id
+		inner join adress.account aa on aa.id = ca.account_id
+		inner join adress.house hh on hh.id = aa.house_id
+		inner join organization.list ol on ol.id = hh.work_id
+	where cl.date_end is null 
+		and cl.active = true 
+	group by ol.id;
+
+	insert into _account
+	select aa.id
+	from adress.account aa
+		left join  (
+						select account_id, value
+						from parametr.account 
+						where parametr_id = 359 and date_end is null
+					) pa on account_id = aa.id
+		left join  (
+						select flat_id, value
+						from parametr.flat
+						where parametr_id = 360 and date_end is null
+					) pf on pf.flat_id = aa.flat_id 
+		left join house.characteristic hc on hc.house_id = aa.house_id 
+	where coalesce(pa.value::int, 1) = 1 
+		and coalesce(pf.value::int, 1) = 1 
+		and coalesce(hc.is_export, false) = true;
+	
+	_settings_count = (select count(*) from gis.organization_settings);
+
+	if exists(select * from gis.organization_settings where is_special_kp = true limit 1) and _settings_count > 1
+		then
+			begin
+
+				return query
+				select  
+					pbg.period_id,  
+					(ol.short_name || case 
+										when ad.group_id is null 
+										then '' 
+										else ' (' || ucg.name || ')' 
+									end)::varchar(100)
+					as short_name, 
+					ol.inn, 
+					ol.kpp, 
+					count(distinct ad.parent_id)::int as account_count,
+					(count(distinct ad.parent_id) - sum(
+														case 
+															when ha.unique_number is not null and ha.account_guid is not null
+															then 1 
+															else 0 
+														end
+													  ))::int 
+					as not_uploaded_account_count,
+					count(distinct pd.id)::int as payment_document_count,
+					(count(distinct pd.id) - sum(
+														case 
+															when coalesce(pd.state, 0) in (1,3) 
+															then 1 
+															else 0 
+														end 
+														))::int 
+					as not_uploaded_payment_document_count,
+					coalesce(cc.counter_count, 0) as counter_count,
+					coalesce(cc.not_uploaded_counter_count, 0) as not_uploaded_counter_count
+				from (
+						select cpaa.period_id, cpaa.account_id, cpaa.house_id, cpaa.is_closed, coalesce(cpaa.osq, 0) - coalesce(cpaa.nsq, 0) as sq
+						from calculation.parametr_transporate_arch cpaa
+						where cpaa.is_closed = 1 
+							and cpaa.period_id >= _start_period_id
+						union all
+						select _period_id as period_id, cp.account_id, cp.house_id, cp.is_closed, coalesce(cp.osq, 0) - coalesce(cp.nsq, 0) as sq
+						from calculation.parametr_transporate cp
+						where cp.is_closed = 1 
+							and 1 = case when date_part('day', current_date) >= 25 then 1 else 0 end
+					  ) cpa
+					inner join adress.house ah on ah.id = cpa.house_id
+					inner join organization.list ol on ol.id = ah.work_id
+					inner join payment.balance_group pbg 
+						on pbg.account_parent_id = cpa.account_id
+						and pbg.period_id = cpa.period_id 
+					inner join _account aa on aa.account_id = cpa.account_id 
+					inner join adress.account ad on ad.id = pbg.account_id
+					left join documents.payment_document pd on pd.account_id = cpa.account_id 
+						and pd.period_id = cpa.period_id
+						and coalesce(pd.group_id, 0) = coalesce(ad.group_id, 0)
+						and pd.state in (1,3)		
+					left join _counter cc on cc.organization_id = ol.id
+					left join utility.contragent_group ucg on ucg.id = ad.group_id
+					left join gis.organization_group_sublist gog on gog.group_id = ucg.id
+					left join gis.organization_settings gos on gos.id = gog.organization_setting_id
+					left join house.account ha on ha.account_id = cpa.account_id and ha.organization_setting_id = gos.id
+				where (pbg.current_calc <> 0 or pbg.recalc <> 0) 
+					and sq > 0
+				group by pbg.period_id, 
+							ol.short_name, 
+							ad.group_id, 
+							ucg.name, 
+							ol.inn, 
+							ol.kpp,
+							cc.counter_count,
+							cc.not_uploaded_counter_count;
+
+			end;
+
+		else
+
+			begin
+
+				return query
+				select  
+					pbg.period_id,  
+					ol.short_name as short_name,
+					ol.inn, 
+					ol.kpp, 
+					count(distinct ad.parent_id)::int as account_count,
+					(count(ad.parent_id) - sum(
+												case 
+													when ha.unique_number is not null and ha.account_guid is not null
+													then 1 
+													else 0 
+												end
+											  ))::int as not_uploaded_account_count,
+					count(distinct pd.id)::int as payment_document_count,
+					(count(pd.id) - sum(
+										case 
+											when coalesce(pd.state,0) in (1,3) 
+											then 1 
+											else 0 
+										end 
+										))::int as not_uploaded_payment_document_count,
+					coalesce(cc.counter_count,0) as counter_count,
+					coalesce(cc.not_uploaded_counter_count,0) as not_uploaded_counter_count
+				from (
+					select cparch.period_id, cparch.account_id, cparch.house_id, cparch.is_closed, coalesce(cparch.osq, 0) - coalesce(cparch.nsq, 0) as sq
+					from calculation.parametr_transporate_arch cparch
+					where cparch.is_closed = 1 and cparch.period_id >= _start_period_id
+					union all
+					select _period_id as period_id, cptr.account_id, cptr.house_id, cptr.is_closed, coalesce(cptr.osq, 0) - coalesce(cptr.nsq, 0) as sq
+					from calculation.parametr_transporate cptr
+					where cptr.is_closed = 1 and 1 = case when date_part('day', current_date) >= 25 then 1 else 0 end
+				  ) cpa
+					inner join adress.house ah on ah.id = cpa.house_id
+					inner join organization.list ol on ol.id = ah.work_id
+					inner join payment.balance_group pbg
+						on pbg.account_parent_id = cpa.account_id
+						and pbg.period_id = cpa.period_id
+					inner join _account aa on aa.account_id = cpa.account_id
+					inner join adress.account ad on ad.id = pbg.account_id
+					left join documents.payment_document pd on pd.account_id = cpa.account_id
+						and pd.period_id = cpa.period_id
+						and pd.state in (1,3)
+					left join _counter cc on cc.organization_id = ol.id
+					left join house.account ha on ha.account_id = aa.account_id
+				where (pbg.current_calc <> 0 or pbg.recalc <> 0) 
+					and sq > 0
+				group by pbg.period_id,
+							ol.short_name,
+							ol.inn,
+							ol.kpp,
+							cc.counter_count,
+							cc.not_uploaded_counter_count;
+
+		end;
+
+	end if;
+
+	drop table if exists _account;
+	drop table if exists _counter;
+
+end;
+"""
+  returnType = TABLE(period_id integer, short_name character varying, inn character varying, kpp character varying, account_count integer, not_uploaded_account_count integer, payment_document_count integer, not_uploaded_payment_document_count integer, counter_count integer, not_uploaded_counter_count integer)
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Антон
+ Create date: 10-11-2022
+ Description:	Отчет (статистика выгрузки) л/с и счетчиков
+ =============================================
+"""
+}
+

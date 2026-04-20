@@ -1,0 +1,162 @@
+function "tests"."account_open(jsonb)" {
+  text = """
+
+begin
+
+	if exists (select * from calculation.account_sublist)
+		then
+			begin
+				if exists (select * from jsonb_populate_recordset(null::account.list, _account))
+					then
+						begin
+							return query 
+							with acc as 
+							(
+								select aa.house_id, aa.flat_id, sum(cp.account_open) as account_open
+								from (								
+										select p.account_id, 
+												sum((case when p.value::int2 = 1 then 1 else 0 end) 
+														* (((case 
+																when coalesce(p.date_end,pl.date_end) > pl.date_end 
+																then pl.date_end 
+																else coalesce(p.date_end,pl.date_end) 
+															end)
+																- (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)	
+															) + 1)
+													) as account_open
+										from parametr.account p
+											inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = p.account_id
+											inner join period.list pl on pl.is_working = true
+										where p.parametr_id = 1362 
+											and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+											and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+										group by p.account_id 
+										) as cp 
+									inner join adress.account aa on aa.id = cp.account_id
+									inner join parametr.account pa on pa.account_id = cp.account_id and pa.parametr_id = 1362 and pa.date_end is null
+									inner join "period".list pl on pl.is_working = true and (pa.date_begin between pl.date_begin and pl.date_end or pa.value::int2 = 1)
+								group by aa.house_id, aa.flat_id
+							)							
+							,house as 
+							(
+								select a.house_id, max(r.account_open) as house_open
+								from (
+									select p.account_id, 
+										sum((case when p.value::int2 = 1 then 1 else 0 end) * (( (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)- (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)) + 1)) as account_open
+									from parametr.account p
+										inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = p.account_id
+										inner join "period".list pl on pl.is_working = true
+									where parametr_id = 1362 
+										and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+										and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+									group by p.account_id 
+									) r 
+									inner join adress.account a on a.id = r.account_id
+								group by a.house_id
+							)
+							
+							select distinct
+									'wrn'::varchar(3) as severity,
+									ai.short_name_flat,
+									(
+										select string_agg(aa."name" , ', ')
+										from adress.account aa
+											inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.id
+											inner join parametr.account p on p.account_id = aa.id and p.parametr_id = 1362 and p.date_end is null
+											inner join "period".list l on l.is_working = true and (p.date_begin between l.date_begin and l.date_end or p.value::int2 = 1)
+										where aa.flat_id = c.flat_id and aa.parent_id is null
+									) as accounts,
+									ai.order_id,
+									ai.flat_order_id,
+									c.account_open::int2, 
+									h.house_open::int2
+							from acc c
+								inner join house h on h.house_id = c.house_id
+								inner join adress.info ai on ai.flat_id = c.flat_id
+							where c.account_open <> h.house_open
+							order by ai.order_id, ai.flat_order_id;
+						end; 
+					else
+						begin
+							return query
+							with acc as 
+							(
+								select aa.house_id, aa.flat_id, sum(cp.account_open) as account_open
+								from (
+									select p.account_id, 
+											sum((case when p.value::int2 = 1 then 1 else 0 end) * (( (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)-(case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)) + 1)) as account_open
+									from parametr.account p
+										inner join "period".list pl on pl.is_working = true
+									where p.parametr_id = 1362 
+										and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+										and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+									group by p.account_id 
+									) as cp 									
+									inner join adress.account aa on aa.id = cp.account_id
+									inner join parametr.account pa on pa.account_id = cp.account_id and pa.parametr_id = 1362 and pa.date_end is null
+									inner join "period".list pl on pl.is_working = true and (pa.date_begin between pl.date_begin and pl.date_end or pa.value::int2 = 1)
+								group by aa.house_id, aa.flat_id
+							)
+							,house as 
+							(
+								select a.house_id, max(r.account_open) as house_open
+								from (
+									select p.account_id, 
+									sum((case when p.value::int2 = 1 then 1 else 0 end) * (( (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)-(case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)) + 1)) as account_open
+									from parametr.account p
+										inner join "period".list pl on pl.is_working = true
+									where parametr_id = 1362 
+										and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+										and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+									group by p.account_id 
+									) r 
+									inner join adress.account a on a.id = r.account_id
+								group by a.house_id
+							)
+							
+							select distinct
+									'wrn'::varchar(3) as severity,
+									ai.short_name_flat,
+									(
+										select string_agg(aa.name , ', ')
+										from adress.account aa
+											inner join parametr.account p on p.account_id = aa.id and p.parametr_id = 1362 and p.date_end is null
+											inner join "period".list l on l.is_working = true and (p.date_begin between l.date_begin and l.date_end or p.value::int2 = 1)
+										where aa.flat_id = c.flat_id and aa.parent_id is null
+									) as accounts,
+									ai.order_id,
+									ai.flat_order_id,
+									c.account_open::int2,
+									h.house_open::int2
+							from acc c
+								inner join house h on h.house_id = c.house_id
+								inner join adress.info ai on ai.flat_id = c.flat_id
+							where c.account_open <> h.house_open
+							order by ai.order_id, ai.flat_order_id;
+						end;
+				end if;
+		end;
+	end if;
+
+end;
+"""
+  returnType = TABLE(severity character varying, short_name_flat text, accounts text, order_id integer, flat_order_id integer, account_open smallint, house_open smallint)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		юркин евгений
+ create date:	10.02.2022
+ description:	тест на правильность закрытия/открытия лицевых на одном помещении по сумме рабочих дней
+ =============================================
+"""
+}
+

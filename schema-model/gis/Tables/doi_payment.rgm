@@ -1,0 +1,72 @@
+table "gis"."doi_payment" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_doi_payment"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.doi_payment_id_seq'::regclass)
+    }
+    column "doi_contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "date_from" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_to" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "bill" {
+      type = numeric(10,2)
+      null = NOT NULL
+    }
+    column "debt" {
+      type = numeric(10,2)
+      null = NOT NULL
+    }
+    column "paid" {
+      type = numeric(10,2)
+    }
+    column "status_gis" {
+      type = integer
+    }
+    column "date_from_gis" {
+      type = timestamp(3) without time zone
+    }
+    column "date_to_gis" {
+      type = timestamp(3) without time zone
+    }
+    column "bill_gis" {
+      type = numeric(10,2)
+    }
+    column "debt_gis" {
+      type = numeric(10,2)
+    }
+    column "paid_gis" {
+      type = numeric(10,2)
+    }
+  )
+}
+
+foreignKey "gis"."doi_payment"."fk_doi_payment_doi_contract_data" {
+  columns = [
+    "doi_contract_id"
+  ]
+  referencedTable = "gis"."doi_contract_data"
+  referencedColumns = [
+    "id"
+  ]
+}
+

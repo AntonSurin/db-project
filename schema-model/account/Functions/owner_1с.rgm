@@ -1,0 +1,85 @@
+function "account"."owner_1с(integer)" {
+  text = """
+
+declare 
+	_date_end 	date;
+	_date_begin date;
+begin
+
+	select date_begin, date_end 
+	into _date_begin, _date_end
+	from period.list 
+	where id = _period_id;
+
+	return query
+	with cte as 
+	(
+		select row_number () over (partition by ac.account_id, cc.contragent_id order by cc.date_begin, cc.number, cc.id) as rn
+			,ac.account_id
+			,cc.contragent_id
+			,cc.id as contract_id
+			,cc.number as contract_number
+			,cc.date_begin as contract_begin							
+		from contragent.contract cc 
+			inner join contragent.contract_account ac on ac.contract_id = cc.id
+		where cc.date_begin <= _date_end and coalesce(cc.date_end,_date_end) >= _date_end
+	)
+
+	select 
+		_period_id as period_id
+		,ai.account_name
+		,case when person_id is null or surname is null then 'собственник лс ' || ai.account_name else ltrim(rtrim(pc.full_name)) end as full_name
+		,pc.customer_type
+		,(case when trim(pc.inn) = '' then null else trim(pc.inn) end)::varchar(12) as customer_inn
+		,(case when trim(pc.kpp) = '' then null else trim(pc.kpp) end)::varchar(9) as customer_kpp
+		,(case when pc.contract_id is not null then case when trim(pc.inn) = '' then null else trim(pc.inn) end end)::varchar(12) as contract_inn
+		,(case when pc.contract_id is not null then case when trim(pc.kpp) = '' then null else trim(pc.kpp) end end)::varchar(9) as contract_kpp
+		,pc.contract_id
+		,pc.contract_number
+		,pc.contract_begin
+	from adress.info ai 
+		left join
+		(select row_number () over (partition by aa.name order by coalesce(is_responsible,false) desc, cl.type, cl.id) as rn
+			,cl.inn
+			,cl.kpp
+			,c.contract_id
+			,c.contract_number
+			,c.contract_begin
+			,cl.surname
+			,cl.name
+			,cl.middlename
+			,cl.type as customer_type
+			,cl.full_name
+			,ca.id as person_id
+			,ca.account_id
+		from contragent.account ca
+			inner join adress.account aa on aa.id = ca.account_id
+			inner join contragent.owner_documents od on od.contragent_account_id = ca.id
+			inner join contragent.list cl on cl.id = ca.contragent_id
+			left join cte c on c.account_id = ca.account_id and c.contragent_id = ca.contragent_id and c.rn = 1
+			where od.date_begin <= _date_end and coalesce(od.date_end,_date_end) >= _date_end
+		) pc on pc.account_id = ai.account_id and pc.rn = 1
+	where ai.account_parent_id is null;
+	
+end;
+"""
+  returnType = TABLE(period_id integer, account_name character varying, full_name text, customer_type boolean, customer_inn character varying, customer_kpp character varying, contract_inn character varying, contract_kpp character varying, contract_id integer, contract_number character varying, contract_begin date)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Е.Ю
+ Create date: 06.04.2025
+ Description:	Отчет собственники для 1С
+ =============================================
+"""
+}
+

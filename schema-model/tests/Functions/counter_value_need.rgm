@@ -1,0 +1,54 @@
+function "tests"."counter_value_need(jsonb)" {
+  text = """
+
+declare 
+	_period_id int;
+begin
+		
+	_period_id = (select pl.id from "period".list pl where pl.is_working = true);
+
+	return query
+	with cte as 
+	(
+		select ca.account_id, cl.sublist_id
+		from counter.account ca
+			join counter.list cl on cl.id = ca.counter_id and cl.active = true
+			join calculation.parametr_transporate cp on cp.account_id = ca.account_id
+			left join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id
+		where cp.is_closed = 1 
+			and (not exists(select a.account_id from jsonb_populate_recordset(null::account.list, _account) a ) or ca.account_id in (select ac.account_id from jsonb_populate_recordset(null::account.list, _account) ac))
+		group by ca.account_id,cl.sublist_id
+		having sum(case when cf.value is not null then 1 else 0 end) != count(*) and sum(case when cf.value is not null then 1 else 0 end) != 0 and count(*) > 1
+	)
+	
+	select
+		'wrn'::varchar(3) as severity,
+		aa."name" as account_name,
+		us."name" as sublist_name
+	from cte c
+		join adress.account aa on c.account_id = aa.id
+		join utility.sublist us on c.sublist_id = us.id;
+	
+end;
+"""
+  returnType = TABLE(severity character varying, account_name character varying, sublist_name character varying)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:			Поляков Павел, Ильщенко Денис
+ Create date:		07.09.2017
+ Modified date:	10.12.2020, Трофимов Б.И. - добавил фильтр по лс и периоду для автоматического запуска тестов; переписал запрос
+ Description:		Тест переданных показаний нескольких ИПУ на одну услугу
+ =============================================
+"""
+}
+

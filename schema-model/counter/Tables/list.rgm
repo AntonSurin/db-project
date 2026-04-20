@@ -1,0 +1,279 @@
+table "counter"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list_2"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('counter.list_id_seq'::regclass)
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "active" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+    column "number" {
+      type = smallint
+      null = NOT NULL
+      default = 1
+    }
+    column "rate" {
+      type = numeric(9,6)
+      null = NOT NULL
+      default = 1
+    }
+    column "unit_id" {
+      type = integer
+    }
+    column "serial_number" {
+      type = character varying(50)
+    }
+    column "installation_date" {
+      type = date
+    }
+    column "verification_date" {
+      type = date
+    }
+    column "stamp_number" {
+      type = character varying(50)
+    }
+    column "antimagnet_stamp_number" {
+      type = character varying(50)
+    }
+    column "verification_interval" {
+      type = integer
+    }
+    column "close_description_id" {
+      type = integer
+    }
+    column "mark_id" {
+      type = integer
+    }
+    column "model" {
+      type = character varying(50)
+    }
+    column "is_show_value" {
+      type = smallint
+      null = NOT NULL
+      default = 1
+    }
+    column "counter_type" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "factory_seal_date" {
+      type = date
+    }
+    column "temperature_sensor" {
+      type = boolean
+    }
+    column "pressure_sensor" {
+      type = boolean
+    }
+    column "remote_metering_mode" {
+      type = boolean
+    }
+    column "temperature_sensing_element_info" {
+      type = character varying(2000)
+    }
+    column "pressure_sensing_element_info" {
+      type = character varying(2000)
+    }
+    column "remote_metering_info_id" {
+      type = integer
+    }
+    column "version_guid" {
+      type = uuid
+    }
+    column "root_guid" {
+      type = uuid
+    }
+    column "unique_number" {
+      type = character varying(15)
+    }
+    column "service_guid" {
+      type = uuid
+      null = NOT NULL
+      default = gen_random_uuid()
+    }
+    column "is_export_to_gis" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+    column "is_calculation" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+    column "failure_date" {
+      type = date
+    }
+    column "last_arshin_api_sync_date" {
+      type = timestamp(6) without time zone
+    }
+    column "is_consumed_volume" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "counter"."list"."fk_counter_unit" {
+  columns = [
+    "unit_id"
+  ]
+  referencedTable = "utility"."unit"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "counter"."list"."fk_list_book1" {
+  columns = [
+    "close_description_id"
+  ]
+  referencedTable = "gis"."book"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "counter"."list"."fk_list_mark" {
+  columns = [
+    "mark_id"
+  ]
+  referencedTable = "counter"."mark"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "counter"."list"."fk_list_remote_metering_info" {
+  columns = [
+    "remote_metering_info_id"
+  ]
+  referencedTable = "counter"."remote_metering_info"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "counter"."list"."fk_list_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+index "counter"."list_idx_date_end" {
+  table = "counter"."list"
+  type = btree
+  columns = <
+    {
+      definition = date_end
+      sortOrder = DESC
+    }
+
+    {
+      definition = is_show_value
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    rate
+    sublist_id
+    number
+    unit_id
+  ]
+}
+
+index "counter"."list_idx_is_show_value" {
+  table = "counter"."list"
+  type = btree
+  columns = <
+    {
+      definition = is_show_value
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    date_end
+    sublist_id
+    number
+    rate
+    unit_id
+  ]
+}
+
+index "counter"."list_idx_sublist_active" {
+  table = "counter"."list"
+  type = btree
+  columns = <
+    {
+      definition = sublist_id
+    }
+
+    {
+      definition = active
+    }
+
+    {
+      definition = is_calculation
+    }
+
+  >
+  isUnique = False
+}
+
+index "counter"."list_idx_verification" {
+  table = "counter"."list"
+  type = btree
+  columns = <
+    {
+      definition = date_end
+      sortOrder = DESC
+    }
+
+    {
+      definition = active
+    }
+
+    {
+      definition = verification_date
+      sortOrder = DESC
+    }
+
+    {
+      definition = verification_interval
+    }
+
+  >
+  isUnique = False
+}
+

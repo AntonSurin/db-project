@@ -1,0 +1,35 @@
+table "counter"."flat" {
+  owner = postgres
+  columns = (
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "counter"."flat"."fk_apart_counter_test" {
+  columns = [
+    "flat_id"
+  ]
+  referencedTable = "adress"."flat"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "counter"."flat"."fk_flat_list" {
+  columns = [
+    "counter_id"
+  ]
+  referencedTable = "counter"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+

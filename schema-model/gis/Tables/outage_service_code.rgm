@@ -1,0 +1,36 @@
+table "gis"."outage_service_code" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_outage_service_code"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.outage_service_code_id_seq'::regclass)
+    }
+    column "outage_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "code" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "gis"."outage_service_code"."fk_outage_service_code_outage" {
+  columns = [
+    "outage_id"
+  ]
+  referencedTable = "gis"."outage"
+  referencedColumns = [
+    "id"
+  ]
+}
+

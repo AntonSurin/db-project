@@ -1,0 +1,130 @@
+function "utility"."change_update()" {
+  text = """
+
+declare 
+		_sublist_id		int;
+		_start_period	date;
+		_end_period		date;
+		_period_id		int;
+begin
+	
+	select id, date_begin
+	into _period_id, _start_period
+	from "period".list 
+	where is_working = true;
+
+	if new.is_on <> old.is_on
+		then 
+			begin
+				if exists (select * 
+							from calculation.account_sublist  ca
+							where new.is_on = false and new.id = ca.sublist_id)
+					then
+						delete 
+						from calculation.account_sublist ca			
+						where new.is_on = false and ca.sublist_id = new.id;
+				end if;
+			end;
+	end if;
+	
+	if not exists (select * 
+					from calculation.account_sublist  ca
+					where new.is_on = true and ca.sublist_id = new.id)
+		then
+			begin
+				
+				if not exists (select * from utility.contragent_group) 
+					then
+						begin 
+							insert into calculation.account_sublist (account_id, account_parent_id, house_id, sublist_id, value, "date")
+							select aa.id, parent_id, house_id, new.id, new.is_on, _start_period
+							from adress.account aa
+							where aa.parent_id is not null and new.is_on = true and new.id not in (6, 7);
+						end;
+					else 
+						begin
+							insert into calculation.account_sublist (account_id, account_parent_id, house_id, sublist_id, value, "date")
+							select aa.id, parent_id, aa.house_id, new.id, new.is_on, _start_period
+							from adress.account aa
+								inner join utility.contragent_group_sublist cgs on cgs.house_id = aa.house_id and aa.group_id = cgs.group_id
+							where new.is_on = true  and new.id not in (6, 7) and aa.parent_id is not null and new.id = cgs.sublist_id;
+						end;
+				end if;
+			end;
+	end if;
+
+	--/////////////////////////////////////////////////// todo Включить обратно
+	_sublist_id = new.id;
+	
+	 if exists(
+				select 1 
+				from payment.balance bp
+				where bp.period_id < _period_id and bp.sublist_id = _sublist_id and (current_calculate <> 0.0 or recalculate <> 0.0 or pay <> 0.0)
+				union 
+				select 1 
+				from utility.sublist us
+					left join gis.sublist gis_sublist on us.id = gis_sublist.sublist_id
+				where us.id = _sublist_id and (gis_sublist.gis_guid is not null)
+			   ) 
+		   and (	
+	   			new.list_id 	<> old.list_id or 
+	   			new."name"		<> old."name" or 
+	   			new.short_name 	<> old.short_name or 
+	   			new."type"		<> old."type" or 
+	   			new.unit_id		<> old.unit_id or 
+	   			new.is_counter	<> old.is_counter or 
+	   			new.date_begin	<> old.date_begin or 
+	   			new.date_end	<> old.date_end or 
+	   			new.is_odn		<> old.is_odn or 
+	   			new.is_day		<> old.is_day
+		   		)
+		then
+			 begin
+					raise exception 'Невозможно изменить данную подуслугу, т.к. она учавствовала в расчетах в предыдущих периодах/была выгружена в ГИС ЖКХ';
+					return null;		
+			 end;
+	 	else
+			 if exists(
+						select 1 
+						from utility.sublist us
+							left join tarif.list tl on tl.sublist_id = us.id
+							left join utility.sublist_provider up on up.sublist_id = us.id
+							left join gis.sublist gis_sublist on us.id = gis_sublist.sublist_id
+						where us.id = _sublist_id and (gis_sublist.gis_guid is not null or tl.id is not null or up.id is not null)
+					   ) 
+				and (	
+					new.list_id 	<> old.list_id or 
+		   			new.short_name 	<> old.short_name or 
+		   			new."type"		<> old."type" or  
+		   			new.is_counter	<> old.is_counter or 
+		   			new.date_begin	<> old.date_begin or 
+		   			new.date_end	<> old.date_end or 
+		   			new.is_odn		<> old.is_odn or 
+		   			new.is_day		<> old.is_day
+					)
+				then
+					 begin
+							raise exception 'По данной услуге присутствует тариф/поставщик, возможно изменить только наименование и ед. измерения';
+							return null;
+					 end;
+			end if;
+	end if;
+	
+	return new;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 15.04.2014
+ Description:	Проверка на изменение наименования услуги
+ =============================================
+"""
+}
+

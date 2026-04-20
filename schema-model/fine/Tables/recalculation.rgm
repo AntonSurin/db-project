@@ -1,0 +1,118 @@
+table "fine"."recalculation" {
+  primaryKey = {
+    columns = [
+      "root_id"
+      "account_id"
+      "period_id"
+      "date_begin"
+    ]
+    name = "pk_fine_re_calculation"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "root_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+      null = NOT NULL
+    }
+    column "ref_rate" {
+      type = numeric(4,2)
+      null = NOT NULL
+    }
+    column "sum_for_fine31" {
+      type = numeric(10,2)
+      null = NOT NULL
+      default = 0
+    }
+    column "sum_for_fine60" {
+      type = numeric(10,2)
+      null = NOT NULL
+      default = 0
+    }
+    column "sum_for_fine91" {
+      type = numeric(10,2)
+      null = NOT NULL
+      default = 0
+    }
+    column "rate31" {
+      type = numeric(9,8)
+      null = NOT NULL
+    }
+    column "rate60" {
+      type = numeric(9,8)
+      null = NOT NULL
+    }
+    column "rate91" {
+      type = numeric(9,8)
+      null = NOT NULL
+    }
+    column "count_day" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_parent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "fine" {
+      type = numeric
+      generatedAs = round((((((sum_for_fine31 * rate31) / (100)::numeric) + ((sum_for_fine91 * rate91) / (100)::numeric)) + ((sum_for_fine60 * rate60) / (100)::numeric)) * (count_day)::numeric), 2)
+    }
+  )
+}
+
+foreignKey "fine"."recalculation"."fk_re_calculation_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "fine"."recalculation"."fk_re_calculation_root" {
+  columns = [
+    "root_id"
+  ]
+  referencedTable = "recalculation"."root"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "fine"."re_calculation_idx_period_id_root_id" {
+  table = "fine"."recalculation"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    root_id
+    account_id
+    date_begin
+  ]
+}
+

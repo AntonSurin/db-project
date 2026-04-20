@@ -1,0 +1,22 @@
+table "service"."procedure_type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_procedure_type"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.procedure_type_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+  )
+}
+

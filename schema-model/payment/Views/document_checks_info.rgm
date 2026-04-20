@@ -1,0 +1,98 @@
+view "payment"."document_checks_info" {
+  text = """-
+WITH cashbox_info AS (
+         SELECT ol.id AS organization_id,
+            ( SELECT min(cb.date) AS min
+                   FROM organization.cashbox cb
+                  WHERE ((cb.organization_id = ol.id) AND (cb.block_date IS NULL))) AS cashbox_date
+           FROM organization.list ol
+        ), payment_info AS (
+         SELECT pl_1.id AS payment_id,
+            pl_1.type_id,
+            pl_1.check_status,
+            pl_1.is_print_check,
+            pb.date,
+            oc.rs,
+            ci.cashbox_date
+           FROM (((payment.list pl_1
+             JOIN payment.batch pb ON ((pl_1.batch_id = pb.id)))
+             JOIN organization.counting oc ON ((oc.id = pb.counting_id)))
+             LEFT JOIN cashbox_info ci ON ((ci.organization_id = oc.list_id)))
+        ), work_info AS (
+         SELECT ai.account_id,
+            ci.cashbox_date
+           FROM (adress.info ai
+             LEFT JOIN cashbox_info ci ON ((ai.work_id = ci.organization_id)))
+          WHERE (ai.account_parent_id IS NULL)
+        ), doc_info AS (
+         SELECT pd_1.check_id,
+            min(pd_1.date) AS date,
+            min(pd_1.payment_id) AS payment_id,
+            min(pd_1.type_id) AS type_id
+           FROM payment.document pd_1
+          GROUP BY pd_1.check_id
+        )
+ SELECT pdc.id AS check_id,
+    pdc.is_first,
+    pd.type_id AS document_type_id,
+    pd.date AS document_date,
+    pl.date AS payment_date,
+    pl.type_id AS payment_type_id,
+    pdc.status AS document_check_status,
+    pl.check_status AS payment_check_status,
+    pl.is_print_check AS payment_is_print_check,
+    pdc.is_print_check AS document_is_print_check,
+    pl.rs AS payment_rs,
+    pl.cashbox_date AS receiver_cashbox_date,
+    wi.cashbox_date AS woker_cashbox_date
+   FROM (((payment.document_check pdc
+     JOIN doc_info pd ON ((pdc.id = pd.check_id)))
+     LEFT JOIN payment_info pl ON ((pl.payment_id = pd.payment_id)))
+     LEFT JOIN work_info wi ON ((wi.account_id = pdc.account_id)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  comment = ****** Object:  View [Payment].[DocumentChecksInfo]    Script Date: 11.10.2022 16:02:18 ******
+  columns = (
+    column "check_id" {
+      type = integer
+    }
+    column "is_first" {
+      type = boolean
+    }
+    column "document_type_id" {
+      type = smallint
+    }
+    column "document_date" {
+      type = timestamp without time zone
+    }
+    column "payment_date" {
+      type = date
+    }
+    column "payment_type_id" {
+      type = smallint
+    }
+    column "document_check_status" {
+      type = smallint
+    }
+    column "payment_check_status" {
+      type = smallint
+    }
+    column "payment_is_print_check" {
+      type = boolean
+    }
+    column "document_is_print_check" {
+      type = boolean
+    }
+    column "payment_rs" {
+      type = character varying(20)
+    }
+    column "receiver_cashbox_date" {
+      type = date
+    }
+    column "woker_cashbox_date" {
+      type = date
+    }
+  )
+}
+

@@ -1,0 +1,65 @@
+table "adress"."settlement" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_settlement"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.settlement_id_seq'::regclass)
+    }
+    column "district_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "type_id" {
+      type = integer
+    }
+    column "address_parser_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "adress"."settlement"."fk_settlement_district" {
+  columns = [
+    "district_id"
+  ]
+  referencedTable = "adress"."district"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "adress"."settlement"."fk_settlement_settlement_type" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "adress"."settlement_type"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "adress"."settlement_ix_settlement_district_id" {
+  table = "adress"."settlement"
+  type = btree
+  columns = <
+    {
+      definition = district_id
+    }
+
+  >
+  isUnique = False
+}
+

@@ -1,0 +1,42 @@
+procedure "account"."ordering(jsonb)" {
+  text = """
+
+declare 
+	_hf bool;
+begin
+	_hf = (case when exists(select 1 from jsonb_populate_recordset(null::house.list, _houses)) then true else false end);
+
+	with cte as 
+	(
+		select aa.id, 
+			aa.order_id,
+			dense_rank() over (partition by aa.house_id order by aa.house_id, flat_book_id, af.order_id, aa."name") as "ordering"
+		from adress.flat af
+			inner join adress.account aa on aa.flat_id = af.id
+		where _hf = true and aa.house_id in (select h.house_id from jsonb_populate_recordset(null::house.list, _houses) h) or _hf = false
+	)
+	update adress.account aa
+		set order_id = ct."ordering"
+	from cte ct
+	where aa.id = ct.id and coalesce(aa.order_id, 0) != ct."ordering";
+
+end
+"""
+  arguments = <
+    {
+      name = _houses
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+	Author: Глещинский Д.В.
+	Created: 09.01.2016
+	Modified: 25.03.2019 Трофимов Б.И.
+	Description: Сортировка лицевых счетов
+"""
+}
+

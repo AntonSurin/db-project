@@ -1,0 +1,54 @@
+procedure "partner"."calc_in_balance(integer, integer)" {
+  text = """
+
+declare 
+	_first_period int;
+begin
+
+	_first_period = (select pl.id from "period".list pl where pl.is_active = true);
+
+	update partner.balance pb
+		set in_balance = (
+							select coalesce(sum(pbb.calculate) ,0) - coalesce(sum(pbb.pay), 0) 
+							from partner.balance pbb 
+							where pbb.period_id < pb.period_id 
+								and pbb.document_id = pb.document_id 
+								and pbb.house_id = pb.house_id
+						)
+						+ 
+						(
+							select coalesce(sum(pb2.in_balance), 0) 
+							from partner.balance pb2 
+							where pb2.period_id = _first_period 
+								and pb2.document_id = pb2.document_id 
+								and pb2.house_id = pb.house_id
+						)
+	where pb.period_id between _period_begin and _period_end;	
+	
+end
+"""
+  arguments = <
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 31.10.2016
+ description:	расчет входящего сальдо по поставщику
+ =============================================
+"""
+}
+

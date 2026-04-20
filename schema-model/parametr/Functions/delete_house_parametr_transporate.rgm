@@ -1,0 +1,33 @@
+function "parametr"."delete_house_parametr_transporate()" {
+  text = """
+
+begin 
+	
+	with cte as 
+	(
+		select  pf.house_id,
+				pf.parametr_id, 
+				pf.date_end,
+				(lead(pf.date_begin, 1, null) over (partition by pf.house_id, pf.parametr_id order by pf.house_id, pf.parametr_id, pf.date_begin)) - 1 as new_date_end,
+				id
+		from parametr.house pf 
+		where pf.parametr_id in (select distinct parametr_id from deleted)
+			and house_id in (select distinct house_id from deleted)
+	)	
+	update parametr.house ph
+	set 
+		date_end = ct.new_date_end
+	from cte ct
+	where ct.id = ph.id and ((ct.date_end is null or ct.date_end <> ct.new_date_end) or ct.new_date_end is null);
+
+	return null;	
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+}
+

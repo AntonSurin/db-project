@@ -1,0 +1,42 @@
+function "test_gis"."missing_account_parametr()" {
+  text = """
+
+begin
+	
+	return query
+	with cte as
+	(
+		select 
+			 ai.house_id
+			,ai.short_name_flat
+			,ai.account_name
+			,case when ha.account_name is null then true else false end as missing_account_name
+			,case when creation_date is null then true else false end as missing_creation_date
+			,case when coalesce(total_square,0.0) <= 0.0 then true else false end as missing_total_square  
+		from adress.info ai 
+			inner join adress.house ah on ah.id = ai.house_id
+			left join house.account ha on ha.account_id = ai.account_id
+	)
+	
+	select *
+	from cte c
+	where c.missing_account_name = true
+			or c.missing_creation_date = true
+			or c.missing_total_square = true;
+		
+end;
+"""
+  returnType = TABLE(house_id integer, short_name_flat text, account_name character varying, missing_account_name boolean, missing_creation_date boolean, missing_total_square boolean)
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 28.06.2016
+ Description:	Проверка обязательных параметров для ЛС
+ =============================================
+"""
+}
+

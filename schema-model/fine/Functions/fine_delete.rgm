@@ -1,0 +1,70 @@
+function "fine"."fine_delete()" {
+  text = """
+
+declare	
+	_group_fine	int;
+	_period_id	int;
+begin
+
+	_group_fine = (select (coalesce(nullif(array_to_string(xpath('root/groupfine/isgroupfine/text()', lower(xml_data::text)::xml)::text[], ''), ''),'false')::bool)::int from special.parametr);
+
+	if (_group_fine = 1)
+		then
+			begin
+				create temp table _account (account_id int);
+			
+				insert into _account
+				select distinct account_parent_id 
+				from deleted;
+						
+				_period_id = (select id 
+							from "period".list 
+							where is_working = true);
+		
+				delete 
+				from recalculation."result" rr
+					using recalculation.root r, _account d 
+				where d.account_id = rr.account_parent_id 
+					and r.id = rr.root_id 
+					and r."type" = 7 
+					and r.period_id = _period_id;
+		
+				delete 
+				from recalculation.root r
+				where not exists(select * from recalculation."result" rr where rr.root_id = r.id)
+					and r.period_id = _period_id 
+					and r."type" = 7;
+		
+				drop table if exists _account;
+					
+			end;
+	end if;
+
+	update payment.balance pb
+		set current_calculate = (current_calculate - f.fine)
+	from (	select d.account_id, d.period_id, sum(coalesce(d.fine,0)) as fine
+			from deleted d
+			group by d.account_id, d.period_id
+		) as f 
+	where pb.account_id = f.account_id 
+		and f.period_id = pb.period_id 
+		and pb.sublist_id = 7;
+
+	return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 15.05.2015
+ Description:	Сохранение при удалении данных о пени в Payment.Balance
+ =============================================
+"""
+}
+

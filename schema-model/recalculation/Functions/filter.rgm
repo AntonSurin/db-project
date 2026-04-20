@@ -1,0 +1,105 @@
+function "recalculation"."filter(integer, integer, text)" {
+  text = """
+
+declare 
+		_period_id	int;
+		_is_working	bool = false;
+		_n_pod		int;
+		_sql 		text;
+begin
+	
+	_n_pod = (select id from parametr.list where lower(short_name) = 'n_pod');
+
+	_period_id = (select id from period.list where is_working = true);
+
+	if (_period_id = _period_begin or _period_id = _period_end)
+		then
+			_is_working = true;
+	end if;
+
+	_sql = '
+	select 
+		al.house_id,
+		al.flat_id,
+		al.account_id, 
+		al.settlement_type_id, 
+		al.settlement_id, 
+		al.street_book_id, 
+		al.street_id, 
+		al.house_number, 
+		al.korpus, 
+		al.flat_book_id, 
+		al.flat_name, ' || case when _n_pod is null then 'null::int as access_number' else 'p.access_number, ' end || '
+		al.account_name,
+		al.order_id,
+		al.account_order_id,
+		(
+			select string_agg(cl.full_name, '', '') 
+			from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+			where ca.account_id = al.account_id  and od.date_end is null and ca.is_responsible = true
+		) as owners
+		from adress.light_info al ' || case when _n_pod is null then '' else '
+			inner join (
+							select pf.flat_id, cast(pf.value as int) as access_number
+							from parametr.flat pf 
+							where parametr_id = ' || _n_pod || 'and pf.date_end is null
+						) p on p.flat_id = al.flat_id' end || ' 
+			inner join calculation.parametr_transporate' || case when _is_working = false then '_arch' else '' end || ' cp on cp.account_id = al.account_id
+	' || case 
+			when _is_working = false 
+			then 'where cp.period_id between ' || _period_begin || ' and ' || _period_end  
+			else '' 
+		end 
+	|| case 
+			when coalesce(_where_expression, '') = '' 
+			then '' 
+			else 
+				case 
+					when _is_working = false 
+					then 'and ' 
+					else ' where ' 
+				end || _where_expression 
+		end || '
+	group by al.house_id, al.flat_id, al.account_id, al.settlement_type_id, al.settlement_id, al.street_book_id, al.street_id, al.house_number, al.korpus, al.flat_book_id, al.flat_name, al.account_name, al.order_id, al.account_order_id' 
+		|| case when _n_pod is null then '' else ', p.access_number' end || ';';
+
+	execute (_sql);
+
+end;
+"""
+  returnType = TABLE(house_id integer, flat_id integer, account_id integer, settlement_type_id integer, settlement_id integer, street_book_id integer, street_id integer, house_number character varying, korpus character varying, flat_book_id smallint, flat_name character varying, access_number integer, account_name character varying, order_id integer, account_order_id integer, owners text)
+  arguments = <
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _where_expression
+      type = text
+      mode = IN
+      default = NULL::text
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 14.03.2017
+ description:	фильтр лицевых счетов для перерасчетов
+ 20.02.2019 - добавлен фильтр по подьездам
+ =============================================
+"""
+}
+

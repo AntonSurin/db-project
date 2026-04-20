@@ -1,0 +1,67 @@
+function "account"."benefit(integer, jsonb)" {
+  text = """
+
+declare 
+	_period_begin int;
+begin
+	
+	create temp table _account (account_id int);
+	 
+	_period_begin = (_period_id - 2);
+
+	insert into _account (account_id)
+	select aa.id 
+	from adress.account aa 
+		inner join jsonb_populate_recordset(null::account.list_name, _account_list) al on al.account_name = aa.name;
+	
+	return query	
+	select 
+		pb.account_id
+		,aa."name" as account_name
+		,(
+			case 
+				when pb.in_balance - pl.payment_sum > 0 then 1 
+				else 0 
+			 end
+		 )::numeric(12,2) as "result"
+	from payment.balance_group pb 
+		inner join _account a on a.account_id = pb.account_id
+		inner join adress.account aa on aa.id = a.account_id
+		inner join (
+						select pl.account_id, sum(pl.pay) as payment_sum
+						from payment.balance_group pl 
+						where pl.period_id between _period_begin and _period_id
+						group by pl.account_id
+					) pl on pl.account_id = pb.account_id
+	where pb.period_id = _period_begin;
+
+	drop table if exists _account;	
+	
+end;
+"""
+  returnType = TABLE(account_id integer, account_name character varying, result numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account_list
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 20.10.2016
+ Description:	Поиск должников для УСЗН
+ =============================================
+"""
+}
+

@@ -1,0 +1,42 @@
+function "parametr"."transporate_column_change()" {
+  text = """
+
+declare 
+		_sql			text = '';
+		_error_message	varchar(400);
+begin
+	
+	_sql = (select string_agg('
+				alter table calculation.parametr_transporatearch add ' || name || ' numeric(9, 4) null;
+				alter table calculation.parametr_transporate add ' || name || ' numeric(9, 4) null;
+				alter table recalculation.parametr_transporate add ' || name || ' numeric(9, 4) null;', '')
+			from inserted );
+
+    begin 
+	    
+	    execute(_sql);
+	    
+	    exception when others then
+	    	GET STACKED DIAGNOSTICS
+    			_error_message = message_text;
+	    
+	    	raise exception '%', _error_message;
+	    
+	end;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 16.03.2016
+ Description:	Расширение таблицы вводов
+ =============================================
+"""
+}
+

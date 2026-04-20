@@ -1,0 +1,59 @@
+table "gis"."outage_object" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_outage_object"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.outage_object_id_seq'::regclass)
+    }
+    column "outage_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "gis"."outage_object"."fk_outage_object_characteristic" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+}
+
+foreignKey "gis"."outage_object"."fk_outage_object_flat" {
+  columns = [
+    "flat_id"
+  ]
+  referencedTable = "house"."flat"
+  referencedColumns = [
+    "flat_id"
+  ]
+}
+
+foreignKey "gis"."outage_object"."fk_outage_object_outage" {
+  columns = [
+    "outage_id"
+  ]
+  referencedTable = "gis"."outage"
+  referencedColumns = [
+    "id"
+  ]
+}
+

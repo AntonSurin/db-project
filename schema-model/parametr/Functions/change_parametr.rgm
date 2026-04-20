@@ -1,0 +1,136 @@
+function "parametr"."change_parametr()" {
+  text = """
+
+declare		
+	--	значения из таблицы deleted
+		_old_short_name		varchar(15);
+	--	значения из таблицы inserted
+		_catalog_id			int;
+		_new_short_name		varchar(15);
+	--	проверочные переменные
+		_parametr_id		int;
+		_p_table			varchar(255); 
+		_p_result			bool;			-- проверка существавания значений параметра
+		_sql				text;
+		_len				smallint;
+		_precision			int2;
+		_type_name			varchar(15);
+		_error_message 		varchar(100);
+		_capacity 			text = '';
+begin
+	
+/*	Алгоритм триггера
+	Если по изменяемому параметру имеются значения 
+	и происходит попытка изменения принадлежности (Parametr.Directory) 
+	или типа параметра (Parametr.Type) тогда откатываются все изменения
+	иначе - сохраняются
+	Если у параметра изменяется имя переменной и параметр учавствовал в расчетах, то
+	изменения откатываются
+*/
+/*
+	27.09.2018
+	Сделал возможным редактирование колонок в 
+	Calculation.SumVolume и Calculation.SumVolumeArch если они не учавствовали в начислениях
+*/
+	
+	_old_short_name = old.short_name;
+	
+	select i.catalog_id, i.short_name, i.id, pt.system_type, i.len, i."precision"
+	into _catalog_id, _new_short_name, _parametr_id, _type_name, _len, _precision
+	from inserted i
+		inner join parametr."type" pt on pt.id = i.type_id;
+
+	if (new.short_name <> old.short_name and exists(select * from utility.formula_result where lower(formula) like '%' || lower(_old_short_name) || '%'))
+		then 
+			raise exception 'Невозможно переименовать параметр, т.к. он учавствует в начислениях';
+			return null;
+	end if;
+
+	_p_table = (select direct.p_table 
+				from parametr.list pl 
+					inner join parametr."catalog" direct on direct.id = pl.catalog_id 
+				where pl.id = _parametr_id);
+
+	_sql = 'if exists(select 1 from ' || _p_table || ' where parametr_id = ' || _parametr_id || ' and value is not null)
+				then
+					$1 = true;
+				else 
+					$1 = false;
+			end if;';
+	
+	execute format(_sql)
+	using _p_result;
+	  
+	begin 
+
+		if (_p_result = true)
+			then
+				begin
+					if (old.type_id <> new.type_id or new.catalog_id <> old.catalog_id or new.short_name <> old.short_name)
+						then
+							raise exception 'Невозможно переименовать параметр, т.к. он учавствует в начислениях';
+							return null;
+					end if;
+				end;	
+		end if;
+
+		if (_catalog_id = 9 and (new.len <> old.len or new."precision" <> old."precision"))
+			then
+				begin
+					_capacity = case 
+									when coalesce(_len, 0) != 0 
+									then '(' || _len || case 
+															when coalesce(_precision, 0) != 0 
+															then ',' || _precision || ')' 
+															else ')' 
+														end 
+									else ''
+								end;
+				
+					_sql = '
+							alter table calculation.sum_volume 		alter column ' || _old_short_name || '' || _type_name || _capacity || ' null;
+							alter table recalculation.sum_volume 	alter column ' || _old_short_name || '' || _type_name || _capacity || ' null;
+							alter table calculation.sum_volume_arch alter column ' || _old_short_name || '' || _type_name || _capacity || ' null;';
+				
+					execute (_sql);
+				end;
+		end if;
+
+		if (_catalog_id = 9 and old.short_name <> new.short_name)
+			then
+				begin
+					
+					alter table calculation.sum_volume rename column _old_short_name to _new_short_name; 
+					alter table recalculation.sum_volume rename column _old_short_name to _new_short_name;
+					alter table calculation.sum_volume_arch rename column _old_short_name to _new_short_name;
+				
+				end;
+		end if;
+
+		exception 
+			when others 
+				then 
+					get stacked diagnostics 
+						_error_message = message_text;
+						raise exception '%', _error_message;
+	
+	end;	
+	
+	return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 17.04.2014
+ Description:	Проверка на возможность обновления услуги
+ =============================================
+"""
+}
+

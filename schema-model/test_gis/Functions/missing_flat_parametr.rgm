@@ -1,0 +1,38 @@
+function "test_gis"."missing_flat_parametr(integer)" {
+  text = """
+
+
+	select
+		ai.flat_id as object_id
+		,ai.short_name_flat as location
+		,case when hf.number is null then true else false end
+		,case when coalesce (hf.area,0.0) = 0.0 and ha.close_date = null then true else false end 
+		,case when is_residential = false and is_odn is null then true else false end 
+		,case when is_residential = true and coalesce (feature_room_id,0) = 0 then true else false end 
+	from adress.info ai  
+		inner join adress.house ah on ah.id = ai.house_id
+		inner join house.flat hf on ai.flat_id = hf.flat_id 
+		left join house.account ha on hf.flat_id = ha.flat_id
+	where ai.house_id = _house_id and ai.account_parent_id is null;
+	
+"""
+  returnType = TABLE(object_id integer, location text, "Не указан номер помещения" boolean, "Не указана общая площадь помещени" boolean, "Не указан признак помещения (являе" boolean, "Не указан признак тип помещения" boolean)
+  arguments = <
+    {
+      name = _house_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 28.06.2016
+ Description:	Проверка помещений на запонение параметров
+ =============================================
+"""
+}
+

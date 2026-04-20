@@ -1,0 +1,157 @@
+table "organization"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_organization"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('organization.list_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "short_name" {
+      type = character varying(100)
+    }
+    column "adress_legal" {
+      type = integer
+    }
+    column "adress_real" {
+      type = integer
+    }
+    column "inn" {
+      type = character varying(12)
+      null = NOT NULL
+    }
+    column "ogrn" {
+      type = character varying(15)
+    }
+    column "kpp" {
+      type = character varying(9)
+    }
+    column "okpo" {
+      type = character varying(10)
+    }
+    column "calc_fine" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "type_id" {
+      type = integer
+    }
+    column "is_owner" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "phone" {
+      type = character varying(200)
+    }
+    column "web" {
+      type = character varying(200)
+    }
+    column "email" {
+      type = character varying(200)
+    }
+    column "code" {
+      type = character varying(3)
+    }
+    column "splitting_rules" {
+      type = integer
+      null = NOT NULL
+      default = 3
+    }
+    column "avance_rules" {
+      type = integer
+      null = NOT NULL
+    }
+    column "certificate" {
+      type = character varying(50)
+    }
+    column "org_ppa" {
+      type = uuid
+    }
+    column "org_guid" {
+      type = uuid
+    }
+    column "tax_type" {
+      type = smallint
+      null = NOT NULL
+      default = 4
+    }
+    column "service_guid" {
+      type = uuid
+      null = NOT NULL
+      default = gen_random_uuid()
+    }
+    column "override_advance" {
+      type = text
+    }
+    column "counter_day_from" {
+      type = smallint
+      null = NOT NULL
+      default = 1
+    }
+    column "counter_day_to" {
+      type = smallint
+      null = NOT NULL
+      default = 31
+    }
+    column "paying_agent_phone" {
+      type = character varying(20)
+    }
+    column "domyland_id" {
+      type = character varying(50)
+    }
+  )
+}
+
+foreignKey "organization"."list"."fk_organization_adress_legal" {
+  columns = [
+    "adress_legal"
+  ]
+  referencedTable = "organization"."adress"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "organization"."list"."fk_organization_ownership" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "organization"."type"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "organization"."list"."fk_organization_real" {
+  columns = [
+    "adress_real"
+  ]
+  referencedTable = "organization"."adress"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "organization"."list_k_organization" {
+  table = "organization"."list"
+  type = btree
+  columns = <
+    {
+      definition = id
+    }
+
+  >
+  isUnique = True
+}
+

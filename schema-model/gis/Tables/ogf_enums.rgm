@@ -1,0 +1,30 @@
+table "gis"."ogf_enums" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_ogf_enum"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.ogf_enums_id_seq'::regclass)
+    }
+    column "num" {
+      type = integer
+      null = NOT NULL
+    }
+    column "code" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = character varying(4000)
+      null = NOT NULL
+    }
+  )
+}
+

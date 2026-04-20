@@ -1,0 +1,17 @@
+table "benefit"."formula" {
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('benefit.formula_id_seq'::regclass)
+    }
+    column "formula" {
+      type = text
+    }
+    column "formula_tarif" {
+      type = text
+    }
+  )
+}
+

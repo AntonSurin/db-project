@@ -1,0 +1,115 @@
+function "report"."debtors(integer, jsonb)" {
+  text = """
+
+declare 
+	_period_begin	int;
+	_parametr_id	int;
+begin
+	
+
+	_parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'n_pod' and pl.catalog_id = 2);
+	_period_begin = (select min(pl.id) from "period".list pl where pl.is_open = true);
+
+
+	create temp table _table (group_id int, account_id int, debt numeric(18,2) not null default 0.0);
+
+	insert into _table (group_id, account_id, debt)
+	select aa.group_id, pb.account_id, pb.in_balance + pb.current_calc + pb.recalc - p.pay
+	from payment.balance_group pb 
+		inner join adress.account aa on aa.id = pb.account_id
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+		inner join (
+						select pbg.account_id, sum(pbg.pay) as pay
+						from payment.balance_group pbg
+						where pbg.period_id >= _period_id
+						group by pbg.account_id
+					) p on p.account_id = pb.account_id
+	where pb.period_id = _period_id;
+
+	return query
+	with cte as	
+	(
+		select 
+			pb.account_id
+			,pb.period_id
+			,pb.group_id
+			,pb.calculate
+			,cp.is_closed
+			,case   
+				when (t.debt) - sum (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) over (partition by pb.account_id, t.group_id order by pb.period_id desc, ord asc ) > 0
+					then case when pb.calculate >= 0.0 then pb.calculate else 0.0 end 
+				when (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) - (sum (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) over (partition by t.group_id, pb.account_id order by pb.period_id desc, ord asc ) - (t.debt)) > 0 
+					then  (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) - (sum (case when pb.calculate >= 0.0 then pb.calculate else 0.0 end ) over (partition by t.group_id, pb.account_id order by pb.period_id desc, ord asc) - (t.debt))
+				else 0.0
+			end as debt
+			,t.debt as full_debt
+		from (
+				select p.account_id, p.period_id, aa.group_id, abs(p.current_calc + p.recalc) as calculate, p.account_parent_id, 1 as ord
+				from payment.balance_group p 
+					inner join adress.account aa on aa.id = p.account_id
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = p.account_parent_id
+				union all
+				select p.account_id, p.period_id - 1, aa.group_id, in_balance as calculate, p.account_parent_id, 2 as ord
+				from payment.balance_group p 
+					inner join adress.account aa on aa.id = p.account_id
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = p.account_parent_id
+				where p.period_id = _period_begin
+			) pb
+			inner join calculation.parametr_transporate cp on cp.account_id = pb.account_parent_id
+			left join _table t on t.account_id = pb.account_id
+		where t.debt > 0 and pb.period_id <= _period_id)
+
+		select 
+			ai.order_id,
+			ai.account_order_id,
+			pl.id,
+			pl.name_month || ' ' || pl."year" as period_name,
+			ai.account_name,
+			ai.flat_book_short_name || ' ' || ai.flat_name as flat_name,
+			ai.short_name,
+			coalesce('Подъезд № ' || nullif(f.n_pod, ''), 'Подъезд не определен') as n_pod,
+			c.full_debt,
+			coalesce(uc.name, 'Группа отсутствует')::text as group_name,
+			c.debt,
+			c.is_closed
+		from cte c
+			inner join "period".list pl on pl.id = c.period_id
+			inner join adress.info ai on ai.account_id = c.account_id
+			inner join 	(
+							select pf.flat_id, pf.value as n_pod 
+							from parametr.flat pf
+							where pf.parametr_id = _parametr_id and pf.date_end is null
+						) f on f.flat_id = ai.flat_id
+			left join utility.contragent_group uc on uc.id = c.group_id
+		where c.debt > 0;
+	
+	drop table if exists _table;
+	
+end;
+"""
+  returnType = TABLE(order_id integer, account_order_id integer, id integer, period_name text, account_name character varying, flat_name text, short_name text, n_pod text, full_debt numeric, group_name text, debt numeric, is_closed smallint)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 26.02.2015
+ Description:	Функция возвращает расчитанную задолженность жильца в разрезе месяцев. При этом для закрытия долга используется метод ФИФО.
+ =============================================
+"""
+}
+

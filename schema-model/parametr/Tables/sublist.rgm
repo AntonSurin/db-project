@@ -1,0 +1,49 @@
+table "parametr"."sublist" {
+  primaryKey = {
+    columns = [
+      "sublist_id"
+      "catalog_id"
+    ]
+    name = "pk__sublist__8d16c0952f8479f5"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "catalog_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "parametr"."sublist"."fk_prametr_sublist" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "parametr"."sublist_idx_paramertr_id" {
+  table = "parametr"."sublist"
+  type = btree
+  columns = <
+    {
+      definition = sublist_id
+    }
+
+  >
+  isUnique = False
+}
+

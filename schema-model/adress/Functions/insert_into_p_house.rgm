@@ -1,0 +1,28 @@
+function "adress"."insert_into_p_house()" {
+  text = """
+
+begin
+		
+	insert into utility.sublist_group_h_detail (group_id, house_id, avg_type, get_value_type)
+	select sg.id, ah.id, true, false
+	from _inserted ah
+	inner join utility.sublist_group  sg on 1 = 1;
+	
+	return null;
+	
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		ООО ЖилФондСервис
+ Create date: 21.10.2013
+ Description:	Триггер для автоматического создания записей в тпблице PLHouse
+ =============================================
+"""
+}
+

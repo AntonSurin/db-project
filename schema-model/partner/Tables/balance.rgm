@@ -1,0 +1,49 @@
+table "partner"."balance" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_balance_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('partner.balance_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "provider_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "document_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "in_balance" {
+      type = numeric(15,2)
+      null = NOT NULL
+      default = 0.0
+    }
+    column "calculate" {
+      type = numeric(15,2)
+      null = NOT NULL
+      default = 0.0
+    }
+    column "pay" {
+      type = numeric(15,2)
+      null = NOT NULL
+      default = 0.0
+    }
+  )
+}
+

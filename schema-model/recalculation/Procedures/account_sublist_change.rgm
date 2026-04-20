@@ -1,0 +1,75 @@
+procedure "recalculation"."account_sublist_change(integer, integer, integer)" {
+  text = """
+
+declare 
+		_date_begin	date;
+		_date_end	date;
+begin
+
+	delete from recalculation.account_sublist where root_id = _root_id;
+
+	if (_period_start != (select id from "period".list where is_working = true))
+		then
+			insert into recalculation.account_sublist (root_id, period_id, account_id, account_parent_id, sublist_id, value, date_begin, date_end)
+			select _root_id, ca.period_id, ca.account_id, ca.account_parent_id, ca.sublist_id, ca.value, pl.date_begin, pl.date_end
+			from calculation.account_sublist_arch ca
+				inner join recalculation.account ra on ra.account_id = ca.account_parent_id
+				inner join (
+								select account_id, period_id, date_begin, date_end
+								from recalculation.parametr_transporate
+								where root_id = _root_id
+								group by account_id, period_id, date_begin, date_end
+							) pl on pl.account_id = ra.account_id and pl.period_id = ca.period_id
+			where ca.period_id between _period_start and _period_end;
+		else 
+			begin
+				select date_begin, date_end 
+				into _date_begin, _date_end
+				from "period".list 
+				where id = _period_start;
+
+				insert into recalculation.account_sublist (root_id, period_id, account_id, account_parent_id, sublist_id, value, date_begin, date_end)
+				select _root_id, _period_start, ca.account_id, ca.account_parent_id, ca.sublist_id, ca.value, ca."date", _date_end
+				from calculation.account_sublist ca
+					inner join recalculation.account ra on ra.account_id = ca.account_parent_id
+				union all
+				select _root_id, _period_start, ca.account_id, ca.account_parent_id, ca.sublist_id, ca.value, ca.date_begin, coalesce(ca.date_end, _date_end)
+				from calculation.account_sublist_for_change ca
+					inner join recalculation.account ra on ra.account_id = ca.account_parent_id
+				where ca.period_id = _period_start;
+			end;
+	end if;
+		
+end
+"""
+  arguments = <
+    {
+      name = _root_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_start
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 16.11.2017
+ description:	заполнение услуг для перерасчетов
+ =============================================
+"""
+}
+

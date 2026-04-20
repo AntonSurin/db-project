@@ -1,0 +1,93 @@
+table "utility"."sublist_group_h_detail" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sublist_group_h_detail"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.sublist_group_h_detail_id_seq'::regclass)
+    }
+    column "group_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "avg_type" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "get_value_type" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "utility"."sublist_group_h_detail"."fk_sublist_group_h_detail_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."sublist_group_h_detail"."fk_sublist_group_h_detail_sublist_group" {
+  columns = [
+    "group_id"
+  ]
+  referencedTable = "utility"."sublist_group"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "utility"."sublist_group_h_detail_idx_group_id_house_id" {
+  table = "utility"."sublist_group_h_detail"
+  type = btree
+  columns = <
+    {
+      definition = group_id
+    }
+
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    avg_type
+    get_value_type
+  ]
+}
+
+index "utility"."sublist_group_h_detail_idx_house_id_avg_type" {
+  table = "utility"."sublist_group_h_detail"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+    {
+      definition = avg_type
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    group_id
+  ]
+}
+

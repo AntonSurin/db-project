@@ -1,0 +1,33 @@
+table "house"."fias_history" {
+  primaryKey = {
+    columns = [
+      "house_id"
+      "fias"
+    ]
+    name = "pk_fias_history"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "fias" {
+      type = uuid
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "house"."fias_history"."fk_fias_history_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

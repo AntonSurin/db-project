@@ -1,0 +1,43 @@
+table "payment"."old_upload_info" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_old_upload"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.old_upload_info_id_seq'::regclass)
+    }
+    column "upload_number" {
+      type = integer
+      null = NOT NULL
+    }
+    column "employee_id" {
+      type = integer
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+      default = now()
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "checks_count" {
+      type = integer
+      null = NOT NULL
+      default = 0
+    }
+    column "total_sum" {
+      type = numeric(38,5)
+      null = NOT NULL
+      default = 0.0
+    }
+  )
+}
+

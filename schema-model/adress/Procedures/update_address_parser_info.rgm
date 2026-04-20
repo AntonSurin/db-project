@@ -1,0 +1,66 @@
+procedure "adress"."update_address_parser_info(jsonb)" {
+  text = """
+
+begin
+	
+	create temp table _tmp (flat_id int, house_id int, house_guid uuid, flat_guid uuid);
+	
+	insert into _tmp
+	select
+		af.id as flat_id,
+		af.house_id,
+		(coalesce(lower(apr.response)::jsonb ->> 'blockid', lower(apr.response))::jsonb ->> 'houseid')::uuid as house_guid,
+		(lower(apr.response)::jsonb ->> 'flat_id')::uuid as flat_guid
+	from adress.flat af
+		left join adress.parser_response apr on af.id = apr.flat_id
+	where af.house_id in (select distinct house_id
+						  from adress.flat
+						  where id in (select a.object_id from jsonb_populate_recordset(null::special.objects, _flat_ids) as a)
+						 );
+
+	update adress.flat as af
+		set address_parser_guid = t.flat_guid
+	from  _tmp t 
+	where af.id = t.flat_id and af.id in (select a.object_id from jsonb_populate_recordset(null::special.objects, _flat_ids) as a);
+
+	update adress.house as ahh
+		set address_parser_guid = q.house_guid
+	from adress.house ah
+		left join (
+					select
+						t.house_id,
+						(case 
+							when count(distinct house_guid) = 1
+							then (min(t.house_guid::text))::uuid
+							else null
+						end) as house_guid
+					from _tmp t
+						join adress.house ah on t.house_id = ah.id
+					where t.house_guid is not null
+					group by t.house_id, t.house_guid
+		) q on ah.id = q.house_id
+	where ah.id in (select distinct house_id from _tmp);
+
+drop table if exists _tmp;						 
+						 
+end
+"""
+  arguments = <
+    {
+      name = _flat_ids
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		трофимов б.и.
+ create date: 12.07.21
+ description:	обновление adressparserguid для adress.house и adress.flat
+ =============================================
+"""
+}
+

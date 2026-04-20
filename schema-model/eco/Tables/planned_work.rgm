@@ -1,0 +1,49 @@
+table "eco"."planned_work" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_eco_planned_work"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.planned_work_id_seq'::regclass)
+    }
+    column "year_plan_id" {
+      type = integer
+    }
+    column "approved_work_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "month" {
+      type = integer
+      null = NOT NULL
+    }
+    column "freq" {
+      type = integer
+    }
+    column "year" {
+      type = integer
+    }
+    column "freq_gis" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "eco"."planned_work"."fk_eco_planned_work_year_plan_eco_year_plan" {
+  columns = [
+    "year_plan_id"
+  ]
+  referencedTable = "eco"."year_plan"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

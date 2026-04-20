@@ -1,0 +1,22 @@
+table "adress"."inner_city_district" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_adress_inner_city_district"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.inner_city_district_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+  )
+}
+

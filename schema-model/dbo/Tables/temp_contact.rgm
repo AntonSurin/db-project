@@ -1,0 +1,29 @@
+table "dbo"."temp_contact" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_client_account"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('dbo.temp_contact_id_seq'::regclass)
+    }
+    column "entity_type" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "object_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "number" {
+      type = character varying(1000)
+    }
+  )
+}
+

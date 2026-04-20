@@ -1,0 +1,30 @@
+table "dbo"."old_tarif" {
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('dbo.old_tarif_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "tarif_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "number" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+

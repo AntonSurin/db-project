@@ -1,0 +1,40 @@
+table "gis"."voting_protocol_house" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_voting_protocol_house"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.voting_protocol_house_id_seq'::regclass)
+    }
+    column "protocol_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "fias" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "gis"."voting_protocol_house"."fk_voting_protocol_house_voting_protocol" {
+  columns = [
+    "protocol_id"
+  ]
+  referencedTable = "gis"."voting_protocol"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,30 @@
+table "report"."signature" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_report_signature"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.signature_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "band_name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "signature" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+

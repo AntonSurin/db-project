@@ -1,0 +1,25 @@
+function "partner"."provider()" {
+  text = """
+
+
+	select distinct us.provider_id, us.sublist_id, up.inn, pd.guid, ud.period_begin, ud.period_end
+	from utility.sublist_provider us 
+		inner join utility.provider up on up.id = us.provider_id
+		left join utility.documents ud on us.id = ud.sublist_provider_id
+		left join partner."document" pd on pd.id = ud.document_id;
+
+"""
+  returnType = TABLE(provider_id integer, sublist_id integer, inn character varying, guid uuid, period_begin integer, period_end integer)
+  arguments = [
+  ]
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 26.10.2016
+ description:	список поставщиков с документами для загрузки данных из 1с
+ =============================================
+"""
+}
+

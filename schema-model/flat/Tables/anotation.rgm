@@ -1,0 +1,36 @@
+table "flat"."anotation" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_table_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('flat.anotation_id_seq'::regclass)
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "text" {
+      type = text
+    }
+  )
+}
+
+foreignKey "flat"."anotation"."fk_anotation_flat" {
+  columns = [
+    "flat_id"
+  ]
+  referencedTable = "adress"."flat"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+

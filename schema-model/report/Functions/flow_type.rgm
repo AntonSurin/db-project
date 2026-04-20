@@ -1,0 +1,147 @@
+function "report"."flow_type(integer, jsonb, integer)" {
+  text = """
+
+declare 
+	_date_begin date;
+	_date_end 	date;
+begin
+
+-- 1 норматив потребления  -- если услуга может иметь счетчик при этом индивидуального счетчика нет и нет общедомового счетчика и есть норматив по данной услуге.
+-- 2 ипу  -- по счетчику
+-- 3 среднее  -- среднее по счетчику
+-- 4 опу   --- если услуга может иметь счетчик , либо эта улуга одн, и при это есть счетчик на эту услугу на доме 
+-- 5 по нормативу без коэфф.
+
+	create temp table _account  (account_id int);
+	
+	if (_group_id is null)
+		then 
+			begin
+				insert into _account
+				select aa.id
+				from adress.account aa
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id;
+			end;
+		else
+			begin
+				insert into _account
+				select aa.id
+				from adress.account aa
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id
+				where aa.group_id = _group_id;
+			end;
+	end if;
+	
+	select date_begin, date_end 
+	into _date_begin, _date_end
+	from "period".list 
+	where id = _period_id;
+
+	return query	
+	select 
+		 pb.account_parent_id as account_id
+		,pb.sublist_id
+		,case 
+			when pb.rate_normativ > 1.0 and pr.current_calculate > 0 then '(1)'
+			when t.flow_type_id = 3 then '(3)'
+			when t.flow_type_id is not null and t.flow_type_id <> 4 then '(2)'
+			when t.flow_type_id = 4 then '(5)'
+			when (
+					us.is_counter = true 
+					and flow_type_id is null 
+					and  not exists (
+										select * 
+									 	from counter.house ch 
+									 		inner join counter.list cl on cl.id = ch.counter_id 
+									 	where active = true 
+									 		and is_calculation = true 
+									 		and pb.sublist_id = cl.sublist_id 
+									 		and ch.house_id = pb.house_id
+									 )							
+					and exists (
+									select * 
+									from normativ.list nl
+									where nl.sublist_id = pb.sublist_id 
+										and territory_id = ah.territory_id 
+										and ( 
+												date_begin between _date_begin and _date_end
+												or coalesce(date_end, '9999-12-31'::date) between _date_begin and _date_end
+												or _date_begin between date_begin and coalesce(date_end, '9999-12-31'::date)
+												or _date_end between date_begin and coalesce(date_end, '9999-12-31'::date)
+											)
+								)
+				) 
+				or (pb.volume <> 0.0 and pb.volume % nullif (pb.normativ * coalesce(pb.rate_normativ,1.0),0) = 0)  then  '(1)'
+			when us.is_odn = true or (flow_type_id is null 
+										and exists (
+														select * 
+														from counter.house ch 
+															inner join counter.list cl on cl.id = ch.counter_id 
+														where active = true 
+															and is_calculation = true 
+															and pb.sublist_id = cl.sublist_id 
+															and ch.house_id = pb.house_id
+													)
+									) then '(4)'
+		end::varchar(3) as flow_type
+	from payment.balance pb
+		inner join _account a on a.account_id = pb.account_id
+		inner join adress.house ah on ah.id = pb.house_id
+		inner join utility.sublist us on us.id = pb.sublist_id
+		inner join utility."type" ut on ut.id = us."type"
+		left join (
+					select 
+						cf.sublist_id, 
+						max(flow_type_id) as flow_type_id, 
+						ca.account_id
+					from counter.flow cf
+						inner join counter.account ca on ca.counter_id = cf.counter_id
+					where period_id = _period_id  and cf.flow_type_id <> 5
+					group by  cf.sublist_id, ca.account_id
+				) t  on t.account_id = pb.account_parent_id 
+						and t.sublist_id = pb.sublist_id 
+		left join payment.balance pr on pr.account_id = pb.account_id 
+										and pr.period_id = pb.period_id 
+										and (pr.sublist_id - 10) = (case when pb.sublist_id in (22, 24, 27) then pb.sublist_id else 0 end)
+	where pb.print = 1 
+		and pb.period_id = _period_id
+		and (ut.id = 1 or ut.parent_id = 1) 
+		and pb.sublist_id not in (32, 34, 37);
+	
+	drop table _account;
+
+end;
+"""
+  returnType = TABLE(account_id integer, sublist_id integer, flow_type character varying)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		поляков п.г. глещинский д.в.
+ create date: 12.12.2016
+ description:	тип расхода для квитанции
+ =============================================
+"""
+}
+

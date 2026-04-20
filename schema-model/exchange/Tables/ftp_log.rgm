@@ -1,0 +1,25 @@
+table "exchange"."ftp_log" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_exchange_ftp"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('exchange.ftp_log_id_seq'::regclass)
+    }
+    column "date" {
+      type = date
+      default = now()
+    }
+    column "name" {
+      type = text
+    }
+  )
+}
+

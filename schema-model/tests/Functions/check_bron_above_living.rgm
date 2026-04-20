@@ -1,0 +1,36 @@
+function "tests"."check_bron_above_living(jsonb)" {
+  text = """
+
+
+	select
+		 ai.account_name
+		,ai.short_name_flat
+		,(coalesce(cbp,0) + coalesce(br1,0))::int2 as bron
+		,coalesce(cpr,0)::int2 as cpr
+	from adress.info ai 
+		join calculation.parametr_transporate cp on cp.account_id=ai.account_id
+	where coalesce(cpr,0) < (coalesce(cbp,0) + coalesce(br1,0)) 
+		and (not exists(select a.account_id from jsonb_populate_recordset(null::account.list, _account) a) or ai.account_id in (select ac.account_id from jsonb_populate_recordset(null::account.list, _account) ac));
+
+"""
+  returnType = TABLE(account_name character varying, short_name_flat text, bron smallint, cpr smallint)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:			Поляков Павел
+ Create date:		18.10.2017
+ Modified date:	10.12.2020, Трофимов Б.И. - добавил фильтр по лс для автоматического запуска тестов
+ Description:		Проверка на превышение бронированных над проживающими
+ =============================================
+"""
+}
+

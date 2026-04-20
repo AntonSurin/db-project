@@ -1,0 +1,31 @@
+table "recalculation"."annotation" {
+  primaryKey = {
+    columns = [
+      "root_id"
+    ]
+    name = "pk_re_calculation_annotation"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "root_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "text" {
+      type = character varying(500)
+    }
+  )
+}
+
+foreignKey "recalculation"."annotation"."fk_re_calculation_annotation_root" {
+  columns = [
+    "root_id"
+  ]
+  referencedTable = "recalculation"."root"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,67 @@
+table "law"."folder" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_folder"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('law.folder_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "number" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "is_open" {
+      type = boolean
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_utility_on" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+    column "block_id" {
+      type = integer
+      null = NOT NULL
+      default = 1
+    }
+    column "judicial_sector" {
+      type = character varying(20)
+    }
+    column "period_begin" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "law"."folder"."fk_folder_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+

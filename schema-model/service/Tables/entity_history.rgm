@@ -1,0 +1,54 @@
+table "service"."entity_history" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_entity_history"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.entity_history_id_seq'::regclass)
+    }
+    column "date" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+    }
+    column "session_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "entity_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "entity_type" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "operation_type" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "property_name" {
+      type = character varying(50)
+    }
+    column "property_value" {
+      type = character varying(300)
+    }
+  )
+}
+
+foreignKey "service"."entity_history"."fk_entity_history_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,17 @@
+table "adress"."test_surin" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "test_surin_pk"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+

@@ -1,0 +1,29 @@
+table "report"."sublist_group" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sub_list_group_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.sublist_group_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "group_id" {
+      type = integer
+    }
+  )
+}
+

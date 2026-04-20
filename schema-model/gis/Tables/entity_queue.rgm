@@ -1,0 +1,100 @@
+table "gis"."entity_queue" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_entity_queue"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.entity_queue_id_seq'::regclass)
+    }
+    column "message_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "transport_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "entity_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type_name" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "unique_number" {
+      type = character varying(32)
+    }
+    column "sub_info" {
+      type = text
+    }
+    column "error_text" {
+      type = text
+    }
+    column "error_code" {
+      type = character varying(11)
+    }
+  )
+}
+
+foreignKey "gis"."entity_queue"."fk_entity_queue_message" {
+  columns = [
+    "message_id"
+  ]
+  referencedTable = "gis"."message"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+index "gis"."entity_queue_index_message_id_type_name" {
+  table = "gis"."entity_queue"
+  type = btree
+  columns = <
+    {
+      definition = message_id
+    }
+
+    {
+      definition = type_name
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    entity_id
+    guid
+    unique_number
+    error_text
+    error_code
+  ]
+}
+
+index "gis"."entity_queue_non_clustered_index_entity_id_type_name" {
+  table = "gis"."entity_queue"
+  type = btree
+  columns = <
+    {
+      definition = entity_id
+    }
+
+    {
+      definition = type_name
+    }
+
+  >
+  isUnique = False
+}
+

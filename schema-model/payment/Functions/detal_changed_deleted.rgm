@@ -1,0 +1,55 @@
+function "payment"."detal_changed_deleted()" {
+  text = """
+
+declare 
+	_i int; 
+begin
+
+	update payment.balance pb 
+		set	pay  =  coalesce(pb.pay, 0) - d."sum"
+	from (
+			select de.period_id, de.account_id, de.sublist_id, sum(de."sum") as sum
+			from deleted de
+			group by de.period_id, de.account_id, de.sublist_id
+		) d
+	where pb.account_id = d.account_id 
+		and pb.period_id = d.period_id 
+		and pb.sublist_id = d.sublist_id;
+
+	with cte as 
+	(
+		insert into payment.balance(period_id, sublist_id, house_id, flat_id, account_id, pay, account_parent_id)
+		select d.period_id, d.sublist_id, aa.house_id, aa.flat_id, d.account_id, -d."sum", aa.parent_id
+		from deleted d
+			left join payment.balance pb on pb.period_id = d.period_id 
+				and pb.account_id = d.account_id 
+				and pb.sublist_id = d.sublist_id
+			join adress.account aa on d.account_id = aa.id
+		where pb.id is null
+		returning *
+	)
+	
+	select count(1) 
+	into _i
+	from (select distinct i.period_id from cte i) as q;
+		
+	if (_i > 1)
+		then
+			raise exception 'Вставка деталей из разных периодов запрещена';
+	end if;
+			
+	return null;
+			
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  Trigger [Payment].[Detal_Changed]    
+ Script Date: 01.11.2022 11:10:30
+"""
+}
+

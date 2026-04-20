@@ -1,0 +1,27 @@
+table "dbo"."parametr_house" {
+  owner = postgres
+  columns = (
+    column "code_h" {
+      type = character varying(9)
+    }
+    column "parametr_ellis" {
+      type = character varying(10)
+    }
+    column "parametr_name" {
+      type = character varying(20)
+    }
+    column "value" {
+      type = character varying(255)
+    }
+    column "string_value" {
+      type = character varying(255)
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "house_id" {
+      type = integer
+    }
+  )
+}
+

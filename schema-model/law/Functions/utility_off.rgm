@@ -1,0 +1,172 @@
+function "law"."utility_off(integer)" {
+  text = """
+
+begin
+	/*собираем лицевые счета, по которым возмоно сформировать уведомление №2*/
+	create temp table _table (account_id int, docs_id int, folder_id int);
+
+	insert into _table (account_id, docs_id, folder_id)
+	select lf.account_id, max(ld.id), ld.folder_id 
+	from law.folder lf
+		inner join law.docs ld on ld.folder_id = lf.id
+	where lf.is_open = true 
+			and lf.block_id = 1 
+			and (ld.status_id = 3 and ld.notifyed_id  in (1, 2) and (ld.date_status_change + 3) < current_date)
+			or exists(select * from law.docs ld2 where ld2.folder_id = lf.id and ld2.notifyed_id = 10 and ld2.status_id = 14)
+	group by lf.account_id, ld.folder_id;
+
+	return query
+	with cte_full_debt as 
+	(
+		select 
+			pb.period_id,
+			pb.account_id,			
+			pb.in_balance + pb.current_calc + pb.recalc - coalesce(p.pay, 0) as full_debt,
+			a.folder_id,
+			a.docs_id
+		from payment.balance_group pb  
+			inner join _table a on a.account_id = pb.account_id
+			left join lateral	( 
+									select sum(pp.sum) as pay ,pp.account_id
+									from payment.list pp
+										inner join adress.account aa on aa.parent_id = pp.account_id
+									where pp.period_id >= _period_id and pp.date < cast(current_date as date) and pp.account_id = pb.account_id 
+									group by pp.account_id
+								) p on true
+		where pb.period_id = _period_id
+	), cte_result as 
+	(
+		select 
+			 c.account_id
+			,t.period_id
+			,t.full_debt
+			,case
+					when t.full_debt - sum(c.current_calc + c.recalc) over (partition by c.account_id order by c.period_id desc) > 0 then c.current_calc + c.recalc
+					else 
+					case
+						when (c.current_calc + c.recalc) - (sum(c.current_calc + c.recalc) over (partition by c.account_id order by c.period_id desc) - t.full_debt) < 0 then 0
+						else (c.current_calc + c.recalc) - (sum(c.current_calc + c.recalc) over (partition by c.account_id order by c.period_id desc) - t.full_debt)
+					end 
+			end as debt,
+			t.folder_id,
+			t.docs_id
+		from payment.balance_group  c 
+			inner join cte_full_debt t on t.account_id = c.account_id
+		where c.period_id <= t.period_id and t.full_debt > 0 
+	)
+
+	select
+		ai.house_id,
+		ai.street_book_name || ' ' || ai.street_name || ' ' || coalesce(ai.house_number, '') || ' ' || coalesce(ai.korpus, '') as adress, 
+		lf.account_id,
+		ai.account_name,
+		ai.flat_book_id,
+		ai.flat_book_name,
+		ai.flat_name,
+		ld.full_debt as full_debt,
+		(	
+			select string_agg(ltrim(rtrim(cl.full_name)), ', ')
+			from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+			where ca.account_id = ai.account_parent_id  and od.date_end is null 
+		) as fio,
+		ot.short_name || ' ' || ol.short_name as organization_name,
+		lf.id as folder_id,
+		lf.is_open,
+		ld.docs_id as parent_id,
+		current_date as date,
+		pl."date" as payment_date,
+		ol.email,
+		ol.phone,
+		(case when n2.account_id is null then false else true end) is_open_notifyed,
+		ld.period_id,
+		ai.account_parent_id
+	from law.folder lf
+		inner join (select * from cte_result cr where cr.full_debt > 0) ld on ld.folder_id = lf.id
+		inner join adress.light_info ai  on ai.account_id = lf.account_id
+		inner join adress.house ah on ah.id = ai.house_id
+		inner join organization.list ol on ol.id = ah.work_id
+		inner join organization.type ot on ot.id = ol.type_id
+		left join lateral	(
+								select pll."sum", pll."date", pll.account_id 
+								from payment.list pll 
+								where pll.sum <> 0 and pll.account_id = ai.account_parent_id 
+								order by pll."date" desc
+								limit 1
+							) pl on true
+		left join	(
+						select lf.account_id
+						from law.folder lf
+							inner join law.docs ld on ld.folder_id = lf.id
+						where ld.notifyed_id = 3 
+							and lf.account_id = lf.account_id
+							and lf.is_open = true
+							and not exists(select * from law.docs l2 where l2.id > ld.id and l2.folder_id = ld.folder_id and l2.status_id = 14 and l2.notifyed_id = 10)
+					) n2 on true		
+	where not exists(
+						select * 
+						from law.docs l1 
+						where l1.notifyed_id = 3 
+							and l1.folder_id = lf.id 
+							and not exists(
+											select * 
+											from law.docs l2 
+											where l2.id > l1.id 
+												and l2.folder_id = l1.folder_id 
+												and l2.status_id = 14 
+												and l2.notifyed_id = 10
+											)
+					)
+	group by ai.account_parent_id, 
+			lf.account_id, 
+			ai.street_book_name, 
+			ai.street_name, 
+			ai.house_number, 
+			ai.korpus, 
+			ai.account_name, 
+			ai.flat_book_id, 
+			ai.flat_book_name, 
+			ai.flat_name,
+			ld.period_id, 
+			ld.full_debt, 
+			pl.date, 
+			ol.name, 
+			ai.house_id, 
+			ol.phone, 
+			ol.email, 
+			ld.docs_id, 
+			lf.id, 
+			ot.short_name, 
+			ol.short_name, 
+			lf.id, 
+			lf.is_open, 
+			n2.account_id, 
+			ai.order_id, 
+			ai.account_order_id
+	order by ai.order_id, ai.account_order_id;
+	
+	drop table if exists _table;
+
+end;
+"""
+  returnType = TABLE(house_id integer, adress text, account_id integer, account_name character varying, flat_book_id smallint, flat_book_name character varying, flat_name character varying, full_debt numeric, fio text, organization_name text, folder_id integer, is_open boolean, parent_id integer, date date, payment_date date, email character varying, phone character varying, is_open_notifyed boolean, period_id integer, account_parent_id integer)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 27.05.2016
+ description:	генерация списка для формирования уведомления №2
+ =============================================
+"""
+}
+

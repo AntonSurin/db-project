@@ -1,0 +1,36 @@
+table "security"."audit_settings_description" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__audit_set__3214ec07ea922f2e"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('security.audit_settings_description_id_seq'::regclass)
+    }
+    column "audit_settings_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "description" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "security"."audit_settings_description"."fk_audit_settings_description_audit_settings" {
+  columns = [
+    "audit_settings_id"
+  ]
+  referencedTable = "security"."audit_settings"
+  referencedColumns = [
+    "id"
+  ]
+}
+

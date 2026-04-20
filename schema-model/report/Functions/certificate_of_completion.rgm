@@ -1,0 +1,180 @@
+function "report"."certificate_of_completion(integer, integer, jsonb, jsonb, jsonb, boolean, integer)" {
+  text = """
+
+begin
+	
+	create temp table _house_filter (house_id int);
+	create temp table _accounts (account_id int);
+
+	if exists(select * from jsonb_populate_recordset(null::house.list, _house) h)
+		then
+			insert into _house_filter 
+			select h.house_id
+			from jsonb_populate_recordset(null::house.list, _house) h;
+		else 
+			insert into _house_filter
+			select al.house_id
+			from contragent.account ca
+				inner join _contragent c on c.object_id = ca.contragent_id
+				inner join adress.light_info al on al.account_id = ca.account_id
+			group by al.house_id;
+	end if;
+
+	if exists(select * from jsonb_populate_recordset(null::special.objects, _contract))
+		then 
+			begin
+				insert into _accounts
+				select distinct cca.account_id 
+				from contragent.contract_account cca
+					inner join jsonb_populate_recordset(null::special.objects, _contract) c on c.object_id = cca.contract_id;
+			end;
+		else
+			begin
+				insert into _accounts
+				select distinct ca.account_id
+				from contragent.account ca
+				join jsonb_populate_recordset(null::special.objects, _contragent) c on c.object_id = ca.contragent_id;
+			end;
+	end if;
+
+	create temp table _sublist (sublist_id int);
+	
+	if (_table_type = 0)
+		then
+			insert into _sublist
+			select 7;
+	end if;
+
+	if (_table_type = 1)
+		then
+			insert into _sublist
+			select id 
+			from utility.sublist 
+			where id != 7;
+	end if;
+
+	if (_table_type not in (0, 1))
+		then
+			insert into _sublist
+			select id 
+			from utility.sublist;	
+	end if;
+
+	set lc_time = 'ru_RU';
+
+	return query
+	select 
+		cl.id as person_id
+		,pb.house_id
+		,case when _show_full_address = true then ai.short_name_flat else ai.short_name end as short_name_adress
+		,ul."name" as utility_name
+		,us."name" as sublist_name
+		,uu."name" as unit_name
+		,pb.tarif
+		,coalesce(sum(pb.volume), 0) as volume
+		,sum(pb.current_calculate) as calc
+		,sum(pb.recalculate) as recalc 
+		,us.id as sublist_id
+		,to_char(pl.date_begin, 'TMmonth yyyy')  as date_begin
+		,ai.order_id
+		,case when _show_full_address = true then ai.account_order_id else 0 end as account_order_id
+	from contragent.list cl
+		inner join jsonb_populate_recordset(null::special.objects, _contragent) c on c.object_id = cl.id
+		inner join contragent.account ca on ca.contragent_id = cl.id
+		inner join contragent.owner_documents od on od.contragent_account_id = ca.id
+		inner join payment.balance pb on pb.account_parent_id = ca.account_id
+		inner join adress.account aa on aa.id = pb.account_id
+		inner join _sublist s on s.sublist_id = pb.sublist_id
+		inner join _house_filter h on h.house_id = pb.house_id
+		inner join adress.info ai on ai.account_id = ca.account_id
+		inner join utility.sublist us on us.id = pb.sublist_id
+		inner join utility.list ul on ul.id = us.list_id
+		inner join utility.unit uu on uu.id = us.unit_id
+		inner join "period".list pl on pl.id = _period_id
+		inner join _accounts a on a.account_id = ca.account_id
+	where cl."type" = true 
+		and pb.period_id = _period_id 
+		and od.date_end is null 
+		and pb.print = 1
+		and coalesce(aa.group_id, 0) = coalesce(_group_id, 0)
+	group by cl.id, 
+		pb.house_id, 
+		ai.order_id,
+		case when _show_full_address = true then ai.short_name_flat else ai.short_name end, 
+		case when _show_full_address = true then ai.account_order_id else 0 end,
+		pb.sublist_id, 
+		pb.tarif, 
+		ul.name, 
+		us.name, 
+		uu.name, 
+		us.id, 
+		pl.date_begin;
+	
+	drop table if exists _sublist;
+	drop table if exists _house_filter;
+	drop table if exists _accounts;
+
+end;
+"""
+  returnType = TABLE(person_id integer, house_id integer, short_name_adress text, utility_name character varying, sublist_name character varying, unit_name character varying, tarif numeric, volume numeric, calc numeric, recalc numeric, sublist_id integer, date_begin text, order_id integer, account_order_id integer)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _table_type
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _contragent
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _contract
+      type = jsonb
+      mode = IN
+      default = NULL::jsonb
+    }
+
+    {
+      name = _show_full_address
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+
+ =============================================
+ Author:		Глещинский Д.В.
+ Create date: 08.06.2016
+ Description:	Данные для таблицы акта выполненных работ
+ Modyfied date: 01.03.2018
+ Modyfied description: Добавлен параметр @TableType - 0: формировать только по пени. 1: формировать по всем услугам, кроме пени. 2: формировать по всем услугам
+ =============================================
+"""
+}
+

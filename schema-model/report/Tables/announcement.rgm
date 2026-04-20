@@ -1,0 +1,26 @@
+table "report"."announcement" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_announcement"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.announcement_id_seq'::regclass)
+    }
+    column "catalog" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "text" {
+      type = text
+      null = NOT NULL
+    }
+  )
+}
+

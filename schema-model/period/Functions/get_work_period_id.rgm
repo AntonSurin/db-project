@@ -1,0 +1,28 @@
+function "period"."get_work_period_id()" {
+  text = """
+
+begin
+
+	period_id =	(
+					select id 
+					from "period".list 
+					where is_working = true
+				);
+			
+	return;
+
+end;
+"""
+  returnType = integer
+  arguments = <
+    {
+      name = period_id
+      type = integer
+      mode = OUT
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+}
+

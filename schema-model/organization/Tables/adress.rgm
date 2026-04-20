@@ -1,0 +1,69 @@
+table "organization"."adress" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_org_adress"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('organization.adress_id_seq'::regclass)
+    }
+    column "country" {
+      type = character varying(200)
+    }
+    column "region" {
+      type = character varying(200)
+    }
+    column "district" {
+      type = character varying(200)
+    }
+    column "city" {
+      type = character varying(300)
+    }
+    column "street" {
+      type = character varying(100)
+    }
+    column "house" {
+      type = character varying(30)
+    }
+    column "index" {
+      type = character varying(6)
+    }
+    column "full_adress" {
+      type = character varying
+      generatedAs = """-
+(((((
+CASE
+    WHEN ((COALESCE(index, ''::character varying))::text = ''::text) THEN ''::text
+    ELSE ((index)::text || ', '::text)
+END ||
+CASE
+    WHEN ((COALESCE(region, ''::character varying))::text = ''::text) THEN ''::text
+    ELSE ((region)::text || ', '::text)
+END) ||
+CASE
+    WHEN ((COALESCE(district, ''::character varying))::text = ''::text) THEN ''::text
+    ELSE ((district)::text || ', '::text)
+END) ||
+CASE
+    WHEN ((COALESCE(city, ''::character varying))::text = ''::text) THEN ''::text
+    ELSE ((city)::text || ', '::text)
+END) ||
+CASE
+    WHEN ((COALESCE(street, ''::character varying))::text = ''::text) THEN ''::text
+    ELSE ((street)::text || ', '::text)
+END) || (
+CASE
+    WHEN ((COALESCE(house, ''::character varying))::text = ''::text) THEN ''::character varying
+    ELSE house
+END)::text)
+"""
+    }
+  )
+}
+

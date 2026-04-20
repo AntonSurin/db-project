@@ -1,0 +1,44 @@
+function "input"."transporate()" {
+  text = """
+
+declare 
+	_sql			text = '';
+	_error_message	varchar(400);
+begin
+
+	_sql = (select string_agg('
+				alter table calculation.parametr_transporate_arch add ' || parametr_name || ' numeric(9, 4) null;
+				alter table calculation.parametr_transporate add ' 		|| parametr_name || ' numeric(9, 4) null;
+				alter table recalculation.parametr_transporate add ' 	|| parametr_name || ' numeric(9, 4) null;', '')
+			from inserted); 
+
+    begin 
+		execute(_sql);
+		
+		exception when others
+		then
+			get stacked diagnostics
+			_error_message = pg_exception_detail;
+			
+			raise exception '%',_error_message;
+		
+	end; 
+
+	return null;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Create date: <Create Date,,>
+ Description:	<Description,,>
+ =============================================
+"""
+}
+

@@ -1,0 +1,33 @@
+table "1c"."counting" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_counting"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "counting_id" {
+      type = integer
+    }
+    column "counting_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "1c"."counting"."fk_counting_counting1" {
+  columns = [
+    "counting_id"
+  ]
+  referencedTable = "organization"."counting"
+  referencedColumns = [
+    "id"
+  ]
+}
+

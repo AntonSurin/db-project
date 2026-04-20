@@ -1,0 +1,192 @@
+procedure "benefit"."calc(integer, jsonb)" {
+  text = """
+
+declare 
+		_date_begin date;
+		_date_end 	date;
+		_days 		int;
+		_sql 		text = '';
+		_sql_volume text = '';
+		_sql_tarif 	text = '';
+begin
+	
+	delete 
+	from benefit.calculation
+	where period_id = _period_id and house_id in (select h.house_id from jsonb_populate_recordset(null::house.list, _house) h);
+
+	select date_begin, date_end, day_in_month 
+	into _date_begin, _date_end, _days 
+	from "period".list 
+	where id = _period_id;
+
+	drop table if exists __result; 
+
+	create temp table __result (account_id int, account_parent_id int, sublist_id int,person_id int, benefit_id int, "type" int2, percent_housing int2, percent_utility int, volume numeric(9,5),tarif numeric(9,5));
+	alter table __result
+		add constraint __temp_result unique (account_id, sublist_id)  include (volume,tarif);
+	alter table __result
+		add constraint __temp_result_type unique ("type") include (percent_housing, percent_utility);
+	
+	drop table if exists __el_volume; 
+	create temp table __el_volume  (account_id int, volume numeric(9,5), sublist_id int);
+	alter table __el_volume 
+	add constraint __temp_el_volume unique (account_id, sublist_id) include (volume);
+
+	drop table if exists __pb_old_volume; 
+	create temp table __pb_old_volume  (account_id int, sublist_id int , volume numeric(9,5), tarif numeric (9,2));
+	alter table __pb_old_volume
+	add constraint __temp_pb_old unique (account_id, sublist_id) include (volume, tarif);
+
+	insert into __pb_old_volume
+	select 
+		account_id,
+		sublist_id,
+		volume,
+		tarif
+	from payment.balance
+	where period_id = _period_id - 1 and print = 1;
+
+	insert into __el_volume
+	select 
+		pb.account_id
+		,sum (volume) volume
+		,case 
+			when ep = 1 
+			then 
+				case	
+					when sublist_id in (27,72,74)
+					then 27
+					else sublist_id
+				end
+			when coalesce (ep,0) = 0
+			then 
+				case	
+					when sublist_id in (72,73,74)
+					then 72
+					else sublist_id
+				end
+			else sublist_id
+		end as sublist_id
+	from payment.balance pb
+		inner join calculation.parametr_transporate cp on pb.account_parent_id = cp.account_id
+	where period_id = _period_id and sublist_id in (27,28,42,72,73,74) and print = 1
+	group by pb.account_id, case 
+							when ep = 1 
+							then 
+								case	
+									when sublist_id in (27,72,74)
+									then 27
+									else sublist_id
+								end
+							when coalesce(ep,0) = 0
+							then 
+								case	
+									when sublist_id in (72,73,74)
+									then 72
+									else sublist_id
+								end
+							else sublist_id
+						end
+	having sum (volume) <> 0.0;
+
+	_sql = _sql ||
+	'
+	insert into __result
+	select
+		 pb.account_id
+		,pb.account_parent_id
+		,pb.sublist_id
+		,bp.contragent_id
+		,bp.benefit_id
+		,coalesce(ut.parent_id, ut.id) as type
+		,bl.percent_housing
+		,bl.percent_utility';
+
+	select tmp.sql_volume, tmp.sql_tarif
+	into _sql_volume, _sql_tarif 
+	from (
+			select 	
+				  string_agg('
+			when bn.sublist_id = ' || cast(sublist_id as varchar(5)) || ' and bp.benefit_id = ' || cast(bn.benefit_id as varchar(5))  || ' then ' || formula, '') as sql_volume,
+				  string_agg(' when bn.sublist_id = ' || cast(sublist_id as varchar(5)) || ' and bp.benefit_id = ' || cast(bn.benefit_id as varchar(5))  || ' then ' || formula_tarif, '') as sql_tarif
+			from  benefit.list bl 
+				inner join benefit.sublist_calc bn on bl.id = bn.benefit_id
+				inner join benefit."type" bt on bt.id = bn."type"
+				inner join benefit.formula bf on bf.id = bn.formula_id
+		) as tmp;
+
+	_sql_volume = (',case ' || _sql_volume || ' end as lgot_volume');
+	_sql_tarif = (',case ' || _sql_tarif || ' end as lgot_tarif');
+
+	_sql = _sql ||  _sql_volume || _sql_tarif ||  '
+	from calculation.parametr_transporate cp
+			inner join benefit.people bp on bp.account_id = cp.account_id
+			inner join benefit.list bl on bl.id = bp.benefit_id
+			inner join benefit.sublist_calc bn on bl.id = bn.benefit_id
+			inner join payment.balance pb on pb.account_parent_id = bp.account_id and pb.sublist_id = bn.sublist_id and pb.period_id = ' || cast(_period_id as varchar(5)) || '
+			inner join utility.sublist us on us.id = pb.sublist_id
+			inner join utility.type ut on ut.id = us.type
+			left join (select account_id, volume from payment.balance where sublist_id = 24 and period_id = ' || cast(_period_id as varchar(5)) || ' ) gv_work  on gv_work.account_id = pb.account_id
+			left join (select account_id, volume from payment.balance where sublist_id = 24 and period_id = ' || cast(_period_id -1 as varchar(5)) || ' ) gv  on gv.account_id = pb.account_id
+			left join __pb_old_volume pb_old on pb_old.account_id = pb.account_id and pb_old.sublist_id = pb.sublist_id
+			left join __el_volume el on el.account_id = pb.account_id and el.sublist_id = pb.sublist_id
+	where (pb.print = 1 or pb_old.volume is not null) and (bp.date_end is null or bp.date_end > ''' || cast(_date_begin as varchar(10)) || ''')'; 
+
+	if _sql is not null
+		then
+			execute (_sql);
+	end if;
+
+	insert into benefit.calculation (period_id, house_id, flat_id, account_id, sublist_id, contragent_id, benefit_id, date_begin, date_end, days, lgot_volume, volume_result, benefit_result, account_parent_id)
+	select 
+		_period_id as period_id
+		,aa.house_id as house_id
+		,aa.flat_id as flat_id
+		,r.account_id as account_id
+		,r.sublist_id as sublist_id
+		,r.person_id
+		,r.benefit_id
+		,_date_begin as date_begin
+		,_date_end as date_end
+		,_days as days
+		,coalesce(r.volume,0) as volume
+		,coalesce(r.volume * (case when r."type" in (0,3) then r.percent_housing when r."type" = 1 then r.percent_utility end) /100,0) as volume_result
+		,coalesce(r.volume * (case when r."type" in (0,3) then r.percent_housing when r."type" = 1 then r.percent_utility end) /100,0) * coalesce(r.tarif,0) as re_calc_result
+		,r.account_parent_id
+	from __result r
+		inner join adress.account aa on aa.id = r.account_id
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = aa.house_id;
+
+	drop table __result;
+	drop table __el_volume;
+	drop table __pb_old_volume;
+
+end
+"""
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		поляков п.г.
+ create date: 19.04.2017
+ modify date: 03.07.2020
+ modify:		юркин е.ю.
+ description:	процедура расчета льгот 
+ =============================================
+"""
+}
+

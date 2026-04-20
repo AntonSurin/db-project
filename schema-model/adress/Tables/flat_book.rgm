@@ -1,0 +1,60 @@
+table "adress"."flat_book" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sprav_kvart"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = smallint
+      null = NOT NULL
+      default = nextval('adress.flat_book_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "short_name" {
+      type = character varying(10)
+      null = NOT NULL
+    }
+    column "domyland_code" {
+      type = smallint
+    }
+  )
+}
+
+index "adress"."flat_book_idx_id_name" {
+  table = "adress"."flat_book"
+  type = btree
+  columns = <
+    {
+      definition = id
+    }
+
+  >
+  isUnique = True
+  includeColumns = [
+    short_name
+  ]
+}
+
+index "adress"."flat_book_ix_adress_flat_book_name_short_name" {
+  table = "adress"."flat_book"
+  type = btree
+  columns = <
+    {
+      definition = name
+    }
+
+    {
+      definition = short_name
+    }
+
+  >
+  isUnique = True
+}
+

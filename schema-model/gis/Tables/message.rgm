@@ -1,0 +1,77 @@
+table "gis"."message" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_gis_message"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.message_id_seq'::regclass)
+    }
+    column "message_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "response_guid" {
+      type = uuid
+    }
+    column "created_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "sended_date" {
+      type = timestamp(3) without time zone
+    }
+    column "get_result_date" {
+      type = timestamp(3) without time zone
+    }
+    column "status" {
+      type = integer
+      null = NOT NULL
+    }
+    column "destination" {
+      type = integer
+    }
+    column "request_type" {
+      type = character varying(250)
+    }
+    column "save_path" {
+      type = character varying(250)
+    }
+    column "error_text" {
+      type = text
+    }
+    column "error_code" {
+      type = character varying(11)
+    }
+    column "operation_id" {
+      type = integer
+    }
+    column "org_ppa_guid" {
+      type = character varying(50)
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "organization_setting_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "gis"."message"."fk_message_operations_list" {
+  columns = [
+    "operation_id"
+  ]
+  referencedTable = "gis"."operations_list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

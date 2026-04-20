@@ -1,0 +1,27 @@
+table "report"."test_table_parametr" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_test_table_parametr"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.test_table_parametr_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "group_id" {
+      type = integer
+    }
+    column "sum" {
+      type = numeric(9,2)
+    }
+  )
+}
+

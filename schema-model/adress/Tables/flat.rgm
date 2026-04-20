@@ -1,0 +1,116 @@
+table "adress"."flat" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_apartment"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.flat_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_book_id" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(30)
+      null = NOT NULL
+    }
+    column "gis_name" {
+      type = uuid
+    }
+    column "order_id" {
+      type = smallint
+    }
+    column "address_parser_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "adress"."flat"."fk_apartment_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+foreignKey "adress"."flat"."fk_apartment_sprav_kvart" {
+  columns = [
+    "flat_book_id"
+  ]
+  referencedTable = "adress"."flat_book"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "adress"."flat_ix_flat_flat_book_id" {
+  table = "adress"."flat"
+  type = btree
+  columns = <
+    {
+      definition = flat_book_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "adress"."flat_ix_flat_house_id" {
+  table = "adress"."flat"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "adress"."flat_non_clustered_index_20150416_172623" {
+  table = "adress"."flat"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    flat_book_id
+    name
+  ]
+}
+
+trigger "adress"."flat"."new_account_ap" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = adress.new_account_ap
+  functionArguments = [
+  ]
+  table = "adress"."flat"
+  constraint = False
+  newTableReference = _inserted
+}
+

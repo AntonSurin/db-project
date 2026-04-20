@@ -1,0 +1,87 @@
+function "calculation"."account_sublist_edit()" {
+  text = """
+
+declare 
+	_period_id int;
+begin
+
+	_period_id = (select "period".get_work_period_id());
+
+	create temp table _temp (account_id int, account_parent_id int, sublist_id int, value bool, date_begin date, date_end date);
+
+	set session_replication_role = replica;
+
+	with upd as
+	(
+		update calculation.account_sublist as ca
+			set value = i.value,
+				date = i.date
+		from (		select account_id, house_id, account_parent_id, sublist_id, value, date 
+				  	from inserted) i 
+			  inner join calculation.account_sublist caa on 1 = 1
+		where ca.id  = caa.id 
+			and ca.account_id = i.account_id 
+			and ca.sublist_id = i.sublist_id
+			and ca.value != i.value 
+			and ca."date" <= i."date"
+		returning caa.account_id, caa.account_parent_id, caa.sublist_id, caa.value, caa.date
+	)
+	,ins as
+	(
+		insert into calculation.account_sublist (account_id, house_id, account_parent_id, sublist_id, value, "date")
+		select i.account_id, i.house_id, i.account_parent_id, i.sublist_id, i.value, i.date 
+		from inserted i
+			left join calculation.account_sublist cs on i.account_id = cs.account_id and i.sublist_id= cs.sublist_id
+		where cs.id is null
+	)
+	
+	insert into _temp
+	select account_id, account_parent_id, sublist_id, value, date, case when account_id is null then null else date end
+	from upd up;
+		
+	set session_replication_role = default;
+
+	delete 
+	from _temp
+	where account_id is null or date_begin = date_end;
+	
+	insert into _temp
+	select *
+	from (
+			select i.account_id, i.account_parent_id, i.sublist_id, i.value, i.date, null
+			from inserted i
+				inner join calculation.account_sublist ca on ca.account_id = i.account_id and i.sublist_id = ca.sublist_id
+			where i.date < ca.date
+			except
+			select t.account_id, t.account_parent_id, t.sublist_id, t.value, t.date_begin, t.date_end
+			from _temp t
+		) as t;
+		
+	if exists (select * from _temp)
+		then
+			begin				
+				insert into calculation.account_sublist_for_change (account_id, account_parent_id,sublist_id, value, date_begin,date_end, period_id)
+				select t.account_id, t.account_parent_id, t.sublist_id, t.value, t.date_begin, (t.date_end - 1), _period_id
+				from _temp t;
+			end;
+	end if;
+	drop table if exists _temp;
+
+	return null;
+	
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 21.11.2017
+ Description:	Обновлени действующих значений и запись измененных в отдельную таблицу
+ =============================================
+"""
+}
+

@@ -1,0 +1,45 @@
+table "organization"."cashbox" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_cashbox"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('organization.cashbox_id_seq'::regclass)
+    }
+    column "organization_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "tax_type" {
+      type = smallint
+    }
+    column "reg_number" {
+      type = character varying(50)
+    }
+    column "date" {
+      type = date
+    }
+    column "block_date" {
+      type = date
+    }
+  )
+}
+
+foreignKey "organization"."cashbox"."fk_cashbox_list" {
+  columns = [
+    "organization_id"
+  ]
+  referencedTable = "organization"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

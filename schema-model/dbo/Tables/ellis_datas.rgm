@@ -1,0 +1,107 @@
+table "dbo"."ellis_datas" {
+  primaryKey = {
+    columns = [
+      "i_d"
+    ]
+    name = "pk_dbo_ellis_datas"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "i_d" {
+      type = integer
+      null = NOT NULL
+      default = nextval('dbo.ellis_datas_i_d_seq'::regclass)
+    }
+    column "account_name" {
+      type = text
+    }
+    column "fio" {
+      type = text
+    }
+    column "people_type" {
+      type = integer
+    }
+    column "is_show" {
+      type = integer
+    }
+    column "doc_type" {
+      type = integer
+    }
+    column "name_doc" {
+      type = text
+    }
+    column "serial" {
+      type = text
+    }
+    column "number" {
+      type = text
+    }
+    column "date_doc" {
+      type = date
+    }
+    column "is_by" {
+      type = text
+    }
+    column "date_birth" {
+      type = date
+    }
+    column "date_begin_reg" {
+      type = date
+    }
+    column "date_end_reg" {
+      type = date
+    }
+    column "sex" {
+      type = text
+    }
+    column "rs" {
+      type = text
+    }
+    column "code_prop" {
+      type = integer
+    }
+    column "t_prop" {
+      type = text
+    }
+    column "dol" {
+      type = text
+    }
+    column "prm" {
+      type = text
+    }
+    column "bron" {
+      type = text
+    }
+    column "army" {
+      type = text
+    }
+    column "pred_adr" {
+      type = text
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "person_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "new_person_id" {
+      type = integer
+    }
+    column "new_surname" {
+      type = text
+    }
+    column "new_name" {
+      type = text
+    }
+    column "new_middle_name" {
+      type = text
+    }
+    column "document_id" {
+      type = integer
+    }
+  )
+}
+

@@ -1,0 +1,145 @@
+table "calculation"."normativ" {
+  primaryKey = {
+    columns = [
+      "account_id"
+    ]
+    name = "pk_normativ"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "n_k" {
+      type = numeric(9,5)
+    }
+    column "n_vm_kom" {
+      type = numeric(9,5)
+    }
+    column "n_gv_oi" {
+      type = numeric(9,5)
+    }
+    column "n_ed" {
+      type = numeric(9,5)
+    }
+    column "n_gz" {
+      type = numeric(9,5)
+    }
+    column "n_ot" {
+      type = numeric(9,5)
+    }
+    column "n_gv" {
+      type = numeric(9,5)
+    }
+    column "n_nxvgaz" {
+      type = numeric(9,5)
+    }
+    column "n_nxv" {
+      type = numeric(9,5)
+    }
+    column "n_knl_oi" {
+      type = numeric(9,5)
+    }
+    column "n_xv" {
+      type = numeric(9,5)
+    }
+    column "n_xv_oi" {
+      type = numeric(9,5)
+    }
+    column "n_el_oi" {
+      type = numeric(9,5)
+    }
+    column "n_el_lgot" {
+      type = numeric(9,5)
+    }
+    column "r_k" {
+      type = numeric(5,2)
+    }
+    column "r_vm_kom" {
+      type = numeric(5,2)
+    }
+    column "r_gv_oi" {
+      type = numeric(5,2)
+    }
+    column "r_ed" {
+      type = numeric(5,2)
+    }
+    column "r_gz" {
+      type = numeric(5,2)
+    }
+    column "r_ot" {
+      type = numeric(5,2)
+    }
+    column "r_gv" {
+      type = numeric(5,2)
+    }
+    column "r_nxvgaz" {
+      type = numeric(5,2)
+    }
+    column "r_nxv" {
+      type = numeric(5,2)
+    }
+    column "r_knl_oi" {
+      type = numeric(5,2)
+    }
+    column "r_xv" {
+      type = numeric(5,2)
+    }
+    column "r_xv_oi" {
+      type = numeric(5,2)
+    }
+    column "r_el_oi" {
+      type = numeric(5,2)
+    }
+    column "r_el_lgot" {
+      type = numeric(5,2)
+    }
+    column "n_gv_oi_xv" {
+      type = numeric(9,5)
+    }
+    column "r_gv_oi_xv" {
+      type = numeric(5,2)
+    }
+    column "n_gv_oi_nxv" {
+      type = numeric(9,5)
+    }
+    column "r_gv_oi_nxv" {
+      type = numeric(5,2)
+    }
+    column "n_gvodn" {
+      type = numeric(9,5)
+    }
+    column "n_odnxv" {
+      type = numeric(9,5)
+    }
+    column "n_nxvodn" {
+      type = numeric(9,5)
+    }
+    column "n_eodn" {
+      type = numeric(9,5)
+    }
+    column "r_gvodn" {
+      type = numeric(5,2)
+    }
+    column "r_odnxv" {
+      type = numeric(5,2)
+    }
+    column "r_nxvodn" {
+      type = numeric(5,2)
+    }
+    column "r_eodn" {
+      type = numeric(5,2)
+    }
+  )
+}
+

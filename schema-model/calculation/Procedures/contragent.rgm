@@ -1,0 +1,154 @@
+procedure "calculation"."contragent(jsonb)" {
+  text = """
+
+declare 
+	_is_use_reserve bool;
+	_date_begin 	date;
+	_date_end 		date;
+	_cpr 			int;
+	_parametr 		jsonb;
+begin
+
+	_is_use_reserve = (select (case 
+			 								when array_to_string(xpath('Root/Calculation/IsUseReserve/text()', p.xml_data)::text[] , '') = '' 
+			 								then false 
+			 								else array_to_string(xpath('Root/Calculation/IsUseReserve/text()', p.xml_data)::text[], '')::bool 
+			 							end)::bool
+		 						 from special.parametr p);
+		 						
+	if (_is_use_reserve = false) 
+	then 
+		return;
+	end if;
+
+	drop table if exists _date_range;
+	drop table if exists _new_date_range;
+	drop table if exists _parametr_data;
+
+	create temp table _date_range(account_id int, type_id smallint, date_begin date, date_end date);
+	create temp table _new_date_range(account_id int, date_begin date, date_end date);
+	create temp table _parametr_data (object_id int, parametr_id int,value text,date_begin date);
+	
+	alter table _parametr_data
+		add constraint un_parametr_data  unique (object_id, parametr_id);
+
+	select date_begin, date_end 
+		into _date_begin, _date_end 
+	from period.list 
+	where is_working = true;
+
+	_cpr = (select id from parametr.list where lower(short_name) = 'cpr');
+
+	/* 
+		удаляем все значения по параметрам cpr, cbp, br1 
+		дата начала у которых находится в рабочем периоде
+	*/
+	delete from parametr.account pa
+	using jsonb_populate_recordset(null::account.list, _account) a, parametr.list pl
+	where pa.account_id = a.account_id
+		and lower(pl.short_name) in ('cpr', 'cbp', 'br1')
+		and parametr_id = pl.parametr_id 
+		and pa.date_begin between _date_begin and _date_end;
+
+	insert into _date_range(account_id, type_id, date_begin, date_end)
+	select 
+		ca.account_id,
+		cr.type_id,
+		case when coalesce(cr.date_begin, _date_begin) <= _date_begin then _date_begin else cr.date_begin end as date_begin, 
+		case when coalesce(cr.date_end, _date_end) >= _date_end then _date_end else cr.date_end end as date_end
+	from contragent.account ca  
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = ca.account_id
+		inner join contragent.parametr cp on cp.contragent_account_id = ca.id
+		left join lateral (select * 
+							from contragent.reserve crr
+							where coalesce(crr.date_end, _date_begin) >= _date_begin and ca.id = crr.contragent_account_id) cr on true 
+	where _date_begin <= coalesce(cr.date_end, _date_end) and _date_end >= coalesce(cr.date_begin, _date_begin)	and cp.parametr_id = 1383;
+
+	with cte as (
+		select d1.account_id, d1.date_begin
+		from _date_range d1
+		union 
+		select account_id, date_end + 1
+		from _date_range
+		where date_end != _date_end
+	)
+	
+	insert into _new_date_range (account_id, date_begin, date_end)
+	select 
+		c.account_id
+		,c.date_begin
+		,lead((date_begin - 1), 1, _date_end) over (partition by account_id order by account_id, date_begin) as date_end
+	from cte c;
+
+	with cte as 
+	(
+		select ca.contragent_id, n.*
+		,case 
+			when type_id = 2 then 1
+			when coalesce(pb.order_number, 2) != 2 and type_id is null then 1
+			else 0
+		end as pc
+		from _new_date_range n
+			inner join contragent.account ca on ca.account_id = n.account_id
+			inner join jsonb_populate_recordset(null::account.list, _account) a on aaccount_id = ca.account_id
+			inner join contragent.parametr cp on cp.contragent_account_id = ca.id
+			left join parametr.book pb on pb.id = cp.book_id
+			left join contragent.reserve cr on cr.contragent_account_id = ca.id
+						and coalesce(cr.date_begin, _date_begin) <= n.date_end and coalesce(cr.date_end, _date_end) >= n.date_begin
+		where cp.parametr_id = 1383
+	)
+
+	insert into _parametr_data (object_id, parametr_id, date_begin, value)
+	select account_id, _cpr, date_begin, sum(pc)
+	from cte 
+	group by account_id, date_begin, date_end;
+
+	merge into _parametr_data as targets
+	using (select a.account_id as object_id, _cpr as parametr_id
+			from _account a) 
+	as sources (object_id, parametr_id)
+	on (targets.object_id = sources.object_id and targets.parametr_id = sources.parametr_id)
+	when not matched then
+		insert(object_id, parametr_id, date_begin, value)
+		values(sources.object_id, sources.parametr_id, _date_begin, null);
+
+--	/*	дополняем параметрами cbp и br1 для об-null-ения значений предыдущего периода	*/
+	insert into _parametr_data(object_id, parametr_id, date_begin, value)
+	select a.account_id, pl.id, _date_begin, null
+	from jsonb_populate_recordset(null::account.list, _account) a
+		inner join parametr.list pl on 1 = 1
+	where lower(pl.short_name) in ('cbp', 'br1');
+
+	
+	_parametr = (select jsonb_agg(jsonb_build_object('object_id',object_id,'parametr_id',parametr_id,'value',value,'date_begin',date_begin))
+			     from _parametr_data);
+
+
+	call parametr.save_value_account (_parametr);
+
+	drop table if exists _date_range;
+	drop table if exists _new_date_range;
+	drop table if exists _parametr_data;
+
+
+end
+"""
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 13.12.2018
+ description:	процедура автоматического расчета проживающих
+ =============================================
+"""
+}
+

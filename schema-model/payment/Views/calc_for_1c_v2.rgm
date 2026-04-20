@@ -1,0 +1,233 @@
+view "payment"."calc_for_1c_v2" {
+  text = """-
+SELECT ol.inn AS organization_inn,
+    ol.kpp AS organization_kpp,
+    pl.date_end,
+    pl.date_end AS date_calc,
+    ai.account_name,
+    ai.district_name,
+    ('МО-'::text || ((hi.district_id)::character varying(10))::text) AS district_id,
+    us.name AS utility_name,
+    us.id AS sublist_id,
+    pb.current_calculate AS calc,
+    false AS type_calc,
+        CASE
+            WHEN (pb.sublist_id = ANY (ARRAY[32, 34, 37])) THEN 0.00
+            ELSE COALESCE(pb.tarif, (0)::numeric)
+        END AS tarif,
+        CASE
+            WHEN (pb.sublist_id = ANY (ARRAY[32, 34, 37])) THEN 0.00
+            ELSE COALESCE(pb.volume, (0)::numeric)
+        END AS volume,
+    uu.name AS unit_name,
+    uu.code AS okei,
+        CASE
+            WHEN (pc.person_id IS NOT NULL) THEN
+            CASE
+                WHEN (ltrim(rtrim((pc.inn)::text)) = ''::text) THEN NULL::text
+                ELSE ltrim(rtrim((pc.inn)::text))
+            END
+            ELSE NULL::text
+        END AS contract_inn,
+    ('Д-'::text || ((ai.house_id)::character varying(6))::text) AS house_id,
+    pc.contract_id,
+    pc.type AS customer_type,
+    COALESCE((aa.group_id)::integer, 1) AS group_id,
+    COALESCE(kp.is_kp, 0) AS is_kp
+   FROM (((((((((payment.balance pb
+     JOIN period.list pl ON ((pl.id = pb.period_id)))
+     JOIN adress.info ai ON ((ai.account_id = pb.account_id)))
+     JOIN house.info hi ON ((hi.house_id = ai.house_id)))
+     JOIN organization.list ol ON ((ol.id = ai.work_id)))
+     JOIN utility.sublist us ON ((us.id = pb.sublist_id)))
+     JOIN utility.unit uu ON ((uu.id = us.unit_id)))
+     JOIN adress.account aa ON ((aa.id = ai.account_id)))
+     LEFT JOIN ( SELECT cg.group_id,
+            max(COALESCE((su.is_kp)::integer, 0)) AS is_kp
+           FROM (utility.contragent_group_sublist cg
+             JOIN utility.sublist su ON ((su.id = cg.sublist_id)))
+          GROUP BY cg.group_id) kp ON ((kp.group_id = aa.group_id)))
+     LEFT JOIN LATERAL ( SELECT cl.inn,
+            c.id AS contract_id,
+            cl.surname,
+            cl.name,
+            cl.middlename,
+            cl.type,
+            cl.full_name,
+            ca.id AS person_id
+           FROM ((((contragent.account ca
+             JOIN adress.account aa_1 ON ((aa_1.id = ca.account_id)))
+             JOIN contragent.owner_documents od ON ((od.contragent_account_id = ca.id)))
+             JOIN contragent.list cl ON ((cl.id = ca.contragent_id)))
+             LEFT JOIN LATERAL ( SELECT cc.id
+                   FROM (contragent.contract cc
+                     JOIN contragent.contract_account ac ON ((ac.contract_id = cc.id)))
+                  WHERE ((ac.account_id = ca.account_id) AND (cc.date_end IS NULL))) c ON (true))
+          WHERE ((ca.is_responsible = true) AND (od.date_end IS NULL) AND (ca.account_id = ai.account_parent_id))
+          ORDER BY cl.id
+         LIMIT 1) pc ON (true))
+  WHERE (pb.current_calculate <> (0)::numeric)
+UNION ALL
+ SELECT ol.inn AS organization_inn,
+    ol.kpp AS organization_kpp,
+    pl.date_end,
+    pll.date_end AS date_calc,
+    ai.account_name,
+    ai.district_name,
+    (hi.district_id)::character varying(10) AS district_id,
+    us.name AS utility_name,
+    us.id AS sublist_id,
+    pb.calc,
+    true AS type_calc,
+        CASE
+            WHEN (pb.sublist_id = ANY (ARRAY[32, 34, 37])) THEN 0.00
+            ELSE COALESCE(pb.tarif, (0)::numeric)
+        END AS tarif,
+        CASE
+            WHEN (pb.sublist_id = ANY (ARRAY[32, 34, 37])) THEN 0.00
+            ELSE COALESCE(pb.volume, (0)::numeric)
+        END AS volume,
+    uu.name AS unit_name,
+    uu.code AS okei,
+        CASE
+            WHEN (pc.person_id IS NOT NULL) THEN
+            CASE
+                WHEN (ltrim(rtrim((pc.inn)::text)) = ''::text) THEN NULL::text
+                ELSE ltrim(rtrim((pc.inn)::text))
+            END
+            ELSE NULL::text
+        END AS contract_inn,
+    (ai.house_id)::character varying(6) AS house_id,
+    pc.contract_id,
+    pc.type AS customer_type,
+    COALESCE((aa.group_id)::integer, 1) AS group_id,
+    COALESCE(kp.is_kp, 0) AS is_kp
+   FROM ((((((((((( SELECT re.account_id,
+            re.account_parent_id,
+                CASE
+                    WHEN (ro.type = ANY (ARRAY[3, 5])) THEN ro.period_end
+                    ELSE re.period_id
+                END AS period_id,
+            ro.period_id AS calc_period,
+            re.sublist_id,
+            max(
+                CASE
+                    WHEN (ro.type = 3) THEN abs(COALESCE(re.diff_tarif, (0)::numeric))
+                    ELSE
+                    CASE
+                        WHEN (abs(COALESCE(re.recalc_tarif, (0)::numeric)) = (0)::numeric) THEN abs(COALESCE(re.calc_tarif, (0)::numeric))
+                        ELSE abs(COALESCE(re.recalc_tarif, (0)::numeric))
+                    END
+                END) AS tarif,
+            sum(COALESCE(re.diff_volume, (0)::numeric)) AS volume,
+            sum(COALESCE(re.diff_result, (0)::numeric)) AS calc
+           FROM (recalculation.root ro
+             JOIN recalculation.result re ON ((re.root_id = ro.id)))
+          GROUP BY re.account_id, re.account_parent_id,
+                CASE
+                    WHEN (ro.type = ANY (ARRAY[3, 5])) THEN ro.period_end
+                    ELSE re.period_id
+                END, re.sublist_id, ro.period_id) pb
+     JOIN period.list pl ON ((pl.id = pb.period_id)))
+     JOIN period.list pll ON ((pll.id = pb.calc_period)))
+     JOIN adress.info ai ON ((ai.account_id = pb.account_id)))
+     JOIN house.info hi ON ((hi.house_id = ai.house_id)))
+     JOIN organization.list ol ON ((ol.id = ai.work_id)))
+     JOIN utility.sublist us ON ((us.id = pb.sublist_id)))
+     JOIN utility.unit uu ON ((uu.id = us.unit_id)))
+     JOIN adress.account aa ON ((aa.id = ai.account_id)))
+     LEFT JOIN ( SELECT cg.group_id,
+            max(COALESCE((su.is_kp)::integer, 0)) AS is_kp
+           FROM (utility.contragent_group_sublist cg
+             JOIN utility.sublist su ON ((su.id = cg.sublist_id)))
+          GROUP BY cg.group_id) kp ON ((kp.group_id = aa.group_id)))
+     LEFT JOIN LATERAL ( SELECT cl.inn,
+            c.id AS contract_id,
+            cl.surname,
+            cl.name,
+            cl.middlename,
+            cl.type,
+            cl.full_name,
+            ca.id AS person_id
+           FROM ((((contragent.account ca
+             JOIN adress.account aa_1 ON ((aa_1.id = ca.account_id)))
+             JOIN contragent.owner_documents od ON ((od.contragent_account_id = ca.id)))
+             JOIN contragent.list cl ON ((cl.id = ca.contragent_id)))
+             LEFT JOIN LATERAL ( SELECT cc.id
+                   FROM (contragent.contract cc
+                     JOIN contragent.contract_account ac ON ((ac.contract_id = cc.id)))
+                  WHERE ((ac.account_id = ca.account_id) AND (cc.date_end IS NULL))) c ON (true))
+          WHERE ((ca.is_responsible = true) AND (od.date_end IS NULL) AND (ca.account_id = ai.account_parent_id))
+          ORDER BY cl.id
+         LIMIT 1) pc ON (true))
+  WHERE (pb.calc <> 0.0);
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "organization_inn" {
+      type = character varying(12)
+    }
+    column "organization_kpp" {
+      type = character varying(9)
+    }
+    column "date_end" {
+      type = date
+    }
+    column "date_calc" {
+      type = date
+    }
+    column "account_name" {
+      type = character varying(12)
+    }
+    column "district_name" {
+      type = character varying(255)
+    }
+    column "district_id" {
+      type = text
+    }
+    column "utility_name" {
+      type = character varying(100)
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "calc" {
+      type = numeric
+    }
+    column "type_calc" {
+      type = boolean
+    }
+    column "tarif" {
+      type = numeric
+    }
+    column "volume" {
+      type = numeric
+    }
+    column "unit_name" {
+      type = character varying(50)
+    }
+    column "okei" {
+      type = character varying(50)
+    }
+    column "contract_inn" {
+      type = text
+    }
+    column "house_id" {
+      type = text
+    }
+    column "contract_id" {
+      type = integer
+    }
+    column "customer_type" {
+      type = boolean
+    }
+    column "group_id" {
+      type = integer
+    }
+    column "is_kp" {
+      type = integer
+    }
+  )
+}
+

@@ -1,0 +1,197 @@
+function "gis"."detail_invoice(integer, jsonb, boolean, integer, integer)" {
+  text = """
+
+declare 
+	_date_begin date;
+	_date_end 	date;
+begin
+
+	/*
+		m - счетчик
+		n - норматив
+		o - остальные
+		e - пустой
+	*/
+
+	create temp table _flow_type  (account_id int, sublist_id int, flow_type varchar(3));
+
+	select date_begin, date_end
+	into _date_begin, _date_end
+	from "period".list 
+	where id = _period_id;
+
+	insert into _flow_type
+	select *
+	from report.flow_type (_period_id, _account, null::int);
+
+	if(_is_rc = false)
+		then
+			begin				
+				return query
+				select
+					pb.account_parent_id as account_id
+					,pb.sublist_id
+					,case 
+						when f.flow_type = '(2)' then 'm'
+						when f.flow_type  ='(1)' then 'n' 
+						when f.flow_type  <> '(2)' and f.flow_type <> '(1)' and f.flow_type is not null then 'o' 
+						else 'e'
+					end::varchar(1) as type_volume
+					,f.flow_type
+					,coalesce(pb.volume, 0.0) as volume
+					,pb.tarif
+					,pb.recalculate
+					,pb.current_calculate
+					,pb.current_calculate + pb.recalculate as total 
+					,null::uuid guid
+					,cc.rs
+					,pb.in_balance
+					,pb.rate_normativ
+					,gs.gis_type
+					,case 
+						when (pb.sublist_id not in (11,12,13,14,18,19,38) and (f.flow_type  ='(1)' or f.flow_type  ='(5)'))
+							then nullif(pb.normativ, 0.0) 
+						else null::numeric(9,2)
+					end as normative
+					,pb.normativ
+				from payment.balance pb
+					inner join gis.sublist gs on pb.sublist_id = gs.sublist_id
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+					inner join house.account ha on a.account_id = ha.account_id
+					inner join adress.account aa on aa.id = pb.account_id
+					left join gis.organization_group_sublist gg on aa.group_id = gg.group_id and ha.organization_setting_id = gg.organization_setting_id
+					left join utility.contragent_group uc on aa.group_id = uc.id
+					left join contragent.counting cc on cc.id = uc.counting_id
+					left join _flow_type  f on f.sublist_id = pb.sublist_id 
+													and f.account_id = pb.account_parent_id
+					left join payment.balance pbr on pbr.account_id = pb.account_id 
+													and pbr.period_id = pb.period_id 
+													and pbr.sublist_id = (pb.sublist_id + 10) 
+													and pbr.sublist_id in (32, 34, 37)
+				where pb.period_id = _period_id 
+					and (gg.Organization_Setting_ID = _Organization_Setting_ID or gg.Organization_Setting_ID is null or _Organization_Setting_ID is null)
+					and (ha.Organization_Setting_ID = _Organization_Setting_ID or _Organization_Setting_ID is null)
+					and (gs.Organization_Setting_ID = _Organization_Setting_ID or _Organization_Setting_ID is null)
+					and coalesce(nullif(pb.print, 0), coalesce(pbr.print, 0)) = 1	
+					and pb.account_parent_id not in (
+														select d.account_id 
+														from documents.payment_document d
+														where d.period_id = _period_id 
+																and state in (0,1,3,5,6) 
+																and (group_id = _group_id or group_id is null or _group_id is null)
+													)
+					and (_group_id is null or aa.group_id = _group_id);
+			end;
+		else
+			begin
+				return query
+				select
+					pb.account_parent_id as account_id
+					,pb.sublist_id
+					,case 
+						when f.flow_type = '(2)' then 'm'
+						when f.flow_type  ='(1)' then 'n' 
+						when f.flow_type  <> '(2)' and f.flow_type <> '(1)' and f.flow_type is not null then 'o' 
+						else 'e'
+					end::varchar(1) as type_volume
+					,f.flow_type
+					,coalesce(pb.volume,0.0) volume
+					,pb.tarif
+					,pb.recalculate
+					,pb.current_calculate
+					,pb.current_calculate + pb.recalculate as total 
+					,ol.org_ppa guid
+					,cc.rs
+					,pb.in_balance
+					,pb.rate_normativ
+					,gs.gis_type
+					,case 
+						when pb.sublist_id not in (11,12,13,14,18,19,38) and (f.flow_type  ='(1)' or f.flow_type  ='(5)')
+							then nullif(pb.normativ, 0.0) 
+						else null 
+					end::numeric(9,2) as normative
+					,pb.normativ
+				from payment.balance pb
+					inner join gis.sublist gs on pb.sublist_id = gs.sublist_id
+					inner join adress.house ah on ah.id = pb.house_id 
+					inner join organization.list ol on ah.work_id = ol.id
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+					inner join house.account ha on a.account_id = ha.account_id
+					inner join adress.account aa on aa.id = pb.account_id
+					left join gis.organization_group_sublist gg on aa.group_id = gg.group_id and ha.organization_setting_id = gg.organization_setting_id
+					left join utility.contragent_group uc on aa.group_id = uc.id
+					left join contragent.counting cc on cc.id = uc.counting_id
+					left join _flow_type  f on f.sublist_id = pb.sublist_id 
+													and f.account_id = pb.account_parent_id
+					left join payment.balance pbr on pbr.account_id = pb.account_id 
+													and pbr.period_id = pb.period_id 
+													and pbr.sublist_id = (pb.sublist_id + 10) 
+													and pbr.sublist_id in (32, 34, 37)
+				where pb.account_parent_id not in (
+													select d.account_id 
+													from documents.payment_document d 
+													where d.period_id = _period_id 
+																and state in (0,1,3,5,6) 
+																and (group_id = _group_id or group_id is null or _group_id is null)
+													)
+					and period_id = _period_id 
+					and coalesce(nullif(pb.print, 0),coalesce(pbr.print, 0)) = 1
+					and (_group_id is null or aa.group_id = _group_id)
+					and (gg.Organization_Setting_ID = _Organization_Setting_ID or gg.Organization_Setting_ID is null or _Organization_Setting_ID is null)
+					and (ha.Organization_Setting_ID = _Organization_Setting_ID or _Organization_Setting_ID is null)
+					and (gs.Organization_Setting_ID = _Organization_Setting_ID or _Organization_Setting_ID is null);
+			end;
+	end if;
+
+	drop table if exists _flow_type;
+end;
+"""
+  returnType = TABLE(account_id integer, sublist_id integer, type_volume character varying, flow_type character varying, volume numeric, tarif numeric, recalculate numeric, current_calculate numeric, total numeric, guid uuid, rs character varying, in_balance numeric, rate_normativ numeric, gis_type smallint, normative numeric, normativ numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _is_rc
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _organization_setting_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		поляков павел	
+ create date: 11.05.2017
+ description:	таблица с начислениями по услугам для гис жкх
+ 04.12.2018 - добавлено условие для выбора поставщиков, чтобы не было задвоения. поставщики выбираются только для рц.
+ выбирается поставщик с наибольшей датой начала в рамках выбранного периода
+ =============================================
+"""
+}
+

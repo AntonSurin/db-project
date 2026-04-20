@@ -1,0 +1,49 @@
+table "account"."anotation" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_anotation"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('account.anotation_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "text" {
+      type = character varying(8000)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "account"."anotation"."fk_anotation_anotation" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "account"."anotation_ix_account_anotation" {
+  table = "account"."anotation"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = True
+}
+

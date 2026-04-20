@@ -1,0 +1,202 @@
+table "payment"."document" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_payment_document"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.document_id_seq'::regclass)
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "payment_id" {
+      type = integer
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "type_id" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "document_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "cashless" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "check_id" {
+      type = integer
+    }
+    column "is_closed" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "unclosed_sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "is_manual" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+    column "creation_reason" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "version" {
+      type = smallint
+      null = NOT NULL
+      default = 1
+    }
+  )
+}
+
+foreignKey "payment"."document"."fk_payment_document_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."document"."fk_payment_document_payment_document_check" {
+  columns = [
+    "check_id"
+  ]
+  referencedTable = "payment"."document_check"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."document"."fk_payment_document_to_payment_list" {
+  columns = [
+    "payment_id"
+  ]
+  referencedTable = "payment"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."document"."fk_payment_document_to_security_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "payment"."document_payment_document_account_id" {
+  table = "payment"."document"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = is_closed
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    date
+    period_id
+    payment_id
+    sum
+    type_id
+    document_guid
+    cashless
+    check_id
+    unclosed_sum
+    is_manual
+  ]
+}
+
+index "payment"."document_payment_document_check_id" {
+  table = "payment"."document"
+  type = btree
+  columns = <
+    {
+      definition = check_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "payment"."document_payment_document_payment_id" {
+  table = "payment"."document"
+  type = btree
+  columns = <
+    {
+      definition = payment_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    check_id
+  ]
+}
+
+index "payment"."document_payment_document_period_id" {
+  table = "payment"."document"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = False
+}
+
+trigger "payment"."document"."snapshot_export_trigger" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = payment.document_snapshot_export_trigger
+  functionArguments = [
+  ]
+  table = "payment"."document"
+  constraint = False
+  newTableReference = inserted
+}
+

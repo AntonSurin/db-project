@@ -1,0 +1,41 @@
+table "law"."state_duty" {
+  primaryKey = {
+    columns = [
+      "folder_id"
+    ]
+    name = "pk_state_duty"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "folder_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "state_duty_sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "calculated_date" {
+      type = date
+    }
+    column "payment_date" {
+      type = date
+    }
+    column "payment_date_by_debtor" {
+      type = date
+    }
+  )
+}
+
+foreignKey "law"."state_duty"."fk_state_duty_folder" {
+  columns = [
+    "folder_id"
+  ]
+  referencedTable = "law"."folder"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

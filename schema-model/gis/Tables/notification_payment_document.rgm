@@ -1,0 +1,36 @@
+table "gis"."notification_payment_document" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_notification_payment_document"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.notification_payment_document_id_seq'::regclass)
+    }
+    column "payment_doc_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid_notification" {
+      type = uuid
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "gis"."notification_payment_document"."fk_notification_payment_document_payment_document" {
+  columns = [
+    "payment_doc_id"
+  ]
+  referencedTable = "documents"."payment_document"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,63 @@
+table "house"."access" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_house_access"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('house.access_id_seq'::regclass)
+    }
+    column "access_guid" {
+      type = uuid
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "number" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "floors" {
+      type = integer
+      null = NOT NULL
+    }
+    column "creation_year" {
+      type = integer
+    }
+    column "modification_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "house"."access"."fk_house_access_house_characteristic_house_id" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+  onDelete = CASCADE
+}
+
+index "house"."access_ix_house_id" {
+  table = "house"."access"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+}
+

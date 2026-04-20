@@ -1,0 +1,12 @@
+composite "report"."sublist_group_type" {
+  owner = postgres
+  fields = (
+    field "sublist_id" {
+      type = integer
+    }
+    field "group_id" {
+      type = integer
+    }
+  )
+}
+

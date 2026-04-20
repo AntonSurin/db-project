@@ -1,0 +1,108 @@
+function "gis"."master_invoice(integer, jsonb, integer, integer)" {
+  text = """
+
+begin
+
+	create temp table _pay_date (account_id int, date_of_last_pay date);
+	
+	insert into _pay_date
+	select pl.account_id, max("date")
+	from payment.list pl
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pl.account_id
+	where pl.period_id = _period_id
+	group by pl.account_id;
+	
+	return query
+	select 
+		 ha.account_id
+		,oc.bik
+		,oc.rs
+		,ol.org_ppa	
+		,ol.ogrn
+		,coalesce(kp.account_guid, ha.account_guid) as account_guid
+		,coalesce(hc.used_special_cap_repair, false) as used_special_cap_repair
+		,coalesce((pb.in_balance - pb.pay), 0) as debt
+		,coalesce(pb.pay, 0) as pay
+		,p.date_of_last_pay
+		,oh.org_ppa as org_ppa_header
+		,ah.id as house_id
+		,cc.rs as rs_group
+		,coalesce(gos.is_kp ,kp.is_special_kp, false) as is_special_kp
+	from house.account ha
+		left join gis.organization_group_sublist gg on ha.organization_setting_id = gg.organization_setting_id
+		left join gis.organization_settings gos on (ha.organization_setting_id = gos.id or ha.organization_setting_id is null)
+		inner join house.flat hf on hf.flat_id = ha.flat_id
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = ha.account_id
+		inner join house.characteristic hc on hc.house_id = hf.house_id
+		inner join adress.house ah on ah.id = hf.house_id
+		inner join adress.account aa on aa.parent_id = ha.account_id and (aa.group_id = gg.group_id or gg.group_id is null)
+		left join payment.balance_group pb on pb.account_id = aa.id
+		inner join organization.list ol on ol.id = ah.work_id
+		inner join organization.list oh on oh.id = ah.organization_id
+		inner join organization.counting oc on oc.list_id = ah.organization_id
+			and oc.id = ah.organization_counting_id
+		left join _pay_date p on p.account_id = a.account_id
+		left join utility.contragent_group uc on uc.id = aa.group_id
+		left join contragent.counting cc on cc.id = uc.counting_id
+		left join house.account kp on kp.is_special_kp = true
+			and kp.account_id = pb.account_id 
+			and kp.close_date is null 
+			and aa.group_id is not null
+	where ha.account_guid is not null 
+		and (ha.organization_setting_id = _organization_setting_id or _organization_setting_id is null)
+		and ha.close_date is null 
+		and pb.period_id = _period_id	
+		and (_group_id is null or aa.group_id = _group_id)
+		and ha.account_id not in (
+									select pd.account_id 
+									from documents.payment_document pd
+									where pd.period_id = _period_id 
+										and pd.state in (0,1,3,5,6,7,8) 
+										and (pd.group_id = _group_id or pd.group_id is null or _group_id is null)
+								)
+		and (gg.organization_setting_id = _organization_setting_id or gg.organization_setting_id is null);
+
+		drop table if exists _pay_date;
+	
+end;
+"""
+  returnType = TABLE(account_id integer, bik character varying, rs character varying, org_ppa uuid, ogrn character varying, account_guid uuid, used_special_cap_repair boolean, debt numeric, pay numeric, date_of_last_pay date, org_ppa_header uuid, house_id integer, rs_group character varying, is_special_kp boolean)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _organization_setting_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:	поляков павел
+ create date: 11.05.2017
+ description:	мастер для выгрузки квитанций на гис 
+ =============================================
+"""
+}
+

@@ -1,0 +1,450 @@
+procedure "calculation"."create_calc(boolean, boolean, jsonb)" {
+  text = """
+
+declare	
+	_sql				 	text = '';
+	_colt				 	text = '';
+	_colt_winth_type	 	text = '';
+	_normativ			 	text = '';
+	_rate				 	text = '';
+	_tarif				 	text = '';
+	_volume				 	text = '';
+	_date_begin			 	date;
+	_date_end			 	date;
+	_period_id			 	int;
+	_normativ_odn		 	text = '';
+	_tarif_odn			 	text = '';
+	_volume_odn			 	text = '';
+	_input_calc_parametr 	text = '';
+	_sublist_filter			text = '';
+	_normativ_balance		text = '';
+	_volume_balance			text = '';
+	_tarif_balance			text = '';
+	_calc_column			text = ''; 
+	_calc_column_with_type  text = ''; 
+	_calc_formula			text = '';
+	_rate_balance			text = '';
+	_sublist_volume 		text = '';
+begin
+	
+	select pl.id, pl.date_begin, pl.date_end 
+	into  _period_id, _date_begin, _date_end 
+	from period.List pl 
+	where is_working = true;
+
+	
+	   with cte as 
+	   (
+		   select 
+				',' || string_agg('
+				' || pl.short_name, ', ') as calc_column			
+				,', ' || string_agg(pl.short_name || ' numeric(' || cast(pl.len as varchar(3)) || ', ' || cast(pl."precision" as varchar(3)) || ')', ', ') as calc_column_with_type
+				,string_agg('
+				' || pl.short_name || ' = new_' || pl.short_name, ', ') || ',' as input_calc_parametr			
+				,string_agg(substring(pf.formula, position('%[0-9]%' in pf.formula), 2), ',' ) || ',' as sublist_filter			
+				,string_agg('
+				,sum(' || pf.formula || ') over (partition by cp.house_id' 
+						|| case 
+								when _is_input = true and il.sublist_id is not null 
+								then ', ' || quote_ident('i_' || cast(us.short_name as varchar(10))) 
+								else '' 
+							end 
+						|| ' order by cp.house_id' 
+						|| case 
+								when _is_input = true and il.sublist_id is not null 
+								then ', ' || quote_ident('i_' || cast(us.short_name as varchar(10))) 
+								else '' 
+							end 
+						|| ') as "new_' || pl.short_name || '"
+				,cs.' || pl.short_name || '', ' ') as calc_formula
+			from parametr.list pl
+				inner join parametr.formula pf on pf.parametr_id = pl.id
+				left join utility.sublist us on us.id = pf.sublist_id
+				left join (
+								select distinct sublist_id
+								from "input".list
+							) il on il.sublist_id = us.id
+			where pl.catalog_id = 9 and pf.tag_id = 2 and pf.date_end is null
+		)		
+
+		select ct.calc_column, ct.calc_column_with_type, ct.input_calc_parametr, ct.sublist_filter, ct.calc_formula 
+		into _calc_column, _calc_column_with_type, _input_calc_parametr, _sublist_filter, _calc_formula
+		from cte ct;
+
+		_sublist_filter 	 := left(_sublist_filter, length(_sublist_filter) - 1);
+		_input_calc_parametr := left(_input_calc_parametr, length(_input_calc_parametr) - 1);	
+	
+		with cte as 
+		(
+			select 
+			string_agg(column_name || ' ' || case when data_type = 'numeric' then data_type || '(' || cast(numeric_precision as varchar(3)) || ', ' || cast(numeric_scale as varchar(3)) 
+			|| ')' else data_type end, ', ' order by ordinal_position) as colt_winth_type
+			,string_agg(column_name, ',') as colt
+			from information_schema.columns 
+			where lower(table_schema) = 'calculation' and lower(table_name) = 'parametr_transporate'
+		) 
+
+		select ct.colt_winth_type,ct.colt
+		into _colt_winth_type,_colt
+		from cte ct; 
+	
+		with cte as 
+		(	
+			select 
+			 string_agg(case when us.is_odn = false and fr."type" = 1 then chr(10) || quote_ident (
+				't_' || us.short_name) || ' = ' || fr.formula || ',' else '' end, '') as tarif,
+			 string_agg(case when us.is_odn = true and fr."type" = 1 then chr(10) || quote_ident (
+				't_' || us.short_name) || ' = ' || fr.formula || ',' else '' end, '') as tarif_odn,
+			 string_agg(case when fr."type" = 1 then  '
+				when ca.sublist_id = ' || cast(us.id as varchar(10)) || ' then coalesce(' || quote_ident  ('t_' || us.short_name) || ', 0.0)' else '' end, '') as tarif_balance,
+			 string_agg(case when fr."type" = 2 then coalesce( 
+				quote_ident ('n_' || us.short_name) || ' = ' || fr.formula, '') || ','  else '' end, '') as normativ,
+			 string_agg(case when fr."type" = 2 then  '
+				when ca.sublist_id = ' || cast(us.id as varchar(10)) || ' then coalesce(' || chr(10) || quote_ident ('n_' || us.short_name) || ', 0.0)' else '' end, '') as normativ_balance,
+			 string_agg(case when fr."type" = 2 then case when us."type" = 1 or ut.parent_id = 1 then '
+				when ca.sublist_id = ' || cast(us.id as varchar(10)) || ' then coalesce(' || chr(10) || quote_ident ('r_' || us.short_name) || ', 0.0)' else '' end else '' end, '') as rate_balance,
+			 string_agg(case when us.is_odn = false and fr."type" = 3 then chr(10) || quote_ident (
+				'v_' || us.short_name) || ' = ' || formula||','  else '' end, '') as volume,
+			 string_agg(case when us.is_odn = true and fr."type" = 3 then  chr(10) || quote_ident (
+				'v_' || us.short_name) || ' = ' || formula||','  else '' end, '') as volume_odn,
+			 string_agg(case when fr."type" = 3 then  '
+				when ca.sublist_id = ' || cast(us.id as varchar(10)) || ' then coalesce(' || quote_ident ('v_' || us.short_name) || ', 0.0)' else '' end, '') as volume_balance 
+			from utility.sublist us 
+				inner join utility."type" ut on ut.id = us."type"
+				inner join utility.formula_result fr on fr.sublist_id = us.id
+			where fr.period_id = _period_id and us.is_on = true
+		)
+		
+		select ct.tarif, ct.tarif_odn, ct.tarif_balance, ct.normativ, ct.normativ_balance, ct.rate_balance, ct.volume, ct.volume_odn, ct.volume_balance
+		into _tarif, _tarif_odn, _tarif_balance, _normativ, _normativ_balance, _rate_balance, _volume, _volume_odn, _volume_balance
+		from cte ct;
+	
+		create temp table _territory_id (territory_id int);
+		create temp table _sublust_id (sublist_id int);
+	   
+		insert into _territory_id
+		select territory_id
+		from adress.house
+		group by territory_id;
+
+		insert into _sublust_id
+		select sublist_id
+		from normativ.list
+		group by sublist_id;			
+	
+		with terr as 
+		(
+			select string_agg(' when territory_id = ' || cast(nl.territory_id as varchar(5)) || ' then ' ||  cast(nl.rate as varchar(10)), ' ') as tt, sublist_id 
+			from normativ.list nl
+				inner join _territory_id t on t.territory_id = nl.territory_id
+			where nl.date_end is null  
+			group by nl.rate, nl.territory_id, nl.sublist_id
+		)
+		,cte as 
+		(
+			select string_agg(coalesce(chr(10) || quote_ident  ('r_' || us.short_name) 
+					|| ' = case ' || tr.tt
+					|| ' end,', ''), '') as normativ
+			from utility.sublist us
+				inner join _sublust_id s on s.sublist_id = us.id
+				inner join terr tr on tr.sublist_id = us.id
+		) 
+			
+		select _normativ || normativ 
+		into _normativ 
+		from cte ct;
+
+		drop table _territory_id;
+		drop table _sublust_id;
+
+		_tarif_odn 		 = case when _tarif_odn = '' then '' else substring(_tarif_odn, 1, length(_tarif_odn) - 1) end;
+		_volume_odn 	 = case when _volume_odn = '' then '' else substring(_volume_odn, 1, length(_volume_odn) - 1) end;
+		_normativ 		 = substring(_normativ, 1, length(_normativ) - 1);
+		_tarif 			 = substring(_tarif, 1, length(_tarif) - 1);
+		_volume 		 = substring(_volume, 1, length(_volume) - 1);
+		_colt_winth_type = substring(_colt_winth_type, 1, length(_colt_winth_type) - 1);
+		_colt			 = substring(_colt, 1, length(_colt) - 1);
+
+		_normativ_balance = case  when _normativ_balance = '' then '0.0' else '
+		, case' || _normativ_balance || ' else 0.0 
+		end as normariv ' end;
+	
+		_tarif_balance = case when _tarif_balance = '' then '0.0' else '
+		, case' || _tarif_balance || ' else 0.0 
+		end as tarif ' end;
+	
+		_volume_balance = case when _volume_balance = '' then '0.0' else '
+		, case' || _volume_balance || ' else 0.0 
+		end as volume' end;
+	
+		_rate_balance = case when _rate_balance = '' then '0.0' else '
+		,case' || _rate_balance || ' else 0.0 
+		end as rate ' end;		
+
+		drop procedure if exists calculation.calc;
+
+	_sql = '
+create or replace procedure calculation.calc (_account jsonb)
+language plpgsql
+AS $calculation_calc$
+begin
+	
+	drop table if exists  _house_list;
+	drop table if exists _account_list;
+	drop table if exists _temp_balance;
+	drop table if exists _calc_sublist;
+	drop table if exists _flow_print;
+
+	create table _house_list (house_id int);
+	create table _account_list (account_id int);
+	create table _temp_balance (
+								house_id int not null, 
+								flat_id int not null, 
+								account_id int not null, 
+								sublist_id int not null, 
+								account_parent_id int not null, 
+								period_id int not null, 
+								tarif numeric(9,2) not null, 
+								volume numeric(14,8) not null, 
+								normativ numeric(9,5) not null, 
+								rate numeric(9,2), flow bool
+								);
+	ALTER TABLE ONLY _temp_balance 
+    	ADD CONSTRAINT pk_temp_balance PRIMARY KEY (account_id, sublist_id);
+	create table _calc_sublist (sublist_id int);
+	create table _flow_print (house_id int, sublist_id int, flow_print bool);
+	
+	insert into _account_list
+	select a.account_id
+	from jsonb_populate_recordset(null::account.list, _account) a;
+
+	insert into _house_list(house_id)
+	select aa.house_id 
+	from adress.account aa
+		inner join _account_list a on a.account_id = aa.id
+	group by house_id;
+
+	insert into _flow_print 
+	select aa.house_id, cf.sublist_id, true as flow_print
+		from counter.flow cf
+		inner join counter.list cl on cl.id = cf.counter_id and cl.is_calculation = true
+		inner join period.list pl on pl.id = cf.period_id and pl.is_working = true
+		inner join counter.account ca on cf.counter_id = ca.counter_id
+		inner join adress.account aa on aa.parent_id = ca.account_id
+		inner join _account_list a on a.account_id = ca.account_id
+		group by aa.house_id, cf.sublist_id
+	union 
+	select ah.id as house_id, cf.sublist_id, true as flow_print
+		from counter.flow cf
+		inner join counter.list cl on cl.id = cf.counter_id and cl.is_calculation = true
+		inner join period.list pl on pl.id = cf.period_id and pl.is_working = true
+		inner join counter.house ch on cf.counter_id = ch.counter_id
+		inner join adress.house ah on ah.id = ch.house_id
+		inner join _house_list h on h.house_id = ch.house_id
+		group by ah.id, cf.sublist_id
+	union
+	select ah.id, usp.sublist_id, true as flow_print
+		from adress.house ah
+		inner join _house_list h on h.house_id = ah.id 
+		inner join utility.sublist_provider usp on usp.house_id = ah.id
+		inner join utility.sublist us on us.id = usp.sublist_id
+		inner join period.list pl on pl.is_working = true
+		where us.is_counter = false and us.type = 1 and usp.date_begin <= pl.date_end and coalesce(usp.date_end, pl.date_end) >= pl.date_end 
+		group by ah.id, usp.sublist_id;
+	
+	update calculation.normativ cn set
+		' || _normativ || '
+	from calculation.parametr_transporate cp' || case when _odn = true then '
+		inner join _house_list h on h.house_id = cp.house_id' else '
+		inner join _account_list a on a.account_id = cp.account_id' end || '
+	where cn.account_id = cp.account_id and cp.is_closed = 1;
+
+	update calculation.volume cv set
+		' || _volume || '
+	from calculation.parametr_transporate cp' || case when _odn = true then '
+		inner join _house_list h on h.house_id = cp.house_id' else '
+		inner join _account_list a on a.account_id = cp.account_id' end || '
+		inner join calculation.normativ cn on cn.account_id = cp.account_id
+	where cp.is_closed = 1;	
+		
+	with cte as (
+		select 
+			cv.house_id 
+			,cv.account_id' || _calc_formula || ' 
+		from calculation.parametr_transporate cp
+			inner join calculation.sum_volume cs on cp.account_id = cs.account_id
+			inner join calculation.volume cv on cp.account_id = cv.account_id
+			inner join _house_list h on h.house_id = cp.house_id';
+
+	if (_is_input = true) 
+	then 
+		begin
+			
+		_sql = _sql || '
+			left join (
+				select 
+					account_id';
+
+		_sql = _sql || (select string_agg('
+						,max(case when sublist_id = ' || cast(us.id as varchar(10)) || ' then input_id end) as i_' || us.short_name, '') as t
+						from utility.sublist us
+							inner join (select sublist_id
+										from "input".list 
+										group by sublist_id) i on i.sublist_id = us.id
+						where is_on = true);		
+		
+		_sql = _sql || '
+				from input.account 
+				group by account_id
+			) i on i.account_id = cp.account_id';
+		end;
+	end if;
+	
+	_sql = _sql || '
+		where cp.is_closed = 1
+	)
+
+	update calculation.sum_volume as csv 
+		set' || _input_calc_parametr || '
+	from cte 
+	where cte.account_id = csv.account_id;'||	
+		case when _volume_odn != '' then '
+
+	update calculation.volume cv set
+		' || _volume_odn || '
+	from calculation.parametr_transporate cp' || case when _odn = true then '
+		inner join _house_list h on h.house_id = cp.house_id' else '
+		inner join _account_list a on a.account_id = cp.account_id' end || '
+		inner join calculation.normativ cn on cn.account_id = cp.account_id
+		inner join calculation.sum_volume c on c.account_id = cp.account_id
+	where cp.is_closed = 1;' else '' end || '
+	
+	update calculation.tarif ct set
+		' || replace(_tarif, 'house_id', 'cp.house_id') || '
+		' || case when _tarif_odn != '' and _tarif != '' then ',' else '' end || replace(_tarif_odn, 'house_id', 'cp.house_id') || '
+	from calculation.parametr_transporate cp' || case when _odn = true then '
+		inner join _house_list h on h.house_id = cp.house_id' else '
+		inner join _account_list a on a.account_id = cp.account_id' end || '
+		inner join calculation.normativ cn on cn.account_id = cp.account_id
+		inner join calculation.volume cv on cv.account_id = cp.account_id
+		inner join calculation.sum_volume c on c.account_id = cp.account_id
+	where ct.account_id = cp.account_id and cp.is_closed = 1;
+
+	insert into _temp_balance
+	select 
+		cv.house_id
+		,cv.flat_id
+		,ca.account_id
+		,ca.sublist_id
+		,cv.account_id
+		,' || cast(_period_id as varchar(10)) || ' as period_id' || _tarif_balance || _volume_balance || _normativ_balance || _rate_balance || '
+		,fp.flow_print
+	from calculation.normativ cn
+		inner join _account_list a on a.account_id = cn.account_id
+		inner join calculation.volume cv on cv.account_id = cn.account_id
+		inner join calculation.tarif ct on ct.account_id = cn.account_id
+		inner join calculation.account_sublist ca on ca.account_parent_id = cn.account_id
+		inner join utility.sublist us on us.id = ca.sublist_id
+		left join _flow_print fp on fp.house_id = cv.house_id and fp.sublist_id = ca.sublist_id 
+	where us.is_on = true and us.id not in (6,7)' || case when _odn = false then ' and us.id not in (11,12,13,14)' else '' end ||';
+	' || case when _odn = false then '
+	insert into _calc_sublist (sublist_id)
+	select id from utility.sublist
+	where is_odn = false and type != 4 and id not in (6, 7)'
+	else '
+	
+	insert into _calc_sublist (sublist_id)
+	select id from utility.sublist
+	where id not in (6, 7)' end || ';' || '
+
+	update payment.balance p
+		set tarif = 0.0
+			,volume = 0.0
+			,current_calculate = 0.0
+	from payment.balance pb
+		inner join _calc_sublist s on s.sublist_id = pb.sublist_id
+		inner join _account_list a on a.account_id = pb.account_parent_id
+		inner join period.list pl on pl.id = pb.period_id
+	where p = pb and pl.is_working = true and pb.sublist_id not in (6,7);
+
+
+	merge into payment.balance as targets
+		using(select * from _temp_balance)
+		as sources(house_id, flat_id, account_id, sublist_id, account_parent_id, period_id, tarif, volume, normativ, rate, flow_print)
+		on(targets.account_id = sources.account_id and targets.sublist_id = sources.sublist_id and targets.period_id = sources.period_id)
+		when matched then
+			update set
+				tarif = sources.tarif,
+				volume = sources.volume,
+				normativ = sources.normativ,
+				rate_normativ = sources.rate,
+				current_calculate = sources.tarif * sources.volume
+		when not matched and (sources.tarif * sources.volume != 0.0 or sources.flow_print is not null) then
+			insert(house_id, flat_id, account_id, period_id, sublist_id, tarif, normativ, volume, in_balance, current_calculate, recalculate, rate_normativ, account_parent_id, pay)
+			values(sources.house_id, sources.flat_id, sources.account_id, sources.period_id, sources.sublist_id, sources.tarif, sources.normativ, sources.volume, 0.0, sources.tarif * sources.volume, 0.0, rate, sources.account_parent_id, 0.0);
+
+
+
+
+	drop table if exists _house_list;
+	drop table if exists _account_list;
+	drop table if exists _temp_balance;
+	drop table if exists _calc_sublist;
+	drop table if exists _flow_print;
+
+
+
+end  
+$calculation_calc$;	
+
+comment on procedure calculation.calc is 
+''=============================================
+ author:		поляков п.г., глещинский д.в.
+ create date: май 30 2014
+ description:	процедура расчета
+				!!!данная процедура создана автоматически!!!
+ =============================================''
+';
+
+--	return query
+--	select _sql;
+	execute(_sql);
+--	call calculation.calc (_account);
+
+end 
+"""
+  arguments = <
+    {
+      name = _odn
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _is_input
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 28.05.2014
+ description:	формирование процедуры расчетов
+ _odn - проверяет, будет ли расчитываться одн --0 - нет, 1 - да
+ _account - список лицевых счетов, по которым нужно прозвести перерасчет
+ Modify Author: Юркин Е.Ю.
+ Modify Description: всякая дичь про учет корректировочных объемов в суммарных
+ =============================================
+"""
+}
+

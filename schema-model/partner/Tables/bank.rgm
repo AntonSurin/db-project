@@ -1,0 +1,48 @@
+table "partner"."bank" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_bank"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('partner.bank_id_seq'::regclass)
+    }
+    column "partner_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "bank_name" {
+      type = character varying(100)
+    }
+    column "bank_adress" {
+      type = character varying(200)
+    }
+    column "rs" {
+      type = character varying(20)
+    }
+    column "ks" {
+      type = character varying(20)
+    }
+    column "bik" {
+      type = character varying(9)
+    }
+  )
+}
+
+foreignKey "partner"."bank"."fk_bank_provider" {
+  columns = [
+    "partner_id"
+  ]
+  referencedTable = "utility"."provider"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

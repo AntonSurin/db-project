@@ -1,0 +1,31 @@
+view "fine"."pays" {
+  text = """-
+SELECT cl.id AS contragent_id,
+    pl.date,
+    sum(pl.sum) AS detail_sum,
+    pl.period_id
+   FROM (((contragent.list cl
+     JOIN contragent.contract cc ON ((cc.contragent_id = cl.id)))
+     JOIN contragent.contract_account ca ON ((ca.contract_id = cc.id)))
+     JOIN payment.list pl ON ((pl.account_id = ca.account_id)))
+  WHERE (pl.type_id = 0)
+  GROUP BY cl.id, pl.date, pl.period_id;
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "contragent_id" {
+      type = integer
+    }
+    column "date" {
+      type = date
+    }
+    column "detail_sum" {
+      type = numeric
+    }
+    column "period_id" {
+      type = integer
+    }
+  )
+}
+

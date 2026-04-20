@@ -1,0 +1,87 @@
+function "report"."invoice_recalculation(integer, jsonb, integer)" {
+  text = """
+
+begin
+
+	drop table if exists __account;
+	create temp table __account  (account_id int);
+
+	if (_group_id is null)
+		then
+			insert into __account
+			select aa.id
+			from adress.account aa
+				inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id;
+		else
+			insert into __account
+			select aa.id
+			from adress.account aa
+				inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id
+			where aa.group_id = _group_id;
+	end if;
+
+	return query
+	with cte as
+		(
+			select
+				 rr.root_id
+				,rr.account_parent_id as account_id
+				,sum(diff_result) as "result"
+				,row_number() over (partition by rr.account_parent_id order by rr.account_parent_id) as rn
+			from recalculation.root r
+				inner join recalculation."result" rr on  r.id = rr.root_id
+				inner join __account a on a.account_id = rr.account_id
+			where r.period_id = _period_id
+			group by rr.root_id, rr.account_parent_id
+			having sum(abs(rr.diff_result)) != 0.0
+		)
+	
+		select
+		c.account_id
+		,max(case when c.rn = 1 then r.name end) as r1
+		,max(case when c.rn = 2 then r.name end) as r2
+		,max(case when c.rn = 3 then r.name end) as r3
+		,max(case when c.rn = 4 then r.name end) as r4
+		,max(case when c.rn = 5 then r.name end) as r5
+		,max(case when c.rn = 6 then r.name end) as r6
+	from cte c
+		inner join recalculation.root r on r.id = c.root_id
+	group by c.account_id;
+
+	drop table if exists __account;
+	
+end;
+"""
+  returnType = TABLE(account_id integer, r1 text, r2 text, r3 text, r4 text, r5 text, r6 text)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ =============================================
+"""
+}
+

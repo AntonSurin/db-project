@@ -1,0 +1,114 @@
+table "partner"."employee" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_employee_2"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('partner.employee_id_seq'::regclass)
+    }
+    column "title_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "partner_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "surname" {
+      type = character varying(255)
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "middlename" {
+      type = character varying(100)
+    }
+    column "sex_id" {
+      type = integer
+    }
+    column "basis" {
+      type = character varying(100)
+    }
+    column "genitive_surname" {
+      type = character varying(255)
+    }
+    column "genitive_name" {
+      type = character varying(100)
+    }
+    column "genitive_middlename" {
+      type = character varying(100)
+    }
+    column "is_active" {
+      type = boolean
+    }
+    column "full_name" {
+      type = character varying
+      generatedAs = """-
+(((((surname)::text || ' '::text) || (name)::text) || ' '::text) || (middlename)::text)
+"""
+    }
+    column "genitive_full_name" {
+      type = character varying
+      generatedAs = """-
+(((((genitive_surname)::text || ' '::text) || (genitive_name)::text) || ' '::text) || (genitive_middlename)::text)
+"""
+    }
+    column "genitive_short_name" {
+      type = character varying
+      generatedAs = """-
+((((genitive_surname)::text || ' '::text) ||
+CASE
+    WHEN (length((genitive_name)::text) > 0) THEN ("left"((genitive_name)::text, 1) || '.'::text)
+    ELSE ''::text
+END) ||
+CASE
+    WHEN (length((genitive_middlename)::text) > 0) THEN ("left"((genitive_middlename)::text, 1) || '.'::text)
+    ELSE ''::text
+END)
+"""
+    }
+    column "short_name" {
+      type = character varying
+      generatedAs = """-
+((((surname)::text || ' '::text) ||
+CASE
+    WHEN (length((name)::text) > 0) THEN ("left"((name)::text, 1) || '.'::text)
+    ELSE ''::text
+END) ||
+CASE
+    WHEN (length((middlename)::text) > 0) THEN ("left"((middlename)::text, 1) || '.'::text)
+    ELSE ''::text
+END)
+"""
+    }
+  )
+}
+
+foreignKey "partner"."employee"."fk_employee_provider" {
+  columns = [
+    "partner_id"
+  ]
+  referencedTable = "utility"."provider"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "partner"."employee"."fk_employee_title" {
+  columns = [
+    "title_id"
+  ]
+  referencedTable = "organization"."title"
+  referencedColumns = [
+    "id"
+  ]
+}
+

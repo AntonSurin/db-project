@@ -1,0 +1,54 @@
+table "security"."users" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_users"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('security.users_id_seq'::regclass)
+    }
+    column "login" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "password" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "role_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "employee_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "security"."users"."fk_users_role" {
+  columns = [
+    "role_id"
+  ]
+  referencedTable = "security"."role"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "security"."users"."fk_users_users" {
+  columns = [
+    "id"
+  ]
+  referencedTable = "security"."users"
+  referencedColumns = [
+    "id"
+  ]
+}
+

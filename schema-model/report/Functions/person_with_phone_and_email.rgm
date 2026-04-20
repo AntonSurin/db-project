@@ -1,0 +1,64 @@
+function "report"."person_with_phone_and_email(jsonb)" {
+  text = """
+
+begin
+	create temp table _phones (account_id int, phone text);
+
+	insert into _phones (account_id, phone)
+	select ca.account_id, r.value
+	from contragent.contact as cc
+		join contragent.account ca on ca.contragent_id = cc.contragent_id
+		join adress.account aa on aa.id = ca.account_id
+		join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = aa.house_id
+		left join lateral (select p.value from jsonb_populate_recordset(null::contragent.phone,cc.phone) as p) as r on true
+	where coalesce(r.value, '') != '';
+	
+	return query
+	select al.account_id
+		,(
+			select string_agg(cl.full_name , ', ')
+			from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+			where ca.account_id = al.account_id  and od.date_end is null
+		) as person_name
+		,(
+			select string_agg(c.phone , ', ')
+			from _phones c
+			where c.account_id = al.account_id
+		) as phone
+		,(
+			select string_agg(cc.email , ', ')
+			from contragent.contact as cc
+				join contragent.account ca on ca.contragent_id = cc.contragent_id
+			join adress.account aa on aa.id = ca.account_id
+			join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = aa.house_id
+			where aa.id = al.account_id
+		) as email
+	from adress.light_info al 
+		inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id = al.house_id;
+	
+	drop table if exists _phones;
+
+end;
+"""
+  returnType = TABLE(account_id integer, person_name text, phone text, email text)
+  arguments = <
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		
+ create date: 
+ description:	
+ =============================================
+"""
+}
+

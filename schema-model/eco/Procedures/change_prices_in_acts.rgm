@@ -1,0 +1,66 @@
+procedure "eco"."change_prices_in_acts(integer, jsonb)" {
+  text = """
+
+declare 
+	_name_template varchar(50);
+	_date_template timestamp;
+begin
+	
+	begin 
+	
+		drop table if exists _default_prices;	
+		create temp table _default_prices (organization_work_id int, price numeric(18,2));
+
+		select "name", date_begin
+		into _name_template, _date_template
+		from eco.default_price
+		where id = _id;
+
+		insert into _default_prices
+		select organization_work_id, price
+		from eco.default_price
+		where "name" = _name_template and date_begin = _date_template and price is not null;
+
+		update eco.complite_work as ec
+			set	price = ed.price
+		from  _default_prices ed 
+		where ec.organization_work_id = ed.organization_work_id 
+			and ec.act_of_complite_id in (select a.object_id from jsonb_populate_recordset(null::special_objects, _acts_id) a );
+		
+		drop table _default_prices;
+		
+	
+	exception when others
+		then
+			begin
+				drop table if exists _default_prices;
+			end;
+	end; 
+
+end
+"""
+  arguments = <
+    {
+      name = _id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _acts_id
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		макарова е.а.
+ create date: 10.11.2020
+ description:	изменение цен в актах выполненных работ в соответствии с выбранным шаблоном расценок
+ =============================================
+"""
+}
+

@@ -1,0 +1,55 @@
+table "gis"."debt_subrequest_person_document" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_debt_subrequest_person_document"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.debt_subrequest_person_document_id_seq'::regclass)
+    }
+    column "subrequest_person_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "document_type_code" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "document_type_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "computer_name" {
+      type = character varying(15)
+      null = NOT NULL
+    }
+    column "document_path" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "document_upload_id" {
+      type = character varying(50)
+    }
+    column "document_hash" {
+      type = character varying(64)
+    }
+  )
+}
+
+foreignKey "gis"."debt_subrequest_person_document"."fk_debt_subrequest_person_doc_debt_subrequest_person_data" {
+  columns = [
+    "subrequest_person_id"
+  ]
+  referencedTable = "gis"."debt_subrequest_person"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

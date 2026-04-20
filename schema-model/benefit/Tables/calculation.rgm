@@ -1,0 +1,114 @@
+table "benefit"."calculation" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__tmp_ms_x__3214ec07b5be8176"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('benefit.calculation_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "contragent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "benefit_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+      null = NOT NULL
+    }
+    column "days" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "lgot_volume" {
+      type = numeric(9,5)
+      null = NOT NULL
+    }
+    column "volume_result" {
+      type = numeric(9,5)
+    }
+    column "benefit_result" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "account_parent_id" {
+      type = integer
+    }
+  )
+}
+
+trigger "benefit"."calculation"."delete_calc" {
+  timing = AFTER
+  events = [
+    DELETE
+  ]
+  level = STATEMENT
+  function = benefit.delete_calc
+  functionArguments = [
+  ]
+  table = "benefit"."calculation"
+  constraint = False
+  oldTableReference = deleted
+}
+
+trigger "benefit"."calculation"."insert_calc" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = benefit.insert_calc
+  functionArguments = [
+  ]
+  table = "benefit"."calculation"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "benefit"."calculation"."update_calc" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = benefit.update_calc
+  functionArguments = [
+  ]
+  table = "benefit"."calculation"
+  constraint = False
+  newTableReference = inserted
+}
+

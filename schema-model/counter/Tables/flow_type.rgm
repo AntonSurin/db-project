@@ -1,0 +1,25 @@
+table "counter"."flow_type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_type_counter_calc"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = smallint
+      null = NOT NULL
+      default = nextval('counter.flow_type_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(150)
+      null = NOT NULL
+    }
+    column "is_manual" {
+      type = boolean
+    }
+  )
+}
+

@@ -1,0 +1,37 @@
+table "report"."announcement_binding" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_announcement_binding"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.announcement_binding_id_seq'::regclass)
+    }
+    column "announcement_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "entity_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "report"."announcement_binding"."fk_announcement_binding_announcement" {
+  columns = [
+    "announcement_id"
+  ]
+  referencedTable = "report"."announcement"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

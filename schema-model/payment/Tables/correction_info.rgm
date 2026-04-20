@@ -1,0 +1,68 @@
+table "payment"."correction_info" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_payment_correction_info"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.correction_info_id_seq'::regclass)
+    }
+    column "payment_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "document_name" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "document_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "document_number" {
+      type = character varying(32)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "payment"."correction_info"."fk_correction_info_to_payment" {
+  columns = [
+    "payment_id"
+  ]
+  referencedTable = "payment"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "payment"."correction_info_idx_payment_correction_info_payment_id" {
+  table = "payment"."correction_info"
+  type = btree
+  columns = <
+    {
+      definition = payment_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    type
+    document_name
+    document_date
+    document_number
+  ]
+}
+

@@ -1,0 +1,53 @@
+table "law"."notifyed" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_notifyed"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('law.notifyed_id_seq'::regclass)
+    }
+    column "folder_id" {
+      type = integer
+    }
+    column "date_notifyed" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "caption" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "comment" {
+      type = text
+      null = NOT NULL
+    }
+    column "delivery_status" {
+      type = integer
+      null = NOT NULL
+      default = 3
+    }
+  )
+}
+
+foreignKey "law"."notifyed"."fk_notifyed_folder" {
+  columns = [
+    "folder_id"
+  ]
+  referencedTable = "law"."folder"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

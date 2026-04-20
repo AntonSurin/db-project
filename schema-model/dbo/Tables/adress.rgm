@@ -1,0 +1,54 @@
+table "dbo"."adress" {
+  owner = postgres
+  columns = (
+    column "city" {
+      type = character varying(100)
+    }
+    column "street" {
+      type = character varying(100)
+    }
+    column "house_number" {
+      type = character varying(10)
+    }
+    column "name_korpus" {
+      type = character varying(50)
+    }
+    column "korpus" {
+      type = character varying(10)
+    }
+    column "liter" {
+      type = character varying(10)
+    }
+    column "number_group" {
+      type = character varying(20)
+    }
+    column "number_flat" {
+      type = character varying(10)
+    }
+    column "full_adress" {
+      type = character varying(255)
+    }
+    column "account_name" {
+      type = character varying(9)
+    }
+    column "code_h" {
+      type = character varying(10)
+    }
+    column "code_f" {
+      type = character varying(10)
+    }
+    column "street_id" {
+      type = integer
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "flat_id" {
+      type = integer
+    }
+    column "password_site" {
+      type = character varying(10)
+    }
+  )
+}
+

@@ -1,0 +1,67 @@
+table "contragent"."info" {
+  primaryKey = {
+    columns = [
+      "contragent_id"
+    ]
+    name = "pk_info"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "contragent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_birth" {
+      type = date
+    }
+    column "date_death" {
+      type = date
+    }
+    column "place_birth" {
+      type = character varying(500)
+    }
+    column "kind_id" {
+      type = integer
+    }
+    column "series" {
+      type = character varying(100)
+    }
+    column "number" {
+      type = character varying(100)
+    }
+    column "date" {
+      type = date
+    }
+    column "code" {
+      type = character varying(10)
+    }
+    column "is_by_id" {
+      type = integer
+    }
+    column "before_living_place" {
+      type = character varying(500)
+    }
+    column "location" {
+      type = character varying(500)
+    }
+    column "legal_address" {
+      type = character varying(500)
+    }
+    column "reg_adress" {
+      type = character varying(500)
+    }
+  )
+}
+
+foreignKey "contragent"."info"."fk_info_list" {
+  columns = [
+    "contragent_id"
+  ]
+  referencedTable = "contragent"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

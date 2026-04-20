@@ -1,0 +1,44 @@
+table "gis"."doi_rent_document" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_doi_rent_document"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.doi_rent_document_id_seq'::regclass)
+    }
+    column "doi_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "protocol_num" {
+      type = character varying(50)
+    }
+    column "protocol_date" {
+      type = timestamp(6) without time zone
+    }
+    column "group_rent_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "gis"."doi_rent_document"."fk_doi_rent_document_doi_contract_data" {
+  columns = [
+    "doi_id"
+  ]
+  referencedTable = "gis"."doi_contract_data"
+  referencedColumns = [
+    "id"
+  ]
+}
+

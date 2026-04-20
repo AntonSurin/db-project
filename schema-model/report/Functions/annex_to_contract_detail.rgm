@@ -1,0 +1,184 @@
+function "report"."annex_to_contract_detail(integer, jsonb)" {
+  text = """
+
+declare 
+	_is_working bool;
+begin
+	
+	if (select count(*) from utility.sublist where id in (8,9,10,27,28,42)) = 6
+			and (
+					select count(*) 
+					from information_schema.columns
+					where lower(table_schema) = 'calculation' 
+						and lower(table_name) = 'parametr_transporate'
+						and lower(column_name) in ('el_lgot_all','el_lgot','dsq_os_1354','h_ras_el','h_ras_el_day','h_ras_el_night')
+				) = 6
+		then
+			begin
+
+				_is_working = (select is_working from "period".list where id = _period_id);
+			
+				if (_is_working = true)
+					then
+						begin
+							return query
+							select 
+								al.house_id
+								,al.flat_book_name || al.flat_name as flat
+								,1.0 as coeff
+								,case          
+									when coalesce(cp.col_reg,0) = 1 then 1         
+									when coalesce(cp.col_reg,0) = 2 then 2         
+									when coalesce(cp.col_reg,0) = 3 then 3         
+									when coalesce(cp.col_reg,0) = 4 then 4         
+									when coalesce(cp.col_reg,0) = 5 then 5         
+									when coalesce(cp.col_reg,0) > 5 then 6 --- ??7 
+									else 0     
+								end as house_group
+								,cp.el_lgot_all
+								,pb.volume
+								,pb.lgot_day
+								,pb.lgot_night
+								,pb.over_lgot_day
+								,pb.over_lgot_night
+								,case 
+									when c.value is not null 
+									then  
+										case 
+											when cp.is_closed = 1 
+											then ((coalesce(cp.h_ras_el_day, 0.0) + coalesce(cp.h_ras_el_night, 0.0) + coalesce(cp.h_ras_el, 0.0) - coalesce(p.house_volume, 0.0)) / cp.dsq_os_1354) * (coalesce(cp.osq, 0.0) - coalesce(cp.nsq, 0.0)) 
+											else 0.0 
+										end 
+									else 0.0 
+								end as odn
+								,cp.dsq_os_1354
+								,cp.el_lgot
+								,al.account_order_id
+							from adress.light_info al 
+								inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id= al.house_id
+								inner join calculation.parametr_transporate cp on cp.account_id = al.account_parent_id
+								inner join (
+												select 
+													pb.account_id
+													,sum(case when pb.sublist_id in (8,9) then pb.volume else 0.0 end) lgot_day
+													,sum(case when pb.sublist_id = 10 then pb.volume else 0.0 end) lgot_night
+													,sum(case when pb.sublist_id in (27,42) then pb.volume else 0.0 end) over_lgot_day
+													,sum(case when pb.sublist_id = 28 then pb.volume else 0.0 end) over_lgot_night
+													,sum(pb.volume) as volume
+												from payment.balance pb
+													inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id= pb.house_id
+												where pb.sublist_id in (8,9,10,27,28,42) and pb.period_id = _period_id
+												group by pb.account_id
+											) pb on pb.account_id = al.account_id
+								inner join (
+												select 
+													pb.house_id
+													,sum(pb.volume) as house_volume
+												from payment.balance pb
+													inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id= pb.house_id
+												where pb.sublist_id in (8,9,10,27,28,42) and pb.period_id = _period_id and pb."print" = 1
+												group by pb.house_id
+										) p on p.house_id = al.house_id
+								left join (
+												select ch.house_id, 1 as value
+												from counter.flow cf
+													inner join counter.house ch on ch.counter_id = cf.counter_id
+												where cf.period_id = _period_id and cf.sublist_id in (27,28,42) and cf.value is not null
+												group by ch.house_id
+										) c on c.house_id= al.house_id;
+							
+						end; 
+					else
+						begin
+							
+							return query
+							select 
+								al.house_id
+								,al.flat_book_name || al.flat_name as flat
+								,1.0 as coeff
+								,case          
+									when coalesce(cp.col_reg,0) = 1 then 1         
+									when coalesce(cp.col_reg,0) = 2 then 2         
+									when coalesce(cp.col_reg,0) = 3 then 3         
+									when coalesce(cp.col_reg,0) = 4 then 4         
+									when coalesce(cp.col_reg,0) = 5 then 5         
+									when coalesce(cp.col_reg,0) > 5 then 6 --- ??7 
+									else 0     
+								end as house_group
+								,cp.el_lgot_all
+								,pb.volume
+								,pb.lgot_day
+								,pb.lgot_night
+								,pb.over_lgot_day
+								,pb.over_lgot_night
+								,case when c.value is not null then  case when cp.is_closed = 1 then ((coalesce(cp.h_ras_el_day, 0.0) + coalesce(cp.h_ras_el_night, 0.0) + coalesce(cp.h_ras_el, 0.0) - coalesce(p.house_volume, 0.0)) / cp.dsq_os_1354) * (coalesce(cp.osq, 0.0) - coalesce(cp.nsq, 0.0)) else 0.0 end else 0.0 end as odn
+								,cp.dsq_os_1354
+								,cp.el_lgot
+								,al.account_order_id
+							from adress.light_info al 
+								inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id= al.house_id
+								inner join calculation.parametr_transporate_arch cp on cp.account_id = al.account_parent_id
+								inner join (
+												select 
+													pb.account_id
+													,sum(case when pb.sublist_id in (8,9) then pb.volume else 0.0 end) lgot_day
+													,sum(case when pb.sublist_id = 10 then pb.volume else 0.0 end) lgot_night
+													,sum(case when pb.sublist_id in (27,42) then pb.volume else 0.0 end) over_lgot_day
+													,sum(case when pb.sublist_id = 28 then pb.volume else 0.0 end) over_lgot_night
+													,sum(pb.volume) as volume
+												from payment.balance pb
+													inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id= pb.house_id
+												where pb.sublist_id in (8,9,10,27,28,42) and pb.period_id = _period_id
+												group by pb.account_id
+											) pb on pb.account_id = al.account_id
+								inner join (
+												select 
+													pb.house_id
+													,sum(pb.volume) as house_volume
+												from payment.balance pb
+													inner join jsonb_populate_recordset(null::house.list, _house) h on h.house_id= pb.house_id
+												where pb.sublist_id in (8,9,10,27,28,42) and pb.period_id = _period_id and pb."print" = 1
+												group by pb.house_id
+											) p on p.house_id = al.house_id
+								left join (
+												select ch.house_id, 1 as value
+												from counter.flow cf
+													inner join counter.house ch on ch.counter_id = cf.counter_id
+												where cf.period_id = _period_id and cf.sublist_id in (27,28,42) and cf.value is not null
+												group by ch.house_id
+											) c on c.house_id = al.house_id
+							where cp.period_id = _period_id;
+						
+						end;	
+				end if;
+		end;
+	end if;
+
+end
+"""
+  returnType = TABLE(house_id integer, flat text, coeff numeric, house_group integer, el_lgot_all numeric, volume numeric, lgot_day numeric, lgot_night numeric, over_lgot_day numeric, over_lgot_night numeric, odn numeric, dsq_os_1354 numeric, el_lgot numeric, account_order_id integer)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ =============================================
+"""
+}
+

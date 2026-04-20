@@ -1,0 +1,57 @@
+procedure "exchange"."save_ftp_tool(character varying, character varying, character varying, boolean)" {
+  text = """
+
+begin
+
+	if exists(select * from exchange.ftp_tool) 
+		then
+			update exchange.ftp_tool 
+				set
+					use_passive 	= _use_passive,
+					url_string 		= _url_string,
+					user_password 	= _ftp_user_password,
+					user_login 		= _ftp_user_name;			
+		else 
+			insert into exchange.ftp_tool (url_string, user_login, user_password, use_passive)
+			values (_url_string, _ftp_user_name, _ftp_user_password, _use_passive);
+	end if;
+
+end
+"""
+  arguments = <
+    {
+      name = _url_string
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _ftp_user_name
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _ftp_user_password
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _use_passive
+      type = boolean
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 17.06.2015
+ description:	сохранение подключения к ftp
+ =============================================
+"""
+}
+

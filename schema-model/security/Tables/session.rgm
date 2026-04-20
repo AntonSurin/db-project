@@ -1,0 +1,91 @@
+table "security"."session" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_session"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('security.session_id_seq'::regclass)
+    }
+    column "computer_name" {
+      type = character varying(15)
+      null = NOT NULL
+    }
+    column "start_time" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "end_time" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "user_id" {
+      type = integer
+    }
+    column "employee_id" {
+      type = integer
+    }
+    column "client_version" {
+      type = character varying(15)
+    }
+    column "os_version" {
+      type = character varying(100)
+    }
+    column "support_user_guid" {
+      type = uuid
+    }
+    column "mac_address" {
+      type = integer
+    }
+    column "process_id" {
+      type = integer
+    }
+    column "is_closed" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_active" {
+      type = integer
+      generatedAs = """-
+
+CASE
+    WHEN (end_time > public.getdate()) THEN 1
+    ELSE 0
+END
+"""
+    }
+  )
+}
+
+index "security"."session_idx_session_computer_name_time" {
+  table = "security"."session"
+  type = btree
+  columns = <
+    {
+      definition = computer_name
+    }
+
+    {
+      definition = start_time
+    }
+
+    {
+      definition = end_time
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    user_id
+    employee_id
+  ]
+}
+

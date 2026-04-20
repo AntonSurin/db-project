@@ -1,0 +1,115 @@
+table "bank"."registry_batch" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_registry_batch"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('bank.registry_batch_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "batch_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "bank_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_error" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "batch_guid" {
+      type = uuid
+    }
+    column "fee" {
+      type = numeric(9,2)
+    }
+    column "sum" {
+      type = numeric(12,2)
+      null = NOT NULL
+    }
+    column "file_name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "sync_date" {
+      type = timestamp(6) without time zone
+    }
+    column "import_date" {
+      type = timestamp(3) without time zone
+    }
+    column "is_online_exchange" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "bank"."registry_batch"."fk_registr_batch_bank_list" {
+  columns = [
+    "bank_id"
+  ]
+  referencedTable = "bank"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "bank"."registry_batch"."fk_registr_batch_payment_batch" {
+  columns = [
+    "batch_id"
+  ]
+  referencedTable = "payment"."batch"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "bank"."registry_batch"."fk_registr_batch_period_list" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "bank"."registry_batch_idx_bank_registry_batch_unique_batch_id" {
+  table = "bank"."registry_batch"
+  type = btree
+  columns = <
+    {
+      definition = batch_id
+    }
+
+  >
+  isUnique = True
+}
+
+index "bank"."registry_batch_idx_registry_batch_batch_id" {
+  table = "bank"."registry_batch"
+  type = btree
+  columns = <
+    {
+      definition = batch_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    fee
+  ]
+}
+

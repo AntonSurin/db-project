@@ -1,0 +1,165 @@
+function "report"."invoice_warning(integer, integer, jsonb, integer, jsonb)" {
+  text = """
+
+declare 
+	_start_period_id	int;
+begin
+
+	if _col_mounth is null
+		then 
+			_col_mounth = 0;
+	end if;
+	
+	if exists (select 1
+			   from pg_proc pg
+					inner join pg_namespace ns on ns."oid" = pg.pronamespace 
+				where proname = 'custom_invoice_warning' and ns.nspname = 'report') 
+		then 
+			begin
+				call report.custom_invoice_warning (_period_id, _col_mounth, _account, _group_id, _sublist);
+				return;
+			end;
+	end if;
+
+	drop table if exists _account_list;
+	drop table if exists __sublist;
+
+	create temp table _account_list (account_id int);
+	create temp table __sublist (sublist_id int);
+
+	create index ix_account on _account_list (account_id);
+	create index ix_sublist on __sublist (sublist_id);
+
+	insert into _account_list
+	select a.account_id
+	from jsonb_populate_recordset(null::account.list, _account) a;
+
+	insert into __sublist
+	select s.sublist_id
+	from jsonb_populate_recordset(null::report.sublist, _sublist) s
+		inner join utility.sublist us on us.id = s.sublist_id
+	where us.list_id in (1021,1023,1027,1028);
+
+	drop table if exists __cpr;
+	create temp table __cpr (account_id int, cpr int);
+	create index ix_account_cpr on __cpr (account_id);
+	
+	insert into __cpr
+	select cp.account_id, coalesce(nullif(coalesce(cp.cpr,0),0),coalesce(cp.count_owners,0)) as cpr
+	from calculation.parametr_transporate cp
+		inner join _account_list a on a.account_id = cp.account_id
+		inner join "period".list pl on pl.is_working = true and pl.id = _period_id
+	union all
+	select cp.account_id, coalesce(nullif(coalesce(cp.cpr,0),0),coalesce(cp.count_owners,0)) as cpr
+	from calculation.parametr_transporate_arch cp
+		inner join _account_list a on a.account_id = cp.account_id
+	where cp.period_id = _period_id;
+	
+	drop table if exists _count_sublist;
+
+	create table _count_sublist (account_id int, sublist_id int, "count" int);
+	
+	create index ix_account_sublist on _count_sublist (account_id asc, sublist_id asc);
+
+	insert into _count_sublist
+	select pb.account_parent_id as account_id
+			,pb.sublist_id
+			,floor((pb.in_balance - pb.pay) / nullif(pb.normativ * pb.tarif * c.cpr,0)) as "count"
+	from payment.balance pb
+		inner join _account_list a on a.account_id = pb.account_parent_id
+		inner join __sublist s on s.sublist_id = pb.sublist_id
+		inner join __cpr c on c.account_id = a.account_id
+	where period_id = _period_id and pb.in_balance - pb.pay > 0 and pb.normativ * pb.tarif * c.cpr > 0;
+
+	_start_period_id = (
+							select coalesce(min(p.period_id),_period_id - _col_mounth)
+							from ( /* расчет минимального месяца проверки по количеству месяцев начислений, а не только минус количество месяцев долга */
+									select period_id, count(*) over (order by period_id desc, list_id) as count
+									from (select pb.account_parent_id as account_id
+												,pb.period_id
+												,us.list_id
+											from payment.balance pb
+											inner join _account_list a on a.account_id = pb.account_parent_id
+											inner join __sublist s on s.sublist_id = pb.sublist_id
+											inner join utility.sublist us on us.id = s.sublist_id
+										where period_id < _period_id and pb.current_calculate + pb.recalculate != 0
+										group by pb.account_parent_id, pb.period_id, us.list_id) c
+									) p
+							where p.count <= _col_mounth
+						);
+
+	return query
+	with cte as 
+	(
+		select 
+			pb.account_parent_id as account_id
+			,pb.sublist_id
+			,sum(coalesce(case when pb.period_id = _period_id then null else pb.current_calculate + pb.recalculate end, 0.0)) as old_calc
+			,coalesce(cs."count",coalesce(count(distinct case when pb.period_id != _period_id and pb.current_calculate + pb.recalculate != 0 then pb.period_id end),0)) as "count"
+			,sum(coalesce(case when pb.period_id = _period_id then pb.in_balance - pb.pay else 0.0 end, 0.0)) as debt
+		from payment.balance pb
+			inner join _account_list a on a.account_id = pb.account_parent_id
+			inner join __sublist s on s.sublist_id = pb.sublist_id
+			left join _count_sublist cs on cs.account_id = a.account_id and cs.sublist_id = s.sublist_id
+		where pb.period_id between _start_period_id and _period_id 
+		group by pb.account_parent_id, pb.sublist_id, cs."count"
+	)
+
+	select ct.account_id, 0 as sublist_id, sum(ct.old_calc) as old_calc, max(ct."count")::int2 as count, sum(ct.debt) as debt
+	from cte ct
+	group by ct.account_id;
+
+	drop table if exists _account_list;
+	drop table if exists __sublist;
+	drop table if exists __cpr; 
+	drop table if exists _count_sublist;
+
+end;
+"""
+  returnType = TABLE(account_id integer, sublist_id integer, old_calc numeric, count smallint, debt numeric)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _col_mounth
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _sublist
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ Author modify: Юркин Е.Ю.
+ Date modify: 13.10.2023
+ Description modify: модифицировал расчет кол-ва месяцев долга, добавил проверку долга по нормативному расчету услуги 
+ =============================================
+"""
+}
+

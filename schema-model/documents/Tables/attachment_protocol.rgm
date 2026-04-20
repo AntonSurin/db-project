@@ -1,0 +1,72 @@
+table "documents"."attachment_protocol" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_attachment_protocol"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.attachment_protocol_id_seq'::regclass)
+    }
+    column "protocol_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "attachment_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "documents"."attachment_protocol"."fk_doc_attach_prot_doc_attach_attach_id" {
+  columns = [
+    "attachment_id"
+  ]
+  referencedTable = "documents"."attachment"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "documents"."attachment_protocol"."fk_doc_attach_protocol_doc_protocol_protocol_id" {
+  columns = [
+    "protocol_id"
+  ]
+  referencedTable = "documents"."protocol"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "documents"."attachment_protocol_ix_attachment_id" {
+  table = "documents"."attachment_protocol"
+  type = btree
+  columns = <
+    {
+      definition = attachment_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "documents"."attachment_protocol_ix_protocol_id" {
+  table = "documents"."attachment_protocol"
+  type = btree
+  columns = <
+    {
+      definition = protocol_id
+    }
+
+  >
+  isUnique = False
+}
+

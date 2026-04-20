@@ -1,0 +1,58 @@
+function "report"."debt(integer)" {
+  text = """
+
+begin
+
+	create temp table _table (account_id int, debt numeric(18,2) not null default 0.0);
+
+	insert into _table
+	select cb.account_id, cb.in_balance - cb.pay  as dolg 
+	from payment.balance_group cb 
+	where cb.period_id = _period_id;
+
+	return query
+	select 
+		 c.account_id
+		,c.account_parent_id
+		,c.period_id
+		,c.current_calc
+		,case
+			when t.debt - sum(c.current_calc + c.recalc) over (partition by c.account_id order by c.period_id desc) > 0 then c.current_calc + c.recalc
+			else 
+				case
+					when (c.current_calc + c.recalc) - (sum(c.current_calc + c.recalc) over (partition by c.account_id order by c.period_id desc) - t.debt) <0 then 0
+					else (c.current_calc + c.recalc) - (sum(c.current_calc + c.recalc) over (partition by c.account_id order by c.period_id desc) - t.debt)
+				end 
+		end as debt
+		,t.debt as full_debt
+		,uc."name"
+	from payment.balance_group  c 
+		inner join adress.account aa on aa.id = c.account_id
+		inner join _table t on t.account_id = c.account_id
+		left join utility.contragent_group uc on coalesce(uc.id, 255) = coalesce(aa.group_id, 255)
+	where c.period_id < _period_id and t.debt > 0;
+
+	drop table if exists _table;	
+
+end;
+"""
+  returnType = TABLE(account_id integer, account_parent_id integer, period_id integer, current_calc numeric, debt numeric, full_debt numeric, group_name character varying)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 26.02.2015
+ Description:	Функция возвращает расчитанную задолженность жильца в разрезе месяцев. При этом для закрытия долга используется метод ФИФО.
+ =============================================
+"""
+}
+

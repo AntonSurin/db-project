@@ -1,0 +1,24 @@
+table "dbo"."re_calc" {
+  owner = postgres
+  columns = (
+    column "account_name" {
+      type = character varying(9)
+    }
+    column "sublist" {
+      type = integer
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "re_calc_sum" {
+      type = numeric(9,2)
+    }
+    column "reason_code" {
+      type = integer
+    }
+    column "reason" {
+      type = character varying(255)
+    }
+  )
+}
+

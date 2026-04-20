@@ -1,0 +1,168 @@
+function "report"."owner_info(integer)" {
+  text = """
+
+declare 
+	_date_end date;
+begin
+	
+	_date_end = (select date_end from "period".list where is_working = true);
+
+	create temp table _parametr 
+	(
+		etd 		int, 
+		et 			int, 
+		crm 		int, 
+		osq 		numeric(9,5), 
+		jsq 		numeric(9,5), 
+		chblk 		int, 
+		osv 		int,
+		co 			int,
+		lf 			int,
+		gv 			int,
+		xv 			int, 
+		nsq 		float, 
+		pl_dop 		numeric(6, 2), 
+		n_pl_dop 	numeric(6, 2)
+	);
+
+	with cte as	
+	(
+		select 
+			 pl.id as parametr_id
+			,pl.short_name
+			,pa.value
+		from parametr.list pl
+			inner join parametr.account pa on pa.parametr_id = pl.id
+		where lower(pl.short_name) in ('osq', 'jsq', 'et', 'co', 'xv', 'gv', 'lf', 'osv', 'chblk', 'nsq', 'pl_dop', 'n_pl_dop')
+			and pa.date_end is null
+			and pa.account_id = _account_id
+		
+		union
+		
+		select 
+			 pl.id
+			,pl.short_name
+			,pf.value
+		from parametr.list pl
+			inner join parametr.flat pf on pf.parametr_id = pl.id
+			inner join adress.account aa on aa.flat_id = pf.flat_id
+		where lower(pl.short_name) in ('et', 'crm')
+			and pf.date_end is null
+			and aa.id = _account_id
+		
+		union
+		
+		select 
+			 pl.id
+			,pl.short_name
+			,ph.value
+		from parametr.list pl
+			inner join parametr.house ph on ph.parametr_id = pl.id
+		where lower(pl.short_name) = 'etd'
+			and ph.date_end is null
+			and ph.house_id = (select house_id from adress.account where id = _account_id)
+	)
+	
+	insert into _parametr
+	select 
+		 max(case when lower(ct.short_name) = 'etd' 	 then value end)::int as etd 
+		,max(case when lower(ct.short_name) = 'et' 		 then value end)::int as et 
+		,max(case when lower(ct.short_name) = 'crm' 	 then value end)::int as crm
+		,max(case when lower(ct.short_name) = 'osq' 	 then value end)::numeric(9,2) as osq 
+		,max(case when lower(ct.short_name) = 'jsq' 	 then value end)::numeric(9,2) as jsq 
+		,max(case when lower(ct.short_name) = 'chblk' 	 then value end)::int as chblk 
+		,max(case when lower(ct.short_name) = 'osv' 	 then value end)::int as osv 
+		,max(case when lower(ct.short_name) = 'co' 		 then value end)::int as co 
+		,max(case when lower(ct.short_name) = 'lf' 		 then value end)::int as lf 
+		,max(case when lower(ct.short_name) = 'gv' 		 then value end)::int as gv 
+		,max(case when lower(ct.short_name) = 'xv' 		 then value end)::int as xv 
+		,max(case when lower(ct.short_name) = 'nsq' 	 then value end)::numeric(9,2) as nsq
+		,max(case when lower(ct.short_name) = 'pl_dop' 	 then value end)::numeric(9,2) as pl_dop
+		,max(case when lower(ct.short_name) = 'n_pl_dop' then value end)::numeric(9,2) as n_pl_dop
+	from cte ct;
+	
+	return query
+	select 
+		 aa."name" as account_name
+		,sb.short_name
+		,s."name" as street_name
+		,ah."number" as house_number
+		,ah.korpus 
+		,afb.short_name
+		,af."name" as flat_name
+		,ast."name" as territory_name
+		,astt.short_name as territory_type
+		,cp.osq
+		,cp.jsq
+		,cp.crm
+		,cp.et
+		,cp.co
+		,cp.xv
+		,cp.gv
+		,cp.lf
+		,cp.osv
+		,cp.chblk
+		,cp.etd
+		,cp.nsq::numeric(9,2)
+		,cp.pl_dop::numeric(9,2)
+		,cp.n_pl_dop::numeric(9,2)
+		,report.comfort (_account_id)
+	from  adress.account aa 
+		inner join adress.flat af on af.id = aa.flat_id
+		inner join adress.flat_book afb on afb.id = af.flat_book_id
+		inner join adress.house ah on ah.id = af.house_id
+		inner join adress.street s on s.id = ah.street_id
+		inner join adress.street_book sb on sb.id = s.street_book_id
+		inner join adress.settlement ast on  ast.id = s.settlement_id
+		inner join adress.settlement_type astt on astt.id = ast.type_id
+		inner join _parametr cp on 1 = 1		
+	where aa.id = _account_id 
+	group by aa."name", 
+			s."name", 
+			ah."number", 
+			ah.korpus, 
+			af."name",
+			cp.osq, 
+			cp.jsq, 
+			cp.crm, 
+			cp.et, 
+			cp.co, 
+			cp.xv, 
+			cp.gv, 
+			cp.chblk, 
+			cp.lf, 
+			cp.osv, 
+			cp.etd, 
+			cp.nsq, 
+			cp.pl_dop, 
+			cp.n_pl_dop,
+			afb.short_name, 
+			sb.short_name, 
+			ast."name", 
+			astt.short_name;
+
+	drop table if exists _parametr;
+		
+end;
+"""
+  returnType = TABLE(account_name character varying, street_type character varying, street_name character varying, house_number character varying, korpus character varying, flat_type character varying, flat_name character varying, territory_name character varying, territory_type character varying, osq numeric, jsq numeric, crm integer, et integer, co integer, xv integer, gv integer, lf integer, osv integer, chblk integer, etd integer, nsq numeric, pl_dop numeric, n_pl_dop numeric, comfort text)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 
+ Modified date: 10.06.2019 Трофимов Б.И. - добавил параметры PL_DOP и N_PL_DOP
+ Description:	Функция, используемая в выписке по состоянию лс. Желательно пересмотреть
+ =============================================
+"""
+}
+

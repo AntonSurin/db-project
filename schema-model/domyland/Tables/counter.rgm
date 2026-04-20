@@ -1,0 +1,30 @@
+table "domyland"."counter" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_counter_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.counter_id_seq'::regclass)
+    }
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "domyland_id" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "status" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+

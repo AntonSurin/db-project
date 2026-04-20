@@ -1,0 +1,45 @@
+function "adress"."search_by_person(integer)" {
+  text = """
+
+
+	select 
+		 ai.house_id
+		,ai.short_name_adress
+		,ai.flat_book_name as flat_book_name
+		,ai.flat_name
+		,ai.account_id
+		,ai.account_name
+		,ai.old_account_name
+		,(
+			select string_agg(trim(cl.full_name) , ', ')
+			from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+			where ca.account_id = ai.account_id and od.date_end is null 
+		) as fio
+		,ha.unique_number
+	from adress.info ai
+		left join house.account ha on ha.account_id = ai.account_id 
+	where ai.account_parent_id is null;
+
+"""
+  returnType = TABLE(house_id integer, short_name_adress text, flat_book_name text, flat_name text, account_id integer, account_name character varying, old_account_name character varying, fio text, unique_number text)
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Create date: <Create Date,,>
+ Description:	<Description,,>
+ =============================================
+"""
+}
+

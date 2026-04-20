@@ -1,0 +1,30 @@
+function "test_gis"."missing_contract()" {
+  text = """
+
+	
+	select
+		 hi.house_id	 
+		,hi.short_adress
+		,case when dc.id is null then true else false end as missing_contract
+		,case when dp.id is null then true else false end as missing_protocol
+	from house.info hi
+		left join documents.contracts_houses dch on dch.house_id = hi.house_id
+		left join documents.contract dc on dc.id = dch.contract_id
+		left join documents.protocol dp on dc.id = dp.id
+	where dc.id is null or dp.id is null;
+
+"""
+  returnType = TABLE(house_id integer, short_adress text, missing_contract boolean, missing_protocol boolean)
+  arguments = [
+  ]
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 28.06.2016
+ Description:	Проверка наличия договоров управления
+ =============================================
+"""
+}
+

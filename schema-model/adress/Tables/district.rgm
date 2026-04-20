@@ -1,0 +1,66 @@
+table "adress"."district" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_district"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.district_id_seq'::regclass)
+    }
+    column "region_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "territory_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "address_parser_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "adress"."district"."fk_district_region" {
+  columns = [
+    "region_id"
+  ]
+  referencedTable = "adress"."region"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "adress"."district"."fk_district_territory" {
+  columns = [
+    "territory_id"
+  ]
+  referencedTable = "adress"."territory"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "adress"."district_ix_district_region_id" {
+  table = "adress"."district"
+  type = btree
+  columns = <
+    {
+      definition = region_id
+    }
+
+  >
+  isUnique = False
+}
+

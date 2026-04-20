@@ -1,0 +1,78 @@
+procedure "account"."generate_account_name(jsonb)" {
+  text = """
+
+begin
+	
+	if exists (select * from pg_proc where lower(proname) = 'generate_custom_name')
+		then 
+			begin
+				insert into _account_names
+				select *
+				from account.generate_custom_name (_flats);
+			
+				if ((select count(1) from _account_names) != (select count(1) from jsonb_populate_recordset(null::special.object_parameters, _flats) i))
+					then
+						raise exception 'Ошибка генерации имен лс, обратитесь в техподдержку';  
+				end if;
+			end; 
+		else
+			begin	-- стандартная генерация имен лс
+				create temp table _names (
+											 flat_id int
+											,"name" numeric(12,0)
+											,count_char int
+											,"parameter" int
+										 );--вынесено в отдельную таблицу, т.к. 
+										   --если сделать в качестве подзапроса может возникнуть ошибка(при одновременном создании дома(таблица адресов/домов) и добавлении новых л/с)
+
+				insert into  _names 
+				select fa.object_id as flat_id,  max(cast(coalesce(aa.name,'0') as numeric(12,0))) as max_name, length(max(aa."name")) as count_char, fa."parameter"
+				from jsonb_populate_recordset(null::special.object_parameters, _flats) fa
+					inner join adress.account aa on aa.flat_id = fa.object_id
+				group by fa.object_id, fa."parameter";
+
+			insert into _account_names
+			select af.id as id
+				  ,case 
+					  	when n.flat_id is null 
+					  	then (left(ol.code || '000', 3) || right('000000' || cast(af.id as varchar(6)), 6) || right('00'|| cast(coalesce(f."parameter",0)  as varchar(2)), 2)) 
+						else 
+							case 
+								when n.count_char = 12 
+								then right('0000000000000' || (cast((n.name + coalesce(f."parameter",0) + 1) as varchar(12))), 12) 
+								else  right('0000000000000' || cast(n.name  as varchar(12)), n.count_char) || right('0000000000000' ||cast((coalesce(f."parameter",0) + 1)  as varchar(12)), 12 - n.count_char) 
+							end
+					end as "name"
+			from adress.flat af 
+				inner join  jsonb_populate_recordset(null::special.object_parameters, _flats)  f on f.object_id = af.id
+				left join _names n on n.flat_id = f.object_id
+				inner join adress.house ah on ah.id = af.house_id
+				inner join organization.list ol on ol.id = ah.organization_id;
+
+			end; 
+	end if;
+
+	drop table if exists _names;
+				
+end
+"""
+  arguments = <
+    {
+      name = _flats
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		макарова е.а.
+ create date: 25.11.2020
+ description:	генерация наименований лицевых счетов без проверки
+ перед вызовом процедуры требуется создать временную таблицу #accountnames, в которой будет возвращён результат
+ =============================================
+"""
+}
+

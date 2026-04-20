@@ -1,0 +1,60 @@
+view "gis"."address_info" {
+  text = """-
+SELECT hi.house_id,
+    hc.house_type,
+    hi.settlement_name,
+    hi.short_adress,
+    hc.fias_house_guid,
+    hc.unique_number,
+    hc.is_upload,
+    hc.modification_date,
+    hc.is_export,
+    r.error_text,
+    hi.order_id
+   FROM ((house.info hi
+     LEFT JOIN house.characteristic hc ON ((hi.house_id = hc.house_id)))
+     LEFT JOIN LATERAL ( SELECT ge.error_text
+           FROM gis.entity_queue ge
+          WHERE ((ge.entity_id = hi.house_id) AND (lower((ge.type_name)::text) = 'house'::text) AND (ge.message_id = ( SELECT max(ge2.message_id) AS max
+                   FROM gis.entity_queue ge2
+                  WHERE ((lower((ge2.type_name)::text) = 'house'::text) AND (ge2.entity_id = hi.house_id)))))) r ON (true));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+    }
+    column "house_type" {
+      type = smallint
+    }
+    column "settlement_name" {
+      type = text
+    }
+    column "short_adress" {
+      type = text
+    }
+    column "fias_house_guid" {
+      type = uuid
+    }
+    column "unique_number" {
+      type = character varying(50)
+    }
+    column "is_upload" {
+      type = boolean
+    }
+    column "modification_date" {
+      type = timestamp(3) without time zone
+    }
+    column "is_export" {
+      type = boolean
+    }
+    column "error_text" {
+      type = text
+    }
+    column "order_id" {
+      type = integer
+    }
+  )
+}
+

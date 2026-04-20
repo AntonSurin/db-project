@@ -1,0 +1,277 @@
+table "adress"."house" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_house"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('adress.house_id_seq'::regclass)
+    }
+    column "street_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "inner_city_district_id" {
+      type = integer
+      null = NOT NULL
+      default = 0
+    }
+    column "house_type_id" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "house_kind_id" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "territory_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "index" {
+      type = character varying(6)
+    }
+    column "number" {
+      type = character varying(10)
+    }
+    column "korpus" {
+      type = character varying(10)
+    }
+    column "work_id" {
+      type = integer
+    }
+    column "work_counting_id" {
+      type = integer
+    }
+    column "organization_id" {
+      type = integer
+    }
+    column "organization_counting_id" {
+      type = integer
+    }
+    column "order_id" {
+      type = integer
+    }
+    column "hash" {
+      type = character varying(50)
+    }
+    column "address_parser_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "adress"."house"."fk_house_counting1" {
+  columns = [
+    "organization_counting_id"
+  ]
+  referencedTable = "organization"."counting"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "adress"."house"."fk_house_counting2" {
+  columns = [
+    "work_counting_id"
+  ]
+  referencedTable = "organization"."counting"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "adress"."house"."fk_house_inner_city_district" {
+  columns = [
+    "inner_city_district_id"
+  ]
+  referencedTable = "adress"."inner_city_district"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "adress"."house"."fk_house_list" {
+  columns = [
+    "work_id"
+  ]
+  referencedTable = "organization"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "adress"."house"."fk_house_list1" {
+  columns = [
+    "organization_id"
+  ]
+  referencedTable = "organization"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "adress"."house"."fk_house_sprav_type_house" {
+  columns = [
+    "house_type_id"
+  ]
+  referencedTable = "adress"."house_type"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "adress"."house"."fk_house_sprav_vid_house" {
+  columns = [
+    "house_kind_id"
+  ]
+  referencedTable = "adress"."house_kind"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "adress"."house"."fk_house_street" {
+  columns = [
+    "street_id"
+  ]
+  referencedTable = "adress"."street"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "adress"."house"."fk_house_territory" {
+  columns = [
+    "territory_id"
+  ]
+  referencedTable = "adress"."territory"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "adress"."house_idx_house_id" {
+  table = "adress"."house"
+  type = btree
+  columns = <
+    {
+      definition = id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    work_id
+    work_counting_id
+    organization_id
+    organization_counting_id
+  ]
+}
+
+index "adress"."house_ix_house_house_kind_id" {
+  table = "adress"."house"
+  type = btree
+  columns = <
+    {
+      definition = house_kind_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "adress"."house_ix_house_house_type_id" {
+  table = "adress"."house"
+  type = btree
+  columns = <
+    {
+      definition = house_type_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "adress"."house_ix_house_street_id" {
+  table = "adress"."house"
+  type = btree
+  columns = <
+    {
+      definition = street_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_type_id
+    house_kind_id
+    territory_id
+    number
+    korpus
+  ]
+}
+
+index "adress"."house_ix_house_territory_id" {
+  table = "adress"."house"
+  type = btree
+  columns = <
+    {
+      definition = territory_id
+    }
+
+  >
+  isUnique = False
+}
+
+trigger "adress"."house"."insert_into_p_house" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = adress.insert_into_p_house
+  functionArguments = [
+  ]
+  table = "adress"."house"
+  constraint = False
+  newTableReference = _inserted
+}
+
+trigger "adress"."house"."insert_territory" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = adress.update_territory
+  functionArguments = [
+  ]
+  table = "adress"."house"
+  constraint = False
+  newTableReference = _inserted
+}
+
+trigger "adress"."house"."update_territory" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = adress.update_territory
+  functionArguments = [
+  ]
+  table = "adress"."house"
+  constraint = False
+  newTableReference = _inserted
+}
+

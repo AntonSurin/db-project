@@ -1,0 +1,28 @@
+table "gis"."error_description" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_gis_error_description"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.error_description_id_seq'::regclass)
+    }
+    column "error_code" {
+      type = character varying(11)
+      null = NOT NULL
+    }
+    column "description" {
+      type = text
+    }
+    column "solve" {
+      type = text
+    }
+  )
+}
+

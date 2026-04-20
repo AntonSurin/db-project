@@ -1,0 +1,54 @@
+table "domyland"."pdf_status" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_pdf_status"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.pdf_status_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "file_name" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "is_kp" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "status" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+
+index "domyland"."pdf_status_ix_domyland_pdf_status_account_id_period_id" {
+  table = "domyland"."pdf_status"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = True
+}
+

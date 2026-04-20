@@ -1,0 +1,34 @@
+table "gis"."flat_ogf_data" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_flat_ogf_data"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.flat_ogf_data_id_seq'::regclass)
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "code_name" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "value" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "type_value" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+

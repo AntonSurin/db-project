@@ -1,0 +1,101 @@
+function "account"."generate_account_name_with_validation(jsonb, jsonb)" {
+  text = """
+
+declare
+		_count_iteration 	int = 0;
+		_t 					jsonb;
+begin
+
+	drop table if exists _account_names;
+	drop table if exists _all_variant_flats;
+	drop table if exists _count_accounts_in_flat;
+	drop table if exists _correct_names;
+	drop table if exists _table;
+		
+	create temp table _all_variant_flats 		(object_id int, "parameter" int);
+	create temp table _count_accounts_in_flat	(object_id int, "parameter" int);
+	create temp table _correct_names 			(id int, "name" text);
+	create temp table _account_names 			(id int, "name" varchar(12));
+	create temp table _table 					(id int, "name" text);
+	
+	insert into _count_accounts_in_flat
+	select i.object_id, count(*) 
+	from jsonb_populate_recordset(null::special.object_parameters, _flats) i
+	group by i.object_id;
+
+	insert into _all_variant_flats
+	select object_id,  _count_iteration 
+	from _count_accounts_in_flat;
+
+	insert into _account_names 
+	select * 
+	from _table;
+
+	while (exists(select 1 from _all_variant_flats) and _count_iteration < 100 )
+		loop
+			call account.generate_account_name (_flats);
+			delete from _all_variant_flats;
+	
+			insert into _correct_names
+			select an.id, an."name" 
+			from _account_names an 
+				left join jsonb_array_elements_text(_names) n on n = an."name" 
+				left join adress.account aa on aa."name" = an."name"
+				left join _correct_names c on c."name" = an."name"
+			where n is null and aa."name" is null and c."name" is null;
+	
+			_count_iteration = _count_iteration + 1;
+	
+			insert into _all_variant_flats
+			select ca.object_id, _count_iteration 
+			from _count_accounts_in_flat ca
+				left join (
+							select _correct_names.id, count(*) as count_name 
+						    from _correct_names 
+						    group by _correct_names.id
+						  ) cn on cn.id = ca.object_id
+			where ca."parameter" > cn.count_name or cn.count_name is null;
+	
+			delete from _account_names;
+		end loop;
+
+	return query
+	select cn.id, cn."name":: varchar(12) 
+	from _correct_names cn;
+
+	drop table if exists _account_names;
+	drop table if exists _all_variant_flats;
+	drop table if exists _count_accounts_in_flat;
+	drop table if exists _correct_names;
+	drop table if exists _table;
+
+
+end;
+"""
+  returnType = TABLE(id integer, name character varying)
+  arguments = <
+    {
+      name = _flats
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _names
+      type = jsonb
+      mode = IN
+      default = NULL::jsonb
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+ =============================================
+ author:		макарова е.а.
+ create date: 25.11.2020
+ description:	генерация наименований лицевых счетов с проверкой(не рекомендуется для больших объёмов данных)
+ =============================================
+"""
+}
+

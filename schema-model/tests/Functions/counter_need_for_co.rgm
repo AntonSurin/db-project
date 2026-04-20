@@ -1,0 +1,89 @@
+function "tests"."counter_need_for_co(jsonb)" {
+  text = """
+
+begin
+
+	if exists (select * from calculation.account_sublist where sublist_id = 38)	
+				and (
+					select count(*)
+					from information_schema."columns"
+					where lower(table_schema) = 'calculation' and lower(table_name) = 'parametr_transporate'
+							and lower(column_name) in ('co', 'house_open', 'account_open', 'h_ras_ot', 'h_cocall', 'ras_ot')
+					) = 6
+		then
+			begin	
+				if exists (select * from jsonb_populate_recordset(null::account.list, _account))
+					then
+						begin
+							return query
+							with cte as 
+							(
+								select cp.house_id, cp.flat_id, cp.account_id, cp.co, cp.h_cocall, cp.h_ras_ot, cp.ras_ot 
+									,max(sum((case when p.value = '1' then 1 else 0 end) * ((case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end - case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end) + 1))) over (partition by cp.house_id) as house_open
+									,sum((case when p.value = '1' then 1 else 0 end) * ((case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end - case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end) + 1)) as account_open
+								from calculation.parametr_transporate cp 
+									inner join parametr.account p on cp.account_id = p.account_id
+									inner join jsonb_populate_recordset(null::account.list, _account) au on au.account_id = p.account_id
+									inner join period.list pl on pl.is_working = true
+								where p.parametr_id = 1362 
+									and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+									and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+								group by cp.house_id, cp.flat_id, cp.account_id, cp.co, cp.h_cocall, cp.h_ras_ot, cp.ras_ot
+							)
+							select distinct 'wrn'::varchar(3) as severity,
+									ao.account_name,
+									ao.short_name_adress
+							from cte c
+								inner join cte p on c.flat_id = p.flat_id and c.account_id <> p.account_id
+								inner join adress.owners ao on ao.account_id = c.account_id
+							where c.co > 0 and p.co > 0 and coalesce(c.house_open,p.house_open) > 0 and c.account_open > 0 and p.account_open > 0 and c.h_ras_ot > 0 and c.h_cocall > 0 and c.ras_ot is null and p.ras_ot is not null;
+						end; 
+					else
+						begin
+							return query
+							with cte as 
+							(
+								select cp.house_id, cp.flat_id, cp.account_id, cp.co, cp.h_cocall, cp.h_ras_ot, cp.ras_ot 
+								,max(sum((case when p.value = '1' then 1 else 0 end) * (datediff(d, case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end, case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end) + 1))) over (partition by cp.house_id) as house_open
+								,sum((case when p.value = '1' then 1 else 0 end) * (datediff(d, case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end, case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end) + 1)) as account_open
+								from calculation.parametr_transporate cp 
+								inner join parametr.account p on cp.account_id = p.account_id
+								inner join period.list pl on pl.is_working = true
+								where p.parametr_id = 1362 
+									and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+									and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+								group by cp.house_id, cp.flat_id, cp.account_id, cp.co, cp.h_cocall, cp.h_ras_ot, cp.ras_ot
+							)
+							select distinct 'wrn'::varchar(3) as severity,
+									ao.account_name,
+									ao.short_name_adress
+							from cte c
+							inner join cte p on c.flat_id = p.flat_id and c.account_id <> p.account_id
+							inner join adress.owners ao on ao.account_id = c.account_id
+							where c.co > 0 and p.co > 0 and coalesce(c.house_open,p.house_open) > 0 and c.account_open > 0 and p.account_open > 0 and c.h_ras_ot > 0 and c.h_cocall > 0 and c.ras_ot is null and p.ras_ot is not null;
+						end;
+				end if;
+			end;
+	end if;
+end;
+"""
+  returnType = TABLE(severity character varying, account_name character varying, short_name_adress text)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Евгений
+ Create date:	10.02.2022
+ Description:	Тест на наличие ИПУ по отоплению у закрытых/открытых лицевых по одному помещению
+ =============================================
+"""
+}
+

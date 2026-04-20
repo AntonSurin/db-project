@@ -1,0 +1,169 @@
+table "parametr"."house" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_p_house"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('parametr.house_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = character varying(200)
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+foreignKey "parametr"."house"."fk_p_house_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+foreignKey "parametr"."house"."fk_p_house_pl_house" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."pl_house"
+  referencedColumns = [
+    "parametr_id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+index "parametr"."house_ix_house_house_id" {
+  table = "parametr"."house"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+    {
+      definition = parametr_id
+    }
+
+    {
+      definition = date_begin
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    value
+  ]
+}
+
+index "parametr"."house_ix_house_parametr_id" {
+  table = "parametr"."house"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+    {
+      definition = house_id
+    }
+
+    {
+      definition = date_begin
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    value
+  ]
+}
+
+index "parametr"."house_ix_parametr_date_end" {
+  table = "parametr"."house"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+    {
+      definition = date_end
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+    value
+    date_begin
+  ]
+}
+
+trigger "parametr"."house"."delete_house_parametr_transporate" {
+  timing = AFTER
+  events = [
+    DELETE
+  ]
+  level = STATEMENT
+  function = parametr.delete_house_parametr_transporate
+  functionArguments = [
+  ]
+  table = "parametr"."house"
+  constraint = False
+  oldTableReference = deleted
+}
+
+trigger "parametr"."house"."insert_house_parametr_transporate" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = parametr.insert_house_parametr_transporate
+  functionArguments = [
+  ]
+  table = "parametr"."house"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "parametr"."house"."update_house_parametr_transporate" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = parametr.update_house_parametr_transporate
+  functionArguments = [
+  ]
+  table = "parametr"."house"
+  constraint = False
+  oldTableReference = updated
+  newTableReference = inserted
+}
+

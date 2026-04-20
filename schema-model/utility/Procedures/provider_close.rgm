@@ -1,0 +1,61 @@
+procedure "utility"."provider_close(integer, integer, jsonb, date)" {
+  text = """
+
+
+	update utility.sublist_provider us
+		set date_end = _date
+	from jsonb_populate_recordset(null::house.list, _house) h 
+	where h.house_id = us.house_id 
+		and us.provider_id = _provider_id 
+		and us.sublist_id = _sublist_id
+		and us.date_begin < _date;
+
+	update tarif.house_tarif th 
+		set date_end = _date
+	from tarif.list tl 
+	where tl.id = th.tarif_id 
+		and tl.provider_id = _provider_id 
+		and tl.sublist_id = _sublist_id
+		and th.date_end is null 
+		and th.date_begin < _date
+		and th.house_id in (select h.house_id from jsonb_populate_recordset(null::house.list, _house) h);
+
+"""
+  arguments = <
+    {
+      name = _sublist_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _provider_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _date
+      type = date
+      mode = IN
+      default = NULL::date
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 25.02.2016
+ Description:	Закрытие поставщика на услугу
+ =============================================
+"""
+}
+

@@ -1,0 +1,49 @@
+function "adress"."update_territory()" {
+  text = """
+
+begin
+	
+	update calculation.parametr_transporate cp
+		set territory_id = i.territory_id
+	from _inserted i 
+	where cp.house_id = i.id;
+	
+	update calculation.parametr_transporate_arch cp
+		set territory_id = i.territory_id
+	from _inserted i 
+	where cp.house_id = i.id;
+	
+	update recalculation.parametr_transporate cp
+		set territory_id = i.territory_id
+	from _inserted i 
+	where cp.house_id = i.id;
+
+	update tarif.list tl
+		set territory_id = i.territory_id
+	from tarif.house_tarif tht 
+		inner join _inserted i on tht.house_id = i.id
+	where tht.tarif_id = tl.id;
+
+	update utility.sublist_provider usp
+		set territory_id = i.territory_id
+	from _inserted i 
+	where usp.house_id = i.id;
+			
+	return null;
+	
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 20.10.2016
+ Description:	Обноление территории
+ =============================================
+"""
+}
+

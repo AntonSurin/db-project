@@ -1,0 +1,41 @@
+function "tests"."payment_without_service_id(jsonb)" {
+  text = """
+
+
+	select 
+		a.account_name,
+		i.street || ',' || i.house || ',' || i.flat_type || i."number" as adress
+	from payment.list pl 
+		inner join payment.batch pb on pl.batch_id = pb.id
+		inner join house.account a on a.account_id = pl.account_id
+		inner join gis.flat_info i on i.flat_id = a.flat_id
+		inner join "period".list l on l.id = pl.period_id
+		inner join jsonb_populate_recordset(null::payment.batch_list, _batch) b on b.batch_id = pb.id
+	where 
+		a.service_id is null
+		and pl.guid is null
+		and pl.status = 0
+		and pl.sum > 0
+		and pb.sum > 0;
+
+"""
+  returnType = TABLE(account_name character varying, adress text)
+  arguments = <
+    {
+      name = _batch
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:	Ильющенко Денис
+ Create date: 16.05.2018
+ Description:	Тест перед выгрузкой платежей по кассе, проверка не размещенных л/с
+ =============================================
+"""
+}
+

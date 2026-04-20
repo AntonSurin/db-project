@@ -1,0 +1,33 @@
+table "gis"."catalog" {
+  primaryKey = {
+    columns = [
+      "num"
+    ]
+    name = "pk_gis_catalog"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "num" {
+      type = integer
+      null = NOT NULL
+    }
+    column "modified" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "name" {
+      type = text
+    }
+    column "update_date" {
+      type = timestamp(3) without time zone
+    }
+    column "is_presented" {
+      type = boolean
+    }
+    column "is_common" {
+      type = boolean
+    }
+  )
+}
+

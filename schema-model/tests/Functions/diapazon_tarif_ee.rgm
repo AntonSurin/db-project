@@ -1,0 +1,442 @@
+function "tests"."diapazon_tarif_ee(jsonb)" {
+  text = """
+
+begin
+
+	create temp table _house (house_id int);
+
+	if exists (select 1 from jsonb_populate_recordset(null::account.list, _account) a limit 1)
+	then
+		begin
+			insert into _house
+			select distinct aa.house_id
+			from jsonb_populate_recordset(null::account.list, _account) a
+				inner join adress.account aa on aa.id = a.account_id
+			group by aa.house_id;
+		end; 
+	else
+		begin
+			insert into _house
+			select aa.house_id
+			from adress.account aa
+			where aa.parent_id is null
+			group by aa.house_id;
+		end;
+	end if;
+
+	if exists (
+				select 1 
+				from calculation.account_sublist cs 
+					inner join utility.sublist us on us.id = cs.sublist_id 
+				where list_id = 1028
+				limit 1
+			)
+			and exists 
+					(
+						select 1
+						from utility.sublist_provider usp
+							inner join _house h on h.house_id = usp.house_id
+						where usp.date_end is null and usp.sublist_id in (8,9,10,27,28,42,31,33,36)
+						limit 1
+					)
+			and (select count(*) from utility.sublist where id in (31,33,36)) = 3
+	then
+		begin
+			
+			drop table if exists __account_user_dt;
+			create temp table __account_user_dt 
+			(
+				account_id int primary key
+			);
+			insert into __account_user_dt 
+			select a.* 
+			from jsonb_populate_recordset(null::account.list, _account_user) a;
+		
+			drop table if exists __account_open_dt;
+			create temp table __account_open_dt 
+			(
+				account_id 		int primary key, 
+				account_open 	int
+			);
+
+			if exists (select * from __account_user_dt)
+			then
+				begin
+					insert into __account_open_dt
+					select p.account_id, 
+							sum(
+									(case when p.value::int2 = 1 then 1 else 0 end) 
+										*(
+											(
+												(case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end) 
+											  - (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+											) + 1
+										)
+								) as account_open
+					from parametr.account p
+						inner join __account_user_dt au on au.account_id = p.account_id
+						inner join "period".list pl on pl.is_working = true
+					where parametr_id = 1362 
+						and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+						and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+					group by p.account_id;
+				end; 
+			else
+				begin
+					insert into __account_open_dt
+					select p.account_id, 
+							sum(
+									(case when p.value::int2 = 1 then 1 else 0 end) 
+									*(
+										(
+											  (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+											- (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+										) + 1
+									)
+								) as account_open
+					from parametr.account p
+						inner join "period".list pl on pl.is_working = true
+					where parametr_id = 1362 
+						and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+						and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+					group by p.account_id;
+				end;
+			end if;
+		
+			drop table if exists __account_dt;
+			create temp table __account_dt	(
+												house_id 		int, 
+												account_id 		int, 
+												span_el_1 		numeric(12,5), 
+												span_el_2 		numeric(12,5), 
+												sum_ras_els 	numeric(12,5), 
+												ras_el 			numeric(12,5), 
+												ras_el_day 		numeric(12,5), 
+												ras_el_night 	numeric(12,5), 
+												sublist_1 		int, 
+												sublist_2 		int, 
+												tarif_3 		int
+											);
+		
+			if exists (select * from __account_user_dt)
+			then
+				begin
+					insert into __account_dt
+					select 
+						house_id, 
+						account_id, 
+						span_el_1, 
+						span_el_2, 
+						sum_ras_els, 
+						ras_el, 
+						ras_el_day, 
+						ras_el_night,
+						case when ras_el > 0 then 27 else case when ras_el_day > 0 then 42 else 28 end end as sublist_1,
+						case when ras_el > 0 then 8 else case when ras_el_day > 0 then 9 else 10 end end as sublist_2,
+						case when sum_ras_els > span_el_2 then case when ras_el > 0 then 31 else case when ras_el_day > 0 then 33 else 36 end end end as tarif_3
+					from (
+							select 
+								house_id, 
+								account_id, 
+								case 
+									when el_lgot = 1 then sum_ras_els
+									when region in (1, 23)
+										then
+											case 
+												when ep = 1 and hco_eu = 0 then 16000.00 
+												when ep = 1 and hco_eu = 1 then case when otop_sezon = 1 then 20000.00 else 16000.00 end
+												when ep = 0 and hco_eu = 1 then case when otop_sezon = 1 then 20000.00 else 11000.00 end 
+												when ep = 0 and hco_eu = 0 then 11000.00
+											end
+									when region = 5 then 10950.00
+									when region = 25 then 11160.00
+									when region = 29 then 7092.00
+									else sum_ras_els	
+								end	as span_el_1,
+								case 
+									when el_lgot = 1 then 0.0
+									when region in (1, 23)
+										then
+											case 
+												when ep = 1 and hco_eu = 0  then 25000.00
+												when ep = 1 and hco_eu = 1 then case when otop_sezon = 1 then 30000.00 else 25000.00 end 
+												when ep = 0 and hco_eu = 1 then case when otop_sezon = 1 then 30000.00 else 20000.00 end 
+												when ep = 0 and hco_eu = 0  then 20000.00
+											end
+									when region = 5 then 25000.00
+									when region = 25 then 11170.00
+									when region = 29 then 11160.00
+									else 0.0	
+								end	as span_el_2,
+								sum_ras_els, 
+								ras_el, 
+								ras_el_day, 
+								ras_el_night
+							from (
+									select 
+										lg.el_lgot, 
+										trim(coalesce(re.code,0))::int as region, 
+										cpt.account_id, 
+										cpt.house_id, 
+										coalesce(cpt.ep,0) as ep, 
+										coalesce(cpt.hco_eu,0) as hco_eu, 
+										coalesce(cpt.ras_el,0) + coalesce(cpt.ras_el_day,0) + coalesce(cpt.ras_el_night,0) as sum_ras_els, 
+										cpt.ras_el, 
+										cpt.ras_el_day, 
+										cpt.ras_el_night,
+										case
+											when coalesce(p.otop_off,0) = true then false
+											when (pl.month_id >= coalesce(te.month_begin,10) or pl.month_id <= coalesce(te.month_end,4)) or coalesce(p.otop_off,0) > 1 then true
+											else false
+										end as otop_sezon
+									from adress.region re
+										inner join adress.territory te on te.region_id = re.id
+										inner join adress.house ah on ah.territory_id = te.id
+										inner join calculation.parametr_transporate cpt on cpt.territory_id = te.id and cpt.house_id = ah.id
+										inner join __account_user_dt au on au.account_id = cpt.account_id
+										inner join period.list pl on pl.is_working = true
+										inner join __account_open_dt r on r.account_id = cpt.account_id
+										left join (select ph.house_id, coalesce(ph.value,0) as otop_off
+													from parametr.house ph
+													where ph.parametr_id = 201 and ph.date_end is null) p on p.house_id = ah.id
+										left join (select ca.account_id, max(case when pb.number = 3 then 1 else 0 end) as el_lgot
+													from contragent.account ca 
+														inner join __account_user_dt au on au.account_id = ca.account_id
+														inner join contragent.parametr cp on cp.contragent_account_id = ca.id and cp.parametr_id = 1472
+														inner join parametr.book pb on cp.book_id = pb.id and pb.parametr_id = cp.parametr_id 
+													group by ca.account_id) lg on lg.account_id = cpt.account_id
+									where r.account_open > 0
+							) cp
+						) c 
+					where sum_ras_els > span_el_1;
+				end; 
+			else
+				begin 
+					insert into __account_dt
+					select 
+						house_id, 
+						account_id, 
+						span_el_1, 
+						span_el_2, 
+						sum_ras_els, 
+						ras_el, 
+						ras_el_day, 
+						ras_el_night,
+						case when ras_el > 0 then 27 else case when ras_el_day > 0 then 42 else 28 end end as sublist_1,
+						case when ras_el > 0 then 8 else case when ras_el_day > 0 then 9 else 10 end end as sublist_2,
+						case when sum_ras_els > span_el_2 then case when ras_el > 0 then 31 else case when ras_el_day > 0 then 33 else 36 end end end as tarif_3
+					from (
+							select 
+								house_id, 
+								account_id, 
+								case 
+									when el_lgot = 1 then sum_ras_els
+									when region in (1, 23)
+										then
+											case 
+												when ep = 1 and hco_eu = 0 then 16000.00 
+												when ep = 1 and hco_eu = 1 then case when otop_sezon = 1 then 20000.00 else 16000.00 end
+												when ep = 0 and hco_eu = 1 then case when otop_sezon = 1 then 20000.00 else 11000.00 end 
+												when ep = 0 and hco_eu = 0 then 11000.00
+											end
+									when region = 5 then 10950.00
+									when region = 25 then 11160.00
+									when region = 29 then 7092.00
+									else sum_ras_els	
+								end	as span_el_1,
+								case 
+									when el_lgot = 1 then 0.0
+									when region in (1, 23)
+										then
+											case 
+												when ep = 1 and hco_eu = 0 then 25000.00
+												when ep = 1 and hco_eu = 1 then case when otop_sezon = 1 then 30000.00 else 25000.00 end 
+												when ep = 0 and hco_eu = 1 then case when otop_sezon = 1 then 30000.00 else 20000.00 end 
+												when ep = 0 and hco_eu = 0 then 20000.00
+											end
+									when region = 5 then 25000.00
+									when region = 25 then 11170.00
+									when region = 29 then 11160.00
+									else 0.0	
+								end	as span_el_2,
+								sum_ras_els, 
+								ras_el, 
+								ras_el_day, 
+								ras_el_night
+							from (
+									select 
+										lg.el_lgot, 
+										trim(coalesce(re.code,0))::int as region, 
+										cpt.account_id, 
+										cpt.house_id, 
+										coalesce(cpt.ep,0) as ep, 
+										coalesce(cpt.hco_eu,0) as hco_eu, 
+										coalesce(cpt.ras_el,0) + coalesce(cpt.ras_el_day,0) + coalesce(cpt.ras_el_night,0) as sum_ras_els, 
+										cpt.ras_el, 
+										cpt.ras_el_day, 
+										cpt.ras_el_night,
+										case
+											when coalesce(p.otop_off,0) = true then false
+											when (pl.month_id >= coalesce(te.month_begin,10) or pl.month_id <= coalesce(te.month_end,4)) or coalesce(p.otop_off,0) > 1
+												then true
+											else false
+										end as otop_sezon
+									from adress.region re
+										inner join adress.territory te on te.region_id = re.id
+										inner join adress.house ah on ah.territory_id = te.id
+										inner join calculation.parametr_transporate cpt on cpt.territory_id = te.id and cpt.house_id = ah.id
+										inner join period.list pl on pl.is_working = true
+										inner join __account_open_dt r on r.account_id = cpt.account_id
+										left join (select ph.house_id, coalesce(ph.value,0) as otop_off
+													from parametr.house ph
+													where ph.parametr_id = 201 and ph.date_end is null) p on p.house_id = ah.id
+										left join (select ca.account_id, max(case when pb.number = 3 then 1 else 0 end) as el_lgot
+													from contragent.account ca 
+													inner join contragent.parametr cp on cp.contragent_account_id = ca.id and cp.parametr_id = 1472
+													inner join parametr.book pb on cp.book_id = pb.id and pb.parametr_id = cp.parametr_id 
+													group by ca.account_id) lg on lg.account_id = cpt.account_id
+									where r.account_open > 0
+								) cp
+						) c 
+					where sum_ras_els > span_el_1;
+				end;
+			end if;
+		
+			insert into __account_dt
+			select 
+				house_id, 
+				account_id, 
+				span_el_1, 
+				span_el_2, 
+				sum_ras_els, 
+				ras_el, 
+				ras_el_day, 
+				ras_el_night,
+				case when ras_el_night > 0 then 28 end as sublist_1,
+				case when ras_el_night > 0 then 10 end as sublist_2,
+				case when sum_ras_els > span_el_2 then case when ras_el_night > 0 then 36 end end as tarif_3
+			from __account_dt
+			where sublist_1 = 42;		
+			
+			drop table if exists __house_dt;
+			create temp table __house_dt (house_id int primary key);
+			insert into __house_dt
+			select d.house_id
+			from __account_dt d
+			group by d.house_id;
+		
+			drop table if exists __tarif_dt;
+			create temp table __tarif_dt (
+											sublist_id 	int, 
+											house_id 	int, 
+											provider 	int, 
+											tarif 		int	
+										);
+		
+			insert into __tarif_dt
+			select 
+				usp.sublist_id, 
+				usp.house_id, 
+				max(case when usp.provider_id is not null then 1 end) as provider, 
+				max(case when ht.value > 0 then 1 end) as tarif 
+			from utility.sublist_provider usp
+				inner join __house_dt h on h.house_id = usp.house_id
+			left join (
+						select th.house_id, th.number, tl.provider_id, tl.sublist_id, tl.territory_id, tl.value
+						from tarif.housetarif th 
+							inner join tarif.list tl on tl.id = th.tarifid
+						where th.date_end is null
+					) ht on ht.house_id = usp.house_id and ht.provider_id = usp.provider_id and ht.sublist_id = usp.sublist_id and ht.territory_id = usp.territory_id
+			where usp.date_end is null and usp.sublist_id in (8,9,10,27,28,42,31,33,36)
+			group by usp.sublist_id, usp.provider_id, usp.territory_id, usp.house_id;
+		
+			return query
+			with cte as 
+			(
+				select a.*, t1.provider as provider_1, t1.tarif as tarif_1, t2.provider as provider_2, t2.tarif as tarif_2, t3.provider as provider_3, t3.tarif as tarif_3
+				from __account_dt a
+					left join __tarif_dt t1 on t1.sublist_id = a.sublist_1
+					left join __tarif_dt t2 on t2.sublist_id = a.sublist_2
+					left join __tarif_dt t3 on t3.sublist_id = a.tarif_3
+			)
+			,cte2 as 
+			(
+				select 
+					case 
+						when tarif_1 is not null and provider_2 is null and tarif_2 is null 
+							then 'Отсутствует поставщик и тариф на доме ' || hi.short_adress || ' для расчета услуги ' || us.name || ' по лс №' || ao.account_name
+						when tarif_1 is not null and tarif_2 is null 
+							then 'Отсутствует тариф на доме ' || hi.short_adress || ' для расчета услуги ' || us.name || ' по лс №' || ao.account_name 
+						when provider_1 is not null and provider_2 is null 
+							then 'Отсутствует поставщик на доме ' || hi.short_adress || ' для учета объема по услуге ' || us.name || ' по лс №' || ao.account_name
+					end as ask
+				from cte c
+					inner join house.info hi on hi.house_id = c.house_id
+					inner join utility.sublist us on us.id = c.sublist_2
+					inner join adress.owners ao on ao.account_id = c.account_id
+				where provider_1 is not null and (provider_2 is null or tarif_2 is null)
+				union all
+				select 
+					case 
+						when tarif_1 is not null and provider_3 is null and tarif_3 is null 
+							then 'Отсутствует поставщик и тариф на доме ' || hi.short_adress || ' для расчета услуги ' || us.name || ' по лс №' || ao.account_name
+						when tarif_1 is not null and tarif_3 is null 
+							then 'Отсутствует тариф на доме ' || hi.short_adress || ' для расчета услуги ' || us.name || ' по лс №' || ao.account_name 
+						when provider_1 is not null and provider_3 is null 
+							then 'Отсутствует поставщик на доме ' || hi.short_adress || ' для учета объема по услуге ' || us.name || ' по лс №' || ao.account_name
+					end as ask
+				from cte c
+					inner join house.info hi on hi.house_id = c.house_id
+					inner join utility.sublist us on us.id = c.tarif_3
+					inner join adress.owners ao on ao.account_id = c.account_id
+				where provider_1 is not null and (provider_3 is null or tarif_3 is null)
+				union all
+				select 
+					case 
+						when tarif_2 is not null and provider_1 is null and tarif_1 is null 
+							then 'Отсутствует поставщик и тариф на доме ' || hi.short_adress || ' для расчета услуги ' || us.name || ' по лс №' || ao.account_name
+						when tarif_2 is not null and tarif_1 is null 
+							then 'Отсутствует тариф на доме ' || hi.short_adress || ' для расчета услуги ' || us.name || ' по лс №' || ao.account_name 
+						when provider_2 is not null and provider_1 is null 
+							then 'Отсутствует поставщик на доме ' || hi.short_adress || ' для учета объема по услуге ' || us.name || ' по лс №' || ao.account_name
+					end as ask
+				from cte c
+					inner join house.info hi on hi.house_id = c.house_id
+					inner join utility.sublist us on us.id = c.sublist_2
+					inner join adress.owners ao on ao.account_id = c.account_id
+				where provider_1 is null and provider_2 is not null
+			)
+			select distinct 'wrn' as severity, ask
+			from cte2;
+		end;
+	end if;
+
+	drop table if exists __tarif_dt;
+	drop table if exists __house_dt;
+	drop table if exists __account_dt;
+	drop table if exists __account_open_dt;
+	drop table if exists __account_user_dt;
+	drop table if exists _house;
+
+end;
+"""
+  returnType = TABLE(severity character varying, ask text)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Евгений
+ Create date:	27.06.2024
+ Description:	Тест проверки наличия поставщика/тарифа для диапазонов электроэнергии при превышении инд.расхода второго/третьего диапазона
+ =============================================
+"""
+}
+

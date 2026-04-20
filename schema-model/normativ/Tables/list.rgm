@@ -1,0 +1,113 @@
+table "normativ"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list_6"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('normativ.list_id_seq'::regclass)
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "territory_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(600)
+    }
+    column "value" {
+      type = numeric(10,4)
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "document" {
+      type = character varying(200)
+    }
+    column "number" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "rate" {
+      type = numeric(5,2)
+    }
+    column "is_global" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "normativ"."list"."fk_list_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "normativ"."list"."fk_list_territory" {
+  columns = [
+    "territory_id"
+  ]
+  referencedTable = "adress"."territory"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "normativ"."list_idx_territory_id" {
+  table = "normativ"."list"
+  type = btree
+  columns = <
+    {
+      definition = territory_id
+    }
+
+    {
+      definition = sublist_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    value
+    rate
+    date_begin
+    date_end
+    number
+  ]
+}
+
+trigger "normativ"."list"."after_edit" {
+  timing = AFTER
+  events = [
+    UPDATE
+    INSERT
+  ]
+  level = STATEMENT
+  function = normativ.after_edit
+  functionArguments = [
+  ]
+  table = "normativ"."list"
+  constraint = False
+}
+

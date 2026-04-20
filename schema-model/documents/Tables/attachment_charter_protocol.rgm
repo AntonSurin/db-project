@@ -1,0 +1,48 @@
+table "documents"."attachment_charter_protocol" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_attachment_charter_protocol"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.attachment_charter_protocol_id_seq'::regclass)
+    }
+    column "charter_protocol_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "attachment_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "documents"."attachment_charter_protocol"."fk_doc_atach_chart_protcl_doc_atach_atach_id" {
+  columns = [
+    "attachment_id"
+  ]
+  referencedTable = "documents"."attachment"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "documents"."attachment_charter_protocol"."fk_doc_chart_protcl_chart_protcl_id" {
+  columns = [
+    "charter_protocol_id"
+  ]
+  referencedTable = "documents"."charter_protocol"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

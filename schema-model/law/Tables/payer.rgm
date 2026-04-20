@@ -1,0 +1,58 @@
+table "law"."payer" {
+  primaryKey = {
+    columns = [
+      "folder_id"
+    ]
+    name = "pk_payer_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "folder_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "surname" {
+      type = character varying(200)
+    }
+    column "name" {
+      type = character varying(200)
+    }
+    column "middlename" {
+      type = character varying(200)
+    }
+    column "series" {
+      type = character varying(10)
+    }
+    column "number" {
+      type = character varying(10)
+    }
+    column "is_by_name" {
+      type = text
+    }
+    column "date" {
+      type = date
+    }
+    column "adress" {
+      type = text
+    }
+    column "phone" {
+      type = character varying(50)
+    }
+    column "email" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "law"."payer"."fk_payer_folder" {
+  columns = [
+    "folder_id"
+  ]
+  referencedTable = "law"."folder"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

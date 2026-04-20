@@ -1,0 +1,31 @@
+table "benefit"."sublist_calc" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_norm_formula"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('benefit.sublist_calc_id_seq'::regclass)
+    }
+    column "benefit_id" {
+      type = integer
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type" {
+      type = integer
+    }
+    column "formula_id" {
+      type = integer
+    }
+  )
+}
+

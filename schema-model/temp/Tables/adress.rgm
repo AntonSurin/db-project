@@ -1,0 +1,18 @@
+table "temp"."adress" {
+  owner = postgres
+  columns = (
+    column "cod_h" {
+      type = character varying(10)
+      null = NOT NULL
+    }
+    column "cod_f" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+

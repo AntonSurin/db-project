@@ -1,0 +1,359 @@
+view "adress"."info" {
+  text = """-
+SELECT aa.id AS account_id,
+    af.id AS flat_id,
+    ah.id AS house_id,
+    afb.id AS flat_book_id,
+    aa.name AS account_name,
+    aa.old_name AS old_account_name,
+    afb.short_name AS flat_book_short_name,
+    afb.name AS flat_book_name,
+    af.name AS flat_name,
+    ah.inner_city_district_id,
+    (((((((((((ap.short_name)::text || ' '::text) || (COALESCE(ast.name, ''::character varying))::text) || ', '::text) ||
+        CASE
+            WHEN (ah.inner_city_district_id = 0) THEN ''::text
+            ELSE ((acd.name)::text || ', '::text)
+        END) || (COALESCE(asb.short_name, ''::character varying))::text) || ' '::text) || (COALESCE(astr.name, ''::character varying))::text) ||
+        CASE
+            WHEN ((COALESCE(aht.short_name, ''::character varying))::text = ''::text) THEN ''::text
+            ELSE ((', '::text || (COALESCE(aht.short_name, ''::character varying))::text) || ' '::text)
+        END) || (
+        CASE
+            WHEN ((COALESCE(ah.number, ''::character varying))::text = ''::text) THEN ''::character varying
+            ELSE ah.number
+        END)::text) ||
+        CASE
+            WHEN ((COALESCE(ah.korpus, ''::character varying))::text <> ''::text) THEN (((', '::text || (COALESCE(ahk.short_name, ''::character varying))::text) || ' '::text) || (ah.korpus)::text)
+            ELSE ''::text
+        END) AS short_name,
+    (((((((((((((((ap.short_name)::text || ' '::text) || (COALESCE(ast.name, ''::character varying))::text) || ', '::text) ||
+        CASE
+            WHEN (ah.inner_city_district_id = 0) THEN ''::text
+            ELSE ((acd.name)::text || ', '::text)
+        END) || (COALESCE(asb.short_name, ''::character varying))::text) || ' '::text) || (COALESCE(astr.name, ''::character varying))::text) ||
+        CASE
+            WHEN ((COALESCE(aht.short_name, ''::character varying))::text = ''::text) THEN ''::text
+            ELSE (', '::text || (aht.short_name)::text)
+        END) || (
+        CASE
+            WHEN ((COALESCE(ah.number, ''::character varying))::text = ''::text) THEN ''::character varying
+            ELSE ah.number
+        END)::text) ||
+        CASE
+            WHEN ((COALESCE(ah.korpus, ''::character varying))::text <> ''::text) THEN (((', '::text || (COALESCE(ahk.short_name, ''::character varying))::text) || ' '::text) || (ah.korpus)::text)
+            ELSE ''::text
+        END) || ', '::text) || (afb.short_name)::text) || ' '::text) || (af.name)::text) AS short_name_flat,
+    ah.territory_id,
+    (((((((((((ap.name)::text || ' '::text) || (ast.name)::text) || ', '::text) ||
+        CASE
+            WHEN (ah.inner_city_district_id = 0) THEN ''::text
+            ELSE ((acd.name)::text || ', '::text)
+        END) || (asb.name)::text) || ' '::text) || (astr.name)::text) ||
+        CASE
+            WHEN ((COALESCE(aht.short_name, ''::character varying))::text = ''::text) THEN ''::text
+            ELSE (', '::text || (aht.short_name)::text)
+        END) || (
+        CASE
+            WHEN ((COALESCE(ah.number, ''::character varying))::text = ''::text) THEN ''::character varying
+            ELSE ah.number
+        END)::text) ||
+        CASE
+            WHEN ((COALESCE(ah.korpus, ''::character varying))::text <> ''::text) THEN (((', '::text || (COALESCE(ahk.name, ''::character varying))::text) || ' '::text) || (ah.korpus)::text)
+            ELSE ''::text
+        END) AS full_name,
+    ((((((((((((ap.name)::text || ' '::text) || (ast.name)::text) || ', '::text) ||
+        CASE
+            WHEN (ah.inner_city_district_id = 0) THEN ''::text
+            ELSE ((acd.name)::text || ', '::text)
+        END) || (asb.name)::text) || ' '::text) || (astr.name)::text) ||
+        CASE
+            WHEN ((COALESCE(aht.short_name, ''::character varying))::text = ''::text) THEN ''::text
+            ELSE (', '::text || (aht.short_name)::text)
+        END) || (
+        CASE
+            WHEN ((COALESCE(ah.number, ''::character varying))::text = ''::text) THEN ''::character varying
+            ELSE ah.number
+        END)::text) ||
+        CASE
+            WHEN ((COALESCE(ah.korpus, ''::character varying))::text <> ''::text) THEN (((', '::text || (COALESCE(ahk.name, ''::character varying))::text) || ' '::text) || (ah.korpus)::text)
+            ELSE ''::text
+        END) ||
+        CASE
+            WHEN ((ltrim(rtrim((afb.short_name)::text)) <> ''::text) AND (ltrim(rtrim((af.name)::text)) <> ''::text)) THEN (((', '::text || (afb.short_name)::text) || ' '::text) || (af.name)::text)
+            ELSE ''::text
+        END) AS full_name_flat,
+    aa.password_site,
+    (((ap.short_name)::text || ' '::text) || (ast.name)::text) AS city,
+    ah.index,
+    (
+        CASE
+            WHEN (ah.inner_city_district_id = 0) THEN ''::text
+            ELSE ((acd.name)::text || ', '::text)
+        END || (((((((COALESCE(asb.short_name, ''::character varying))::text || ' '::text) || (COALESCE(astr.name, ''::character varying))::text) ||
+        CASE
+            WHEN ((COALESCE(aht.short_name, ''::character varying))::text = ''::text) THEN ''::text
+            ELSE ((', '::text || (aht.short_name)::text) || ' '::text)
+        END) || (
+        CASE
+            WHEN ((COALESCE(ah.number, ''::character varying))::text = ''::text) THEN ''::character varying
+            ELSE ah.number
+        END)::text) ||
+        CASE
+            WHEN ((COALESCE(ah.korpus, ''::character varying))::text <> ''::text) THEN (((', '::text || (COALESCE(ahk.short_name, ''::character varying))::text) || ' '::text) || (ah.korpus)::text)
+            ELSE ''::text
+        END) ||
+        CASE
+            WHEN ((ltrim(rtrim((afb.short_name)::text)) <> ''::text) AND (ltrim(rtrim((af.name)::text)) <> ''::text)) THEN (((', '::text || (afb.short_name)::text) || ' '::text) || (af.name)::text)
+            ELSE ''::text
+        END)) AS short_name_adress,
+    (((COALESCE(asb.short_name, ''::character varying))::text || ' '::text) || (COALESCE(astr.name, ''::character varying))::text) AS street_name,
+    (((((COALESCE(aht.short_name, ''::character varying))::text || ' '::text) || (COALESCE(ah.number, ''::character varying))::text) ||
+        CASE
+            WHEN ((COALESCE(ah.korpus, ''::character varying))::text <> ''::text) THEN (((', '::text || (COALESCE(ahk.short_name, ''::character varying))::text) || ' '::text) || (ah.korpus)::text)
+            ELSE ''::text
+        END) ||
+        CASE
+            WHEN ((ltrim(rtrim((afb.short_name)::text)) <> ''::text) AND (ltrim(rtrim((af.name)::text)) <> ''::text)) THEN (((', '::text || (afb.short_name)::text) || ' '::text) || (af.name)::text)
+            ELSE ''::text
+        END) AS house_flat_name,
+    oc.bank_name,
+    oc.bank_adress,
+    oc.bik,
+    oc.ks,
+    oc.rs,
+    oc.id AS counting_id,
+    ah.work_id,
+    ah.work_counting_id,
+    ah.organization_id,
+    ad.name AS district_name,
+    ah.order_id,
+    aa.order_id AS account_order_id,
+    af.order_id AS flat_order_id,
+    aa.parent_id AS account_parent_id
+   FROM ((((((((((((adress.account aa
+     JOIN adress.flat af ON ((af.id = aa.flat_id)))
+     JOIN adress.flat_book afb ON ((afb.id = af.flat_book_id)))
+     JOIN adress.house ah ON ((af.house_id = ah.id)))
+     JOIN adress.house_type aht ON ((aht.id = ah.house_type_id)))
+     JOIN adress.street astr ON ((astr.id = ah.street_id)))
+     JOIN adress.street_book asb ON ((asb.id = astr.street_book_id)))
+     JOIN adress.settlement ast ON ((ast.id = astr.settlement_id)))
+     JOIN adress.settlement_type ap ON ((ap.id = ast.type_id)))
+     JOIN adress.district ad ON ((ad.id = ast.district_id)))
+     JOIN adress.house_kind ahk ON ((ahk.id = ah.house_kind_id)))
+     JOIN organization.counting oc ON ((oc.id = ah.work_counting_id)))
+     JOIN adress.inner_city_district acd ON ((acd.id = ah.inner_city_district_id)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "account_id" {
+      type = integer
+    }
+    column "flat_id" {
+      type = integer
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "flat_book_id" {
+      type = smallint
+    }
+    column "account_name" {
+      type = character varying(12)
+    }
+    column "old_account_name" {
+      type = character varying(20)
+    }
+    column "flat_book_short_name" {
+      type = character varying(10)
+    }
+    column "flat_book_name" {
+      type = character varying(20)
+    }
+    column "flat_name" {
+      type = character varying(30)
+    }
+    column "inner_city_district_id" {
+      type = integer
+    }
+    column "short_name" {
+      type = text
+    }
+    column "short_name_flat" {
+      type = text
+    }
+    column "territory_id" {
+      type = integer
+    }
+    column "full_name" {
+      type = text
+    }
+    column "full_name_flat" {
+      type = text
+    }
+    column "password_site" {
+      type = integer
+    }
+    column "city" {
+      type = text
+    }
+    column "index" {
+      type = character varying(6)
+    }
+    column "short_name_adress" {
+      type = text
+    }
+    column "street_name" {
+      type = text
+    }
+    column "house_flat_name" {
+      type = text
+    }
+    column "bank_name" {
+      type = character varying(100)
+    }
+    column "bank_adress" {
+      type = character varying(50)
+    }
+    column "bik" {
+      type = character varying(9)
+    }
+    column "ks" {
+      type = character varying(20)
+    }
+    column "rs" {
+      type = character varying(20)
+    }
+    column "counting_id" {
+      type = integer
+    }
+    column "work_id" {
+      type = integer
+    }
+    column "work_counting_id" {
+      type = integer
+    }
+    column "organization_id" {
+      type = integer
+    }
+    column "district_name" {
+      type = character varying(255)
+    }
+    column "order_id" {
+      type = integer
+    }
+    column "account_order_id" {
+      type = smallint
+    }
+    column "flat_order_id" {
+      type = smallint
+    }
+    column "account_parent_id" {
+      type = integer
+    }
+  )
+}
+
+index "adress"."clx" {
+  view = "adress"."info"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = True
+}
+
+index "adress"."idx_account_house_id" {
+  view = "adress"."info"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+  ]
+}
+
+index "adress"."idx_account_id_invoice" {
+  view = "adress"."info"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = True
+  includeColumns = [
+    account_name
+    flat_name
+    short_name
+    short_name_flat
+    password_site
+    organization_id
+    bank_name
+    bank_adress
+    bik
+    ks
+    rs
+    work_id
+    work_counting_id
+    short_name_adress
+  ]
+}
+
+index "adress"."idx_account_parent_id" {
+  view = "adress"."info"
+  type = btree
+  columns = <
+    {
+      definition = account_parent_id
+    }
+
+  >
+  isUnique = True
+}
+
+index "adress"."idx_house_id_adresses" {
+  view = "adress"."info"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    flat_id
+    account_name
+    flat_book_name
+    flat_name
+  ]
+}
+
+index "adress"."idx_org_id_account_id" {
+  view = "adress"."info"
+  type = btree
+  columns = <
+    {
+      definition = organization_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+  ]
+}
+

@@ -1,0 +1,9 @@
+composite "special"."objects" {
+  owner = postgres
+  fields = (
+    field "object_id" {
+      type = integer
+    }
+  )
+}
+

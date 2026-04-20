@@ -1,0 +1,124 @@
+function "report"."account_gku(integer, integer)" {
+  text = """
+
+declare 
+	_date_begin date;
+	_date_end 	date;
+begin
+		
+	select pl.date_begin, pl.date_end
+	into _date_begin, _date_end
+	from "period".list pl 
+	where pl.id = _period_id;
+	
+	return query
+	with cte as	
+	(
+		select 
+			 us.id as sublist_id
+			,cl.period_id
+			,cl.house_id
+			,case 
+				when us.id = 20 then 1
+				when us.id = 21 then 2
+				when us.id = 38 then 3
+				when us.id = 22 then 4
+				when us.id = 24 then 5
+				when us.id = 23 then 6
+				when us.id = 25 then 7
+				when us.id = 26 then 8
+				when us.id = 27 then 9
+				when us.id = 58 then 10
+			end as sort
+			,case 
+				when us.id = 20 then 'Содержание жилья'
+				when us.id = 21 then 'Ремонт жилья'
+				when us.id = 38 then 'Отопление'
+				when us.id = 22 then 'Холодная вода'
+				when us.id = 24 then 'Горячая вода'
+				when us.id = 23 then 'Канализация'
+				when us.id = 25 then 'Вывоз отходов'
+				when us.id = 26 then 'Лифт'
+				when us.id = 27 then 'Электроэнергия'
+				when us.id = 58 then 'Газ'
+			end as sublist_name
+			,case 
+				when us.id = 20 then '1 кв.м.'
+				when us.id = 21 then '1 кв.м.'
+				when us.id = 38 then '1 кв.м.'
+				when us.id = 22 then '1 куб'
+				when us.id = 24 then '1 куб'
+				when us.id = 23 then '1 куб'
+				when us.id = 25 then '1 чел.'
+				when us.id = 26 then '1 чел'
+				when us.id = 27 then 'кВт'
+				when us.id = 58 then '1 куб.м.(кг.)'
+			end as sublist_unit
+			,case when us.id in (22, 24, 23, 27, 58) then sum(cl.volume) else null end as volume_value
+		from utility.sublist us
+			left join payment.balance cl on cl.sublist_id = us.id
+				and cl.account_parent_id = _account_id  
+				and cl.period_id between (_period_id - case when _period_id <= 12 then _period_id - _period_id + 1 else 12 end) and _period_id 
+		group by us.id, cl.period_id,house_id, cl.account_parent_id
+	)
+	
+	select 
+		 c.sort
+		,c.sublist_id
+		,c.sublist_name
+		,c.sublist_unit
+		,case 
+			when exists (select 1 from utility.sublist_provider usp where usp.sublist_id = c.sublist_id and usp.house_id = c.house_id and (usp.date_end is null or usp.date_end between _date_begin and _date_end)) 
+			then
+				case when avg(volume_value)::numeric(10,2) <> 0.0 then  avg(volume_value)::numeric(10,2) else null end
+			end as flow
+		,(
+			select max(case when pb.tarif = 0.0 then null else pb.tarif end) 
+			from payment.balance pb 
+			where pb.account_parent_id = _account_id 
+				and pb.tarif is not null 
+				and pb.sublist_id = c.sublist_id 
+				and pb.period_id = _period_id 
+			group by pb.account_parent_id, pb.sublist_id, pb.period_id
+		 ) as tarif
+		,(
+			select max(case when pbb.normativ = 0.0 then null else pbb.normativ  end)  
+			from payment.balance pbb 
+			where pbb.account_parent_id = _account_id 
+				and pbb.normativ is not null 
+				and pbb.sublist_id = c.sublist_id 
+				and pbb.period_id = _period_id 
+			group by pbb.account_parent_id, pbb.sublist_id, pbb.period_id
+		 ) as normativ
+	from cte c
+	where c.sort is not null 
+	group by c.sort, c.sublist_id, c.sublist_name, c.sublist_unit, c.house_id;
+
+end;
+"""
+  returnType = TABLE(sort integer, sublist_id integer, sublist_name text, sublist_unit text, flow numeric, tarif numeric, normativ numeric)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 20.11.2014
+ Description:	Таблица для справки о составе жилищно-коммнальных услуг
+ =============================================
+"""
+}
+

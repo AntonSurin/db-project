@@ -1,0 +1,36 @@
+table "gis"."count_objects" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_count_objects"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.count_objects_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "count_accounts" {
+      type = integer
+      null = NOT NULL
+      default = 0
+    }
+    column "count_payment_documents" {
+      type = integer
+      null = NOT NULL
+      default = 0
+    }
+  )
+}
+

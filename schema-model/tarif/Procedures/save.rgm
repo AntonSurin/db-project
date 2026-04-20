@@ -1,0 +1,195 @@
+procedure "tarif"."save(integer, character varying, integer, numeric, jsonb, date, boolean, boolean, date, boolean)" {
+  text = """
+
+declare 
+		_old_value		numeric(10,2);
+		_provider_id	int;
+		_sublist_id		int;
+		_document		varchar(200);
+		_is_global		bool;
+		_period_begin	date;
+		_tarif_id_2 	int; 
+		_name_2 		varchar(100);
+begin
+
+	_period_begin = (select pl.date_begin from "period".list pl where pl.is_working = true);
+	_old_value = (select tl.value from tarif.list tl where tl.id = _tarif_id);
+	_tarif_id_2 =(
+					select ti.id
+					from tarif.list tl 
+						inner join tarif.house_tarif th on tl.id = th.tarif_id and coalesce(th.date_end,_period_begin) >= _period_begin
+						inner join tarif.list ti on ti.sublist_id = tl.sublist_id+10 and coalesce(tl.document,'') = coalesce(ti.document,'') and coalesce(tl.is_global,false) = coalesce(ti.is_global,false) and tl.provider_id = ti.provider_id and tl.territory_id = ti.territory_id and tl.value = ti.value
+						inner join tarif.house_tarif tt on ti.id = tt.tarif_id and coalesce(tt.date_end,_period_begin) >= _period_begin
+					where tl.id = _tarif_id and tl.sublist_id in (22,24,27) and th.date_begin = tt.date_begin and th.number = tt.number
+					limit 1
+				  );
+
+	_name_2 = _name || ' (превыш. платы)';
+
+	if (_old_value != _value)
+		then
+			begin
+				if ((select count(*) from tarif.house_tarif where tarif_id = _tarif_id) = (select count(*) from jsonb_populate_recordset(null::house.list, _house)))
+					then
+						begin
+							update tarif.list 
+							set name = _name,
+								value = _value
+							where id = _tarif_id;
+				
+							update tarif.house_tarif 
+							set date_begin = case when _is_update_date_begin = true then _date_begin else date_begin end,
+								date_end = case when _is_update_date_end = true then _date_end else date_end end
+							where tarif_id = _tarif_id;
+				
+							update tarif.list 
+							set name = _name_2,
+								value = _value
+							where id = _tarif_id_2;
+		
+							update tarif.house_tarif 
+							set date_begin = case when _is_update_date_begin = true then _date_begin else date_begin end,
+								date_end = case when _is_update_date_end = true then _date_end else date_end end
+							where tarif_id = _tarif_id_2;
+						end; 
+					else
+						begin
+							select provider_id, sublist_id, "document"
+							into _provider_id, _sublist_id, _document
+							from tarif.list
+							where id = _tarif_id;
+				
+							update tarif.house_tarif th
+							set date_end = (_period_begin - 1)
+							from jsonb_populate_recordset(null::house.list, _house) h
+							where h.house_id = th.house_id and th.tarif_id = _tarif_id and th.date_end is null;
+				
+							delete 
+							from tarif.house_tarif th
+							using jsonb_populate_recordset(null::house.list, _house) h
+							where h.house_id = th.house_id and th.tarif_id = _tarif_id and th.date_end < th.date_begin;
+				
+							update tarif.house_tarif th 
+							set date_end = (_period_begin - 1)
+							from jsonb_populate_recordset(null::house.list, _house) h
+							where h.house_id = th.house_id and th.tarif_id = _tarif_id_2 and th.date_end is null;
+				
+							delete
+							from tarif.house_tarif th
+							using jsonb_populate_recordset(null::house.list, _house) h
+							where h.house_id = th.house_id and th.tarif_id = _tarif_id_2 and th.date_end < th.date_begin;
+				
+							call tarif."insert" (_sublist_id, _provider_id, _house, _value, _date_begin, _document, _name, false, _date_end);
+						end;
+					end if;
+			end; 
+		else 
+			begin
+				update tarif.list 
+				set name = _name
+				where id = _tarif_id;
+		
+				update tarif.house_tarif th 
+				set date_begin = case when _is_update_date_begin = true then _date_begin else date_begin end,
+					date_end = case when _is_update_date_end = true then _date_end else date_end end,
+					"number" = case when _is_update_number = true then _number else th.number end
+				from jsonb_populate_recordset(null::house.list, _house) h
+				where h.house_id = th.house_id
+					and tarif_id = _tarif_id 
+					and th.date_begin = (select max(date_begin) from tarif.house_tarif t where t.house_id = th.house_id and t.tarif_id = th.tarif_id);
+		
+				update tarif.list 
+				set name = _name_2
+				where id = _tarif_id_2;
+		
+				update tarif.house_tarif th 
+				set date_begin = case when _is_update_date_begin = true then _date_begin else date_begin end,
+					date_end = case when _is_update_date_end = true then _date_end else date_end end,
+					number = case when _is_update_number = true then _number else th.number end
+				from jsonb_populate_recordset(null::house.list, _house) h
+				where h.house_id = th.house_id
+					and tarif_id = _tarif_id_2 
+					and th.date_begin = (select max(date_begin) from tarif.house_tarif t where t.house_id = th.house_id and t.tarif_id = th.tarif_id);
+			end;
+	end if;
+
+end;
+"""
+  arguments = <
+    {
+      name = _tarif_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _name
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _number
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _value
+      type = numeric
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _date_begin
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _is_update_date_begin
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _is_update_date_end
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _date_end
+      type = date
+      mode = IN
+      default = NULL::date
+    }
+
+    {
+      name = _is_update_number
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 29.07.2014
+ Description:	Изменение тарифов
+ Modify Author: Юркин Е.Ю.
+ Modify date: 16.04.2024
+ Modify description: Автоматическое изменение тарифов превышения платы
+ =============================================
+"""
+}
+

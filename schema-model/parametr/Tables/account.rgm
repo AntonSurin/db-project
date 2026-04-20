@@ -1,0 +1,210 @@
+table "parametr"."account" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_p_account"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('parametr.account_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "parametr_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "value" {
+      type = character varying(200)
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+foreignKey "parametr"."account"."fk_p_account_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+foreignKey "parametr"."account"."fk_p_account_pl_account" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."pl_account"
+  referencedColumns = [
+    "parametr_id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+index "parametr"."account_idx_account_parametr" {
+  table = "parametr"."account"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = parametr_id
+    }
+
+    {
+      definition = date_begin
+      sortOrder = DESC
+    }
+
+    {
+      definition = date_end
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    value
+  ]
+}
+
+index "parametr"."account_idx_date_end" {
+  table = "parametr"."account"
+  type = btree
+  columns = <
+    {
+      definition = date_end
+    }
+
+    {
+      definition = parametr_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    value
+    date_begin
+  ]
+}
+
+index "parametr"."account_idx_parametr_id" {
+  table = "parametr"."account"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    value
+    date_begin
+    date_end
+  ]
+}
+
+index "parametr"."account_idx_parametr_id_account_id_value_db" {
+  table = "parametr"."account"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+    {
+      definition = date_begin
+      sortOrder = DESC
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    value
+  ]
+}
+
+index "parametr"."account_idx_parametr_id_value" {
+  table = "parametr"."account"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+    {
+      definition = value
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    date_begin
+  ]
+}
+
+trigger "parametr"."account"."delete_account_parametr_transporate" {
+  timing = AFTER
+  events = [
+    DELETE
+  ]
+  level = STATEMENT
+  function = parametr.delete_account_parametr_transporate
+  functionArguments = [
+  ]
+  table = "parametr"."account"
+  constraint = False
+  oldTableReference = deleted
+}
+
+trigger "parametr"."account"."insert_account_parametr_transporate" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = parametr.update_account_parametr_transporate
+  functionArguments = [
+  ]
+  table = "parametr"."account"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "parametr"."account"."update_account_parametr_transporate" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = parametr.update_account_parametr_transporate
+  functionArguments = [
+  ]
+  table = "parametr"."account"
+  constraint = False
+  newTableReference = inserted
+}
+

@@ -1,0 +1,43 @@
+table "counter"."authorization" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_counter_authorization"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('counter.authorization_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+    }
+    column "url" {
+      type = character varying(50)
+    }
+    column "login" {
+      type = character varying(50)
+    }
+    column "password" {
+      type = character varying(50)
+    }
+    column "automated_system" {
+      type = smallint
+    }
+  )
+}
+
+foreignKey "counter"."authorization"."fk_counter_authorization_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+}
+

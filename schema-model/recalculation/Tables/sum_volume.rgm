@@ -1,0 +1,68 @@
+table "recalculation"."sum_volume" {
+  primaryKey = {
+    columns = [
+      "root_id"
+      "account_id"
+      "period_id"
+      "date_begin"
+    ]
+    name = "pk_re_calculation_sum_volume"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "root_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+      null = NOT NULL
+    }
+    column "sumxv" {
+      type = numeric(15,5)
+    }
+    column "sumgv" {
+      type = numeric(15,5)
+    }
+    column "sumot" {
+      type = numeric(15,5)
+    }
+    column "sumel" {
+      type = numeric(15,5)
+    }
+    column "sumelday" {
+      type = numeric(15,5)
+    }
+    column "sumelnight" {
+      type = numeric(15,5)
+    }
+    column "sumgkal" {
+      type = numeric(15,5)
+    }
+    column "sumgaz" {
+      type = numeric(15,5)
+    }
+  )
+}
+

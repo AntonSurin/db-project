@@ -1,0 +1,46 @@
+table "gis"."account_individual_service" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_account_individual_service"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.account_individual_service_id_seq'::regclass)
+    }
+    column "account_individual_service_guid" {
+      type = uuid
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+      null = NOT NULL
+    }
+    column "file_upload_id" {
+      type = uuid
+    }
+    column "file_name" {
+      type = character varying(256)
+    }
+    column "file_hash" {
+      type = character varying(100)
+    }
+  )
+}
+

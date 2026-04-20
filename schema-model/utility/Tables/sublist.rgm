@@ -1,0 +1,241 @@
+table "utility"."sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sub_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.sublist_id_seq'::regclass)
+    }
+    column "list_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "gis_guid" {
+      type = uuid
+    }
+    column "code" {
+      type = character varying(20)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "short_name" {
+      type = character varying(20)
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "is_counter" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "unit_id" {
+      type = integer
+    }
+    column "is_odn" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "number" {
+      type = integer
+    }
+    column "type" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "is_day" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_kp" {
+      type = boolean
+    }
+    column "service_guid" {
+      type = uuid
+      null = NOT NULL
+      default = gen_random_uuid()
+    }
+    column "is_on" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+    column "gis_type" {
+      type = smallint
+    }
+    column "vat_type" {
+      type = integer
+    }
+    column "agent_type" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "parent_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "utility"."sublist"."fk_sub_list_list" {
+  columns = [
+    "list_id"
+  ]
+  referencedTable = "utility"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+
+foreignKey "utility"."sublist"."fk_sub_list_unit" {
+  columns = [
+    "unit_id"
+  ]
+  referencedTable = "utility"."unit"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "utility"."sublist"."fk_sublist_sublist" {
+  columns = [
+    "parent_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "utility"."sublist_ix_short_name" {
+  table = "utility"."sublist"
+  type = btree
+  columns = <
+    {
+      definition = short_name
+    }
+
+  >
+  isUnique = True
+}
+
+index "utility"."sublist_ix_sub_list_list_id" {
+  table = "utility"."sublist"
+  type = btree
+  columns = <
+    {
+      definition = list_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "utility"."sublist_ix_sub_list_unit_id" {
+  table = "utility"."sublist"
+  type = btree
+  columns = <
+    {
+      definition = unit_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "utility"."sublist_ix_type" {
+  table = "utility"."sublist"
+  type = btree
+  columns = <
+    {
+      definition = type
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    name
+    unit_id
+    number
+  ]
+}
+
+index "utility"."sublist_non_clustered_index_20150603_121746" {
+  table = "utility"."sublist"
+  type = btree
+  columns = <
+    {
+      definition = short_name
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    is_counter
+    is_odn
+    type
+  ]
+}
+
+trigger "utility"."sublist"."del_util" {
+  timing = BEFORE
+  events = [
+    DELETE
+  ]
+  level = ROW
+  function = utility.del_util
+  functionArguments = [
+  ]
+  table = "utility"."sublist"
+  constraint = False
+}
+
+trigger "utility"."sublist"."insert_utility" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = ROW
+  function = utility.change_insert
+  functionArguments = [
+  ]
+  table = "utility"."sublist"
+  constraint = False
+}
+
+trigger "utility"."sublist"."update_utility" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = ROW
+  function = utility.change_update
+  functionArguments = [
+  ]
+  table = "utility"."sublist"
+  constraint = False
+}
+

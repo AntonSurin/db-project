@@ -1,0 +1,73 @@
+table "payment"."document_unclosed_detail" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__document__3214ec272725e601"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.document_unclosed_detail_id_seq'::regclass)
+    }
+    column "payment_document_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "payment"."document_unclosed_detail"."fk_document_unclosed_detail_adress_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."document_unclosed_detail"."fk_document_unclosed_detail_payment_document" {
+  columns = [
+    "payment_document_id"
+  ]
+  referencedTable = "payment"."document"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "payment"."document_unclosed_detail_pay_doc_unclos_detail_pay_doc_id" {
+  table = "payment"."document_unclosed_detail"
+  type = btree
+  columns = <
+    {
+      definition = payment_document_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    sublist_id
+    sum
+    account_id
+  ]
+}
+

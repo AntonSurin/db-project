@@ -1,0 +1,354 @@
+procedure "house"."split_by_accounts(jsonb, integer, integer)" {
+  text = """
+
+declare 
+	_sql1 				text = '';
+	_sql4 				text = '';
+	_string_account_id 	text;
+	_sql_update_pt 		text;
+	_columns 			text; 
+	_houses1 			jsonb;
+	_error_number 		text;
+	_error_table 		text;
+	_error_line 		text;
+	_error_message 		text;
+begin
+	
+	if _house_id is null
+		then
+			_house_id = _old_house_id;
+	end if;
+
+	if not exists(select a.account_id from jsonb_populate_recordset(null::account.new_flat, _accounts) as a) 
+		then 
+		raise exception 'Получен пустой список' using errcode = '51000';  
+	end if;
+
+	if exists (select *
+				from house.account ha
+					inner join jsonb_populate_recordset(null::account.new_flat, _accounts) a on a.account_id = ha.account_id
+				where ha.account_guid is not null and ha.unique_number is not null)
+		then 
+			raise exception 'Лицевые счета выгружены в ГИС-ЖКХ' using errcode='51000';  
+	end if;
+
+	if exists (select 1 from jsonb_populate_recordset(null::account.new_flat,_accounts) a
+					inner join jsonb_populate_recordset(null::account.new_flat,_accounts) a2 on a.new_flat_book_id = a2.new_flat_book_id and a.new_flat_number = a2.new_flat_number
+				where a.old_flat_id <> a2.old_flat_id)
+		then			
+			raise exception 'Попытка переместить несколько л/с из разных помещений в одно помещение' using errcode='51000';
+	end if;
+
+	begin
+		--создаем копию квартиры в старом доме
+		-- =============================================
+
+		alter table adress.flat 
+			disable trigger new_account_ap;
+		
+		create temp table _target_flat (id int, old_id int, account_id int, is_new_flat bool);
+
+		with cte as 
+		(	
+			insert into adress.flat as target (house_id, flat_book_id, "name") 
+			select _house_id, new_flat_book_id, new_flat_number
+			from jsonb_populate_recordset(null::account.new_flat, _accounts) as ins
+			where not exists (select * from adress.flat af where af.house_id = _house_id and af.flat_book_id = ins.new_flat_book_id and af."name" = ins.new_flat_number)
+			group by ins.new_flat_book_id, ins.new_flat_number
+			returning id, flat_book_id, "name" 
+		)
+	
+		insert into _target_flat (id, old_id, account_id, is_new_flat)
+		select distinct ct.id, a.old_flat_id, a.account_id, true
+		from cte ct
+			inner join jsonb_populate_recordset(null::account.new_flat, _accounts) as a on a.new_flat_book_id = ct.flat_book_id and a.new_flat_number = ct."name";
+
+		--добавляем уже существующие в доме назначения квариты
+		insert into _target_flat (id, old_id, account_id, is_new_flat)
+		select af.id, aa.old_flat_id, aa.account_id, false 
+		from adress.flat af
+			inner join jsonb_populate_recordset(null::account.new_flat, _accounts) aa on af.house_id = _house_id and aa.new_flat_book_id = af.flat_book_id and aa.new_flat_number = af."name";
+
+		--добавляем дочерний (зависивый) л/с
+		insert into _target_flat (id, old_id, account_id, is_new_flat)
+		select nf.id, nf.old_id, aa.id, is_new_flat 
+		from _target_flat nf
+			inner join adress.account aa on aa.parent_id = nf.account_id;
+
+		alter table adress.flat 
+			enable trigger new_account_ap;
+		
+		delete  
+		from adress.flat af
+		where id in (select af.id
+					from adress.flat af
+						left join adress.account aa on aa.flat_id = af.id
+					where af.id in (select old_id from _target_flat) and aa.id is null);
+
+--		--перепривязываем лс на новую квартиру
+--		-- =============================================
+		if not exists(select * from  _target_flat) 
+			then
+			raise exception 'Не создано ни одной квартиры' using errcode='51000';  
+		end if;
+	
+		update adress.account aa
+			set 
+				flat_id = nf.id,
+				house_id = _house_id 
+		from _target_flat nf
+		where flat_id = nf.old_id and aa.id = nf.account_id;
+
+		drop table if exists _schema_tables;
+
+		create temp table _schema_tables (full_table_name text, columns_name text, have_house_id int2, have_account_id int2);
+		--поиск таблиц, по которым необходимо обновить/продублировать строки по flat_id 
+		insert into _schema_tables
+		select distinct 
+			'"' || a.table_schema || '"."' || a.table_name || '"' as full_table_name,
+			 (
+			 	select string_agg(case 
+									when (b.column_name ilike '%house_id%') 
+									then null
+									else cast(b.column_name as text) 
+								end, ', ') 
+				from information_schema.columns as b 
+				where a.table_schema = b.table_schema
+					and a.table_name = b.table_name
+					and lower(b.column_name) <> 'id'
+					and lower(b.column_name) <> 'flat_id'
+			) as columns_name,
+			(
+				case when exists(
+									select 1
+									from information_schema.columns as b 
+									where a.table_schema = b.table_schema
+										and a.table_name = b.table_name
+										and lower(b.column_name) = 'house_id'
+								) then 1 else 0 end
+			) as have_house_id,
+			(
+				case when exists(
+									select 1
+									from information_schema.columns as b 
+									where a.table_schema = b.table_schema
+										and a.table_name = b.table_name
+										and lower(b.column_name) = 'account_id'
+								) then 1 else 0 end
+			) as have_account_id
+		from information_schema.columns as a
+				inner join information_schema.tables as c on a.table_schema = c.table_schema 
+															and a.table_name = c.table_name 
+															and lower(c.table_type) = 'base table'
+				left join information_schema.tables as d on a.table_schema = d.table_schema 
+															and a.table_name = d.table_name 
+															and lower(d.table_name) = 'account' 
+															and lower(d.table_schema) = 'adress'
+		where a.table_schema not ilike 'pg_temp%' 
+				and lower(a.table_schema) <> 'counter' 
+				and lower(a.column_name) = 'flat_id'
+				and d.table_name is null
+		group by  a.table_schema, a.table_name;
+		
+		--дублируемвсе строки старой квартиры и привязывем их на новую квартиру
+		_sql1 = (
+					select string_agg('insert into ' || full_table_name || '
+						(' || columns_name || ', flat_id' || case when(have_house_id = 1) then ', house_id' else '' end || ' )
+						 select ' || columns_name || ', ' || id 
+						|| case when(have_house_id = 1) then ', ' || _house_id else '' end
+						||' from ' || full_table_name || ' where flat_id = ' || old_id || '; 
+						 ', '')
+					from (
+							select id, old_id 
+							from _target_flat 
+							where is_new_flat = true 
+							group by id, old_id
+						) as flats
+						join _schema_tables on 1 = 1
+					where have_account_id = 0
+				);
+
+		--обновляем строки старой квартиры и привязывем их на квартиру назначения(старую или новую созданную)
+		_sql1 = (
+					select string_agg('update ' || full_table_name || '
+					set flat_id = ' || id 
+					|| case when(have_house_id = 1 and _house_id <> _old_house_id) then ' , house_id = ' || _house_id else '' end
+					||' where flat_id = ' || old_id || ' and account_id = ' || account_id || ';
+					', '')
+					from _target_flat
+					join _schema_tables on 1 = 1
+					where have_account_id = 1
+				);
+	
+		execute (_sql1);
+
+		drop table if exists _schema_tables;
+
+		if(_house_id <> _old_house_id)
+			then
+				begin				
+					drop table if exists _name_tables;
+					create temp table _name_tables (full_table_name text);			
+					--обновляем house_id по account_id
+					-- =============================================
+					insert into _name_tables
+					select distinct 
+							'"' || a.table_schema || '"."' || a.table_name || '"' as full_table_name
+					from information_schema."columns" as a
+						inner join (
+										select table_name, table_schema 
+										from information_schema.columns 
+										where lower(column_name) = 'account_id'
+									) as b on a.table_schema = b.table_schema 
+											and a.table_name = b.table_name
+						inner join information_schema.tables as c on a.table_schema = c.table_schema
+																	and a.table_name = c.table_name
+																	and lower(c.table_type) = 'base table'
+						left join (
+										select table_name, table_schema 
+										from information_schema.columns 
+										where lower(column_name) = 'flat_id'
+									) as d on a.table_schema = d.table_schema
+												and a.table_name = d.table_name
+					where lower(a.column_name) = 'house_id'
+							and lower(a.table_schema) <> 'pg_temp%'
+							and d.table_name is null;
+		
+					
+					_string_account_id = (select string_agg(account_id::text, ', ') from _target_flat);
+		
+					_sql4 = (
+								select string_agg('
+								update ' || full_table_name || ' set house_id = ' || _house_id::text
+								|| ' where account_id in ( ' || _string_account_id || ');
+								', '')
+								from _name_tables
+							);
+		
+					raise notice '%',_sql4; 
+					execute (_sql4);
+		
+					drop table if exists _name_tables;
+					--обновление parametertransporate в соответствии с текущими параметрами дома и обнуление значений домового счётчика
+					drop table if exists _temp_accounts;
+		
+					create temp table _temp_accounts(account_id int);
+		
+					insert into _temp_accounts
+					select a.account_id 
+					from jsonb_populate_recordset(null::account.new_flat, _accounts) a ;
+		
+					_sql_update_pt = 'update calculation.parametr_transporate as cp 
+							set ';
+		  		
+					_columns = (
+									select  string_agg(pl.short_name || ' = ' || coalesce(ph.value, pl.default_value),', 
+										') 
+									from parametr.list pl 
+										left join parametr.house ph on pl.id = ph.parametr_id
+									where date_end is null 
+											and is_calculation = true 
+											and house_id = _house_id 
+											and pl.catalog_id = 3
+								);
+		
+					_columns = _columns || ', ' || (
+														select string_agg(a,', ')
+														from (
+																select  pl.short_name || ' = null' as a							 
+																from counter.list cl
+																	inner join counter.house ch on cl.id = ch.counter_id
+																	inner join parametr.sublist ps on cl.sublist_id = ps.sublist_id
+																	inner join parametr.list pl on pl.id = ps.parametr_id
+																where cl.active = true
+																group by pl.short_name
+															) b
+													);
+		
+					_sql_update_pt = _sql_update_pt || ' 
+													' || _columns || '
+					from _temp_accounts p 
+					where p.account_id = cp.account_id;';
+		
+					execute(_sql_update_pt);
+		
+					drop table if exists _temp_accounts;
+					--обновление параметров по счётчикам(запускает триггер fillparametr)
+					update counter.flow as cf 
+						set value = cf.value
+					from counter.house ch			 
+						inner join period.list pl on 1 = 1
+					where pl.date_begin <= coalesce(cf.date, pl.date_begin) 
+								and cf.counter_id = ch.counter_id 
+								and ch.house_id = _house_id 
+								and pl.is_working = true;
+				end;
+		end if;
+
+		_houses1 = jsonb_agg(jsonb_build_object('house_id', _house_id));
+		
+		if  (_old_house_id <> _house_id) 
+			then
+				_houses1 = _houses1 || jsonb_agg(jsonb_build_object('house_id', _old_house_id));
+		end if;
+
+		call account."ordering" (_houses1);
+		call flat."ordering"  (_houses1);
+
+		--удаление всех помещений, по которым нет л/c
+		delete 
+		from adress.flat af 
+		where id in (select af.id
+					from adress.flat af
+						inner join jsonb_populate_recordset(null::account.new_flat, _accounts) a on a.old_flat_id = af.id
+						left join adress.account aa on aa.flat_id = af.id
+					where aa.flat_id is null);
+				
+		exception when others
+		then 	
+			get stacked diagnostics
+			_error_number = returned_sqlstate,
+			_error_table = table_name,
+			_error_line = pg_exception_context,
+			_error_message = pg_exception_detail;
+		
+		raise exception '%,%,%,%',_error_number, _error_table, _error_line, _error_message;
+	
+	end; 
+
+	drop table if exists _target_flat;
+		
+end
+"""
+  arguments = <
+    {
+      name = _accounts
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _old_house_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _house_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		макарова е.а.
+ create date: 19.08.2020
+ description:	перенос лицевых счетов в другие новые квартиры(которые также создаются в рамках этой процедуры)
+ =============================================
+"""
+}
+

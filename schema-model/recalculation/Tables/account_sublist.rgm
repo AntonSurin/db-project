@@ -1,0 +1,61 @@
+table "recalculation"."account_sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_account_sub_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('recalculation.account_sublist_id_seq'::regclass)
+    }
+    column "root_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_parent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+      null = NOT NULL
+    }
+    column "value" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "recalculation"."account_sublist"."fk_account_sub_list_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

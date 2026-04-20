@@ -1,0 +1,39 @@
+table "eco"."required_works" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_eco_required_work"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.required_works_id_seq'::regclass)
+    }
+    column "organization_work_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "code" {
+      type = character varying(50)
+    }
+  )
+}
+
+foreignKey "eco"."required_works"."fk_eco_required_work_eco_org_work_org_work_id" {
+  columns = [
+    "organization_work_id"
+  ]
+  referencedTable = "eco"."organization_work"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,48 @@
+table "bank"."bank_exchange_to_batch" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_bank_bank_exchange_to_batch"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('bank.bank_exchange_to_batch_id_seq'::regclass)
+    }
+    column "batch_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "bank_exchange_document_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "bank"."bank_exchange_to_batch"."fk_bank_exchange_to_batch_batch" {
+  columns = [
+    "batch_id"
+  ]
+  referencedTable = "payment"."batch"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "bank"."bank_exchange_to_batch"."fk_bank_exchange_to_batch_document_exchange" {
+  columns = [
+    "bank_exchange_document_id"
+  ]
+  referencedTable = "bank"."document_exchange"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

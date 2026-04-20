@@ -1,0 +1,46 @@
+table "house"."employee" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_employee_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('house.employee_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "employee_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "house"."employee"."fk_employee_employee1" {
+  columns = [
+    "employee_id"
+  ]
+  referencedTable = "organization"."employee"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "house"."employee"."fk_employee_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+}
+

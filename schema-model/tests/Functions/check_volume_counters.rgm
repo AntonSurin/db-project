@@ -1,0 +1,47 @@
+function "tests"."check_volume_counters()" {
+  text = """
+
+declare 
+	_period_id int;
+begin
+	
+	_period_id = (select id from period.list where is_working = true);
+
+	return query
+	select c.account_id, 
+			c.sublist_id, 
+			c.sum_flow, 
+			p.sum_volume 
+	from
+		(
+			select cf.sublist_id, ca.account_id, sum(coalesce(cf.flow, 0)) as sum_flow 
+			from counter.flow cf
+				inner join  counter.account ca on ca.counter_id = cf.counter_id
+			where cf.period_id = _period_id
+			group by cf.sublist_id, ca.account_id
+		) c 
+		inner join 
+		(
+			select pb.sublist_id, pb.account_id, sum(coalesce(pb.volume, 0)) as sum_volume 
+			from payment.balance pb
+			where pb.period_id = _period_id
+			group by pb.sublist_id, pb.account_id 
+		) p on p.sublist_id = c.sublist_id and p.account_id = c.account_id
+	where not c.sum_flow = p.sum_volume ;
+
+end;
+"""
+  returnType = TABLE(account_id integer, sublist_id integer, sum_flow numeric, sum_volume numeric)
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Казакова Светлана
+ Create date: 04,12,2017
+ Description:	Проверка на отличие суммарных объемов по счетчикам 
+ =============================================
+"""
+}
+

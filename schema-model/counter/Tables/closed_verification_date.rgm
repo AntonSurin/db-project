@@ -1,0 +1,56 @@
+table "counter"."closed_verification_date" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_closed_verification_date"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('counter.closed_verification_date_id_seq'::regclass)
+    }
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "verification_interval" {
+      type = integer
+    }
+    column "verification_date" {
+      type = date
+    }
+    column "failure_date" {
+      type = date
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "value" {
+      type = numeric(13,5)
+    }
+    column "c_value" {
+      type = numeric(13,5)
+    }
+    column "flow_type_id" {
+      type = smallint
+    }
+    column "flow_date" {
+      type = date
+    }
+    column "close_type" {
+      type = character varying(50)
+    }
+  )
+}
+

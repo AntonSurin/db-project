@@ -1,0 +1,47 @@
+function "utility"."del_util()" {
+  text = """
+
+declare 
+	  _search  		bool = true;
+	  _sublist_id 	int;
+begin
+
+	_sublist_id = old.id;
+
+	 if exists(select sublist_id from payment.balance where sublist_id = _sublist_id)
+				or exists(select sublist_id from payment.detal where sublist_id = _sublist_id)
+		then
+	 		_search = false;
+	 end if;
+	 
+	 if _search = false
+	 	then
+		 	raise exception 'Невозможно удалить данную услугу, т.к. она используется в начислениях, платежах или в балансе';
+		 	
+		 	return null;
+		else
+			update calculation.tools 
+				set change_date = current_date
+			where "name" = 'Добавление/удаление услуги';
+			
+			return old;
+	end if;
+
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+ =============================================
+ Author:		ООО ЖилФондСервис
+ Create date: 07.03.2014
+ Description:	Проверка на возможность удаления подуслуги
+				Если данная подуслуга учавствовала в расчетах, или в балансе, или в платежах, то
+				данную услугу удалить не возможно
+ =============================================
+"""
+}
+

@@ -1,0 +1,79 @@
+function "tests"."counter_flow_is_closed(jsonb)" {
+  text = """
+
+declare 
+	_period_id int;
+begin
+
+	_period_id = (select pl.id from "period".list pl where pl.is_working = true);
+	
+	if exists (select * from calculation.account_sublist)
+		then
+			begin
+				if exists (select a.account_id from jsonb_populate_recordset(null::account.list, _account) a)
+					then
+						begin
+							return query
+							select distinct 'wrn'::varchar(3) as severity, ao.account_name, ao.short_name_adress
+							from counter.flow cf
+								inner join counter.account ca on cf.counter_id = ca.counter_id and cf.period_id = _period_id
+								inner join adress.owners ao on ao.account_id = ca.account_id
+								inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = ca.account_id
+								inner join (	
+												select p.account_id, 
+													sum((case when p.value::int2 = 1 then 1 else 0 end) * (( (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)-(case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)) + 1)) as account_open
+												from parametr.account p
+												inner join "period".list pl on pl.is_working = true
+												inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = p.account_id
+												where parametr_id = 1362 
+													and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+													and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+												group by p.account_id
+											) cp on cp.account_id = ca.account_id
+							where (cf.c_value <> 0 or cf.flow <> 0) and cp.account_open = 0;
+						end;
+					else
+						begin
+							return query
+							select distinct 'wrn'::varchar(3) as severity, ao.account_name, ao.short_name_adress
+							from counter.flow cf
+								inner join counter.account ca on cf.counter_id = ca.counter_id and cf.period_id = _period_id
+								inner join adress.owners ao on ao.account_id = ca.account_id
+								inner join (
+												select p.account_id, 
+													sum((case when p.value::int2 = 1 then 1 else 0 end) * ((  (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)-(case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)) + 1)) as account_open
+												from parametr.account p
+													inner join "period".list pl on pl.is_working = true
+												where parametr_id = 1362 
+													and coalesce(p.date_end,pl.date_end) >= (case when p.date_begin < pl.date_begin then pl.date_begin else p.date_begin end)
+													and p.date_begin <= (case when coalesce(p.date_end,pl.date_end) > pl.date_end then pl.date_end else coalesce(p.date_end,pl.date_end) end)
+												group by p.account_id
+											) cp on cp.account_id = ca.account_id
+							where (cf.c_value <> 0 or cf.flow <> 0) and cp.account_open = 0;
+						end;
+			end if;
+			end;
+	end if;
+	
+end;
+"""
+  returnType = TABLE(severity character varying, account_name character varying, short_name_adress text)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Юркин Евгений
+ Create date:	01.04.2022
+ Description:	Тест на наличие расходов по счетчикам у полностью закрытых лицевых
+ =============================================
+"""
+}
+

@@ -1,0 +1,203 @@
+function "report"."act_of_contract(integer, integer, integer, jsonb, integer, smallint)" {
+  text = """
+
+begin
+
+	create temp table _sublist (sublist_id int);
+
+	if (_type = 0)
+		then
+			insert into _sublist
+			select 7;
+	end if;
+
+	if (_type = 1)
+		then
+			insert into _sublist
+			select id 
+			from utility.sublist 
+			where id != 7;
+	end if;
+
+	if (_type not in (0, 1))
+		then
+			insert into _sublist
+			select id 
+			from utility.sublist;		
+	end if;
+
+		return query
+		with cte as 
+		(
+			select
+				ol.id as organization_id, 
+				cc.id as contract_id,
+				cl.id as contragent_id,
+				dk."name" as kind_name,
+				cc."number",
+				cl.full_name, 
+				pl.date_begin,
+				pl.date_end as operation_date, 
+				'Начислено' as "text",
+				coalesce(sum(case when pb.period_id = _period_begin then pb.in_balance end), 0) as in_balance,
+				coalesce(sum(case when pb.period_id = _period_begin and pb.sublist_id = 7 then pb.in_balance end), 0) as fine_in_balance,
+				sum(coalesce(current_calculate, 0.0) + coalesce(recalculate, 0.0)) as debet,
+				sum(case when pb.sublist_id = 7 then coalesce(current_calculate, 0.0) + coalesce(recalculate, 0.0) end) as fine_debet,
+				null as kredit,
+				null as fine_kredit,
+				ol."name" as organization_name,
+				max(case when _group_id is not null then uc."name" end) as group_name,
+				cc.date_begin contract_date_begin,
+				aa.house_id,
+				max(ot."name") as title_name,
+				max(oe.full_name) as employee_name
+			from contragent.contract cc
+				inner join contragent.list cl on cl.id = cc.contragent_id
+				inner join jsonb_populate_recordset(null::special.objects, _contract) c on c.object_id = cc.id
+				inner join contragent.contract_account ca on ca.contract_id = cc.id
+				inner join payment.balance pb on pb.account_parent_id = ca.account_id
+				inner join _sublist s on s.sublist_id = pb.sublist_id
+				inner join adress.account aa on aa.id = pb.account_id
+				inner join "period".list pl on pl.id = pb.period_id
+				inner join documents.kind dk on dk.id = cc.kind_id
+				inner join organization.list ol on 1 = 1
+				left join utility.contragent_group uc on uc.id = aa.group_id
+				left join organization.employee oe on oe.list_id = ol.id and oe."type" = 1
+				left join organization.title ot on ot.id = oe.title_id
+				left join house.employee he on he.employee_id = oe.id and he.house_id = aa.house_id
+			where pb.period_id between _period_begin and _period_end 
+				and ol.is_owner = true 
+				and cl.id = _contragent_id
+				and coalesce(aa.group_id, 255) = coalesce(_group_id, aa.group_id, 255)
+			group by ol.id, cc.id, cl.id, dk."name", cc."number", cl.full_name, pl.date_begin, pl.date_end, ol."name", pb.period_id, cc.date_begin, aa.house_id
+	
+			union all
+	
+			select
+				ol.id as organization_id, 
+				cc.id as contract_id,
+				cl.id as contragent_id,
+				dk."name" as kind_name,
+				cc."number",
+				cl.full_name, 
+				pl.date_begin,
+				p."date" as operation_date, 
+				'Оплачено' as "text",
+				null as in_balance,
+				null as fine_in_balance,
+				null as debet,
+				null as fine_debet,
+				sum(pd."sum") as kredit,
+				sum(case when pd.sublist_id = 7 then pd."sum" end) as fine_kredit,
+				ol."name" as organization_name,
+				max(case when _group_id is not null then uc."name" end) as group_name,
+				cc.date_begin contract_date_begin,
+				aa.house_id,
+				max(ot."name") as title_name,
+				max(oe.full_name) as employee_name
+			from contragent.contract cc
+				inner join contragent.list cl on cl.id = cc.contragent_id
+				inner join jsonb_populate_recordset(null::special.objects, _contract) c on c.object_id = cc.id
+				inner join contragent.contract_account ca on ca.contract_id = cc.id
+				inner join payment.list p on p.account_id = ca.account_id
+				inner join payment.detal pd on pd.payment_id = p.id
+				inner join _sublist s on s.sublist_id = pd.sublist_id
+				inner join adress.account aa on aa.id = pd.account_id
+				inner join "period".list pl on p."date" between pl.date_begin and pl.date_end
+				inner join documents.kind dk on dk.id = cc.kind_id
+				inner join organization.list ol on 1 = 1
+				left join utility.contragent_group uc on uc.id = aa.group_id
+				left join organization.employee oe on oe.list_id = ol.id and oe."type" = 1
+				left join organization.title ot on ot.id = oe.title_id
+				left join house.employee he on he.employee_id = oe.id and he.house_id = aa.house_id
+			where pl.id between _period_begin and _period_end 
+				and ol.is_owner = true 
+				and cl.id = _contragent_id
+				and coalesce(aa.group_id, 255) = coalesce(_group_id, aa.group_id, 255) 
+			group by ol.id, cc.id, cl.id, dk."name", cc."number", cl.full_name, pl.date_begin, p."date", ol."name", cc.date_begin, aa.house_id
+			having sum(pd."sum") <> 0.0
+		)
+
+	select distinct
+		c.contract_id, 
+		c.contragent_id,
+		c.kind_name, 
+		c."number", 
+		c.full_name::text, 
+		c.operation_date, 
+		c."text", 
+		c.organization_name,
+		sum(c.debet) 			over (partition by c.contract_id, c.contragent_id, c.operation_date, c."text") debet,
+		sum(c.kredit) 			over (partition by c.contract_id, c.contragent_id, c.operation_date, c."text") kredit,
+		sum(c.fine_debet) 		over (partition by c.contract_id, c.contragent_id, c.operation_date, c."text") fine_debet,
+		sum(c.fine_kredit) 		over (partition by c.contract_id, c.contragent_id, c.operation_date, c."text") fine_kredit,
+		sum(c.in_balance) 		over (partition by c.contract_id) as in_balance,
+		sum(c.fine_in_balance) 	over (partition by c.contract_id) as fine_in_balance,
+		sum(c.in_balance) 		over (partition by c.contragent_id) as owner_in_balance,
+		sum(c.fine_in_balance) 	over (partition by c.contragent_id) as owner_fine_in_balance,
+		c.title_name,
+		c.employee_name,
+		c.contract_date_begin
+	from cte c;
+
+	drop table if exists _sublist;
+
+end;
+"""
+  returnType = TABLE(contract_id integer, contragent_id integer, kind_name character varying, number character varying, full_name text, operation_date date, text text, organization_name character varying, debet numeric, kredit numeric, fine_debet numeric, fine_kredit numeric, in_balance numeric, fine_in_balance numeric, owner_in_balance numeric, owner_fine_in_balance numeric, title_name text, employee_name text, contract_date_begin date)
+  arguments = <
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _contragent_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _contract
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _type
+      type = smallint
+      mode = IN
+      default = NULL::smallint
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:					глещинский д.в.
+ create date:				изначально не была указана
+ description:				табличная часть для акта сверки по договорам
+ modifyed date:			09.01.2018
+ modifyed description:	добавлен фильтр по группам
+ modifyed author:			юркин е.ю.
+ modifyed date:			15.03.2021
+ modifyed description:	изменил привязку формирования подписанта
+ =============================================
+"""
+}
+

@@ -1,0 +1,27 @@
+table "portal"."logs" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__logs__3214ec071127f0fa"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('portal.logs_id_seq'::regclass)
+    }
+    column "send_model" {
+      type = text
+    }
+    column "date_time" {
+      type = timestamp(3) without time zone
+    }
+    column "error" {
+      type = text
+    }
+  )
+}
+

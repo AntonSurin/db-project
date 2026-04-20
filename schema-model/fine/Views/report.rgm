@@ -1,0 +1,36 @@
+view "fine"."report" {
+  text = """-
+SELECT pb.period_id,
+    sum((pb.current_calculate + pb.recalculate)) AS calc,
+    p.date_end AS invoice_date,
+    (p.date_end + '10 days'::interval) AS must_pay,
+    cl.id AS contragent_id
+   FROM ((((contragent.list cl
+     JOIN contragent.contract cc ON ((cc.contragent_id = cl.id)))
+     JOIN contragent.contract_account ca ON ((ca.contract_id = cc.id)))
+     JOIN payment.balance pb ON ((pb.account_parent_id = ca.account_id)))
+     JOIN period.list p ON ((p.id = pb.period_id)))
+  WHERE ((pb.print = 1) AND (pb.sublist_id <> 7))
+  GROUP BY pb.period_id, p.date_end, cl.id;
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "period_id" {
+      type = integer
+    }
+    column "calc" {
+      type = numeric
+    }
+    column "invoice_date" {
+      type = date
+    }
+    column "must_pay" {
+      type = timestamp without time zone
+    }
+    column "contragent_id" {
+      type = integer
+    }
+  )
+}
+

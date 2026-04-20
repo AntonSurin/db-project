@@ -1,0 +1,38 @@
+function "test_gis"."count_flat()" {
+  text = """
+
+begin
+
+	return query
+	select 
+		 hi.short_adress
+		,hi.house_id
+		,count(af.id) count_flat_adress_flat
+		,coalesce(hf.count_flat_house_flat, 0) as count_flat_house_flat
+	from gis.address_info hi
+		inner join adress.flat af on hi.house_id = af.house_id 
+		left join (
+					select hff.house_id, count(hff.flat_id) as count_flat_house_flat 
+					from house.flat hff
+					group by hff.house_id
+				  ) hf on hf.house_id = hi.house_id
+	where hi.fias_house_guid is not null
+	group by hi.short_adress, hf.count_flat_house_flat, hi.house_id
+	having count(af.id) <> coalesce(hf.count_flat_house_flat, 0);
+
+end;
+"""
+  returnType = TABLE(short_adress text, house_id integer, count_flat_adress_flat bigint, count_flat_house_flat bigint)
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 28.06.2016UKKP
+ Description:	Провека соответствия кол-ва квартир в адресной с труктуре с кол-вом квартир для ГИС ЖКХ
+ =============================================
+"""
+}
+

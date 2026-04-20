@@ -1,0 +1,58 @@
+table "documents"."protocol" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_protocol"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.protocol_id_seq'::regclass)
+    }
+    column "contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "protocol_type" {
+      type = integer
+      null = NOT NULL
+    }
+    column "purchase_number" {
+      type = character varying(255)
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "description" {
+      type = character varying(500)
+    }
+  )
+}
+
+foreignKey "documents"."protocol"."fk_doc_protocol_doc_contract_contract_id" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "documents"."contract"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "documents"."protocol_ix_contract_id" {
+  table = "documents"."protocol"
+  type = btree
+  columns = <
+    {
+      definition = contract_id
+    }
+
+  >
+  isUnique = False
+}
+

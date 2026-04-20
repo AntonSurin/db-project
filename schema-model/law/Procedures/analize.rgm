@@ -1,0 +1,125 @@
+procedure "law"."analize()" {
+  text = """
+
+begin
+
+	create temp table _table (id int, folder_id int);
+
+	/*
+		поиск платежей, которые поступили до формирования уведомления
+	*/
+
+	with cte as 
+	(
+		select lf.account_id, ld.*
+		from law.folder lf
+			inner join law.docs ld on ld.folder_id = lf.id
+		where lf.is_open = true and lf.block_id != 4
+			and not exists (select * from law.docs ldd where ldd.parent_id = ld.id) 
+			--and ld.status_id not in (4, 5)
+	), "result" as 
+	(
+		select c.id, c.folder_id
+		from payment.balance_group pb 
+			inner join period.list pl on pl.id = pb.period_id
+			inner join cte c on c.period_id = pb.period_id and c.account_id = pb.account_id
+			left join lateral 	(
+									select pd.account_id, sum(pd."sum") as pay
+									from payment.detal pd
+										inner join payment.list plt on plt.id = pd.payment_id
+									where pd.account_id = c.account_id and plt.period_id >= pl.id and plt."date" <= c.payment_date
+									group by pd.account_id
+								) p on true 
+		where coalesce(c.sum,0) <> in_balance + coalesce(current_calc, 0) + coalesce(recalc, 0) - coalesce(p.pay, 0) 
+	)
+
+	insert into _table (id, folder_id)
+	select id, folder_id
+	from "result";
+
+	if exists(select * from _table)
+	then
+		begin
+			update law.folder lf 
+				set date_end = cast(current_date as date),
+					is_open = false
+			from _table t 
+			where t.folder_id = lf.id;
+	
+			update law.docs ld
+				set status_id = 4 
+			from _table t 
+			where t.id = ld.id;
+	
+			delete from _table;
+		end;
+	end if;
+
+--	/*
+--		поиск платежей, которые полностью гасят задолженность
+--	*/
+
+	with cte as 
+	(
+		select lf.account_id, ld.* 
+		from law.folder lf
+			inner join law.docs ld on ld.folder_id = lf.id
+		where lf.is_open = true  and lf.block_id != 4
+			--and not exists (select * from law.docs where parentid = ld.id) 
+			--and ld.status_id not in (4, 5)
+			and ld.id = (select max(id) from law.docs ldd where ldd.folder_id = lf.id)
+	), "result" as 
+	(
+		select 
+			c.id, c.folder_id, sum(pd.sum) as pay
+		from cte c
+			inner join payment.detal pd on pd.account_id = c.account_id
+			inner join payment.list pl on pl.id = pd.payment_id
+				--внимание
+				--ньюанс! возможно что дата платежа строго больше даты создания уведомления
+				and pl.date > c.payment_date
+		group by c.id, c.sum, c.folder_id
+		having sum(pd.sum) >= coalesce(c.sum, 0)
+	)
+
+	insert into _table (id, folder_id)
+	select id, folder_id
+	from "result";
+	
+	if exists(select * from _table)
+		then
+			begin
+				update law.folder lf
+					set	is_open = false,
+						date_end = cast(current_date as date)
+				from _table t 
+				where t.folder_id = lf.id;
+		
+				update law.docs ld
+					set status_id = 5 
+				from _table t 
+				where t.id = ld.id;
+			end;
+	end if;
+
+	/*
+		актуализация данных по рассрочкам
+	*/
+
+	drop table if exists _table;	
+	
+end
+"""
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: <create date,,>
+ description:	актуализация данных
+ =============================================
+"""
+}
+

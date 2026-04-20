@@ -1,0 +1,41 @@
+function "report"."act_sipu(jsonb)" {
+  text = """
+
+
+	select 
+		 ai.account_id
+		,ai.account_name
+		,ai.short_name_flat as adress
+		,(
+			select string_agg(trim(cl.full_name) , ', ')
+			from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+			where ca.account_id = ai.account_id and ca.is_responsible = true and od.date_end is null 			
+		) as fio
+		,cp.cpr as cpr
+	from adress.info ai 
+		inner join calculation.parametr_transporate cp on cp.account_id = ai.account_id
+		inner join jsonb_populate_recordset(null::account.list, _account) a on ai.account_id = a.account_id;
+
+"""
+  returnType = TABLE(account_id integer, account_name character varying, adress text, fio text, cpr smallint)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Глещинский Д.В.
+ Create date: 16.01.2015
+ Description:	Скрипт для формирования данных для акта сверки индивидуальных приборов учета
+ =============================================
+"""
+}
+

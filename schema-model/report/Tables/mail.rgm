@@ -1,0 +1,55 @@
+table "report"."mail" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_mail"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.mail_id_seq'::regclass)
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "email" {
+      type = character varying(150)
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "send_type_id" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "status" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "error_text" {
+      type = character varying(150)
+    }
+  )
+}
+
+foreignKey "report"."mail"."fk_mail_send_type" {
+  columns = [
+    "send_type_id"
+  ]
+  referencedTable = "report"."send_type"
+  referencedColumns = [
+    "id"
+  ]
+}
+

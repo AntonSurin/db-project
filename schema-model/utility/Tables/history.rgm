@@ -1,0 +1,99 @@
+table "utility"."history" {
+  primaryKey = {
+    columns = [
+      "period_id"
+      "type_id"
+      "sublist_id"
+    ]
+    name = "pk_result"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "parent_id" {
+      type = integer
+    }
+    column "type_name" {
+      type = character varying(150)
+    }
+    column "is_visible" {
+      type = boolean
+    }
+    column "is_summary" {
+      type = boolean
+    }
+    column "order_id" {
+      type = smallint
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "list_id" {
+      type = integer
+    }
+    column "gis_guid" {
+      type = uuid
+    }
+    column "code" {
+      type = character varying(20)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "name" {
+      type = character varying(150)
+    }
+    column "short_name" {
+      type = character varying(20)
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "date_end" {
+      type = date
+    }
+    column "is_counter" {
+      type = boolean
+    }
+    column "unit_id" {
+      type = integer
+    }
+    column "is_odn" {
+      type = boolean
+    }
+    column "number" {
+      type = integer
+    }
+    column "type" {
+      type = smallint
+    }
+    column "is_day" {
+      type = boolean
+    }
+    column "is_kp" {
+      type = boolean
+    }
+    column "service_guid" {
+      type = uuid
+    }
+    column "is_on" {
+      type = boolean
+    }
+    column "gis_type" {
+      type = smallint
+    }
+    column "vat_type" {
+      type = smallint
+    }
+  )
+}
+

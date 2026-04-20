@@ -1,0 +1,29 @@
+table "fine"."history_full" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_history_full"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('fine.history_full_id_seq'::regclass)
+    }
+    column "refinancing_rate" {
+      type = numeric(4,2)
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+

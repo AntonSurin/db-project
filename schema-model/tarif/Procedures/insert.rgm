@@ -1,0 +1,203 @@
+procedure "tarif"."insert(integer, integer, jsonb, numeric, date, character varying, character varying, boolean, date)" {
+  text = """
+
+declare 
+		_sql			text;
+		_tarif_id		int;
+		_is_global		bool;
+		_period_end		date;
+		_period_begin	date;
+begin
+
+	select date_begin, date_end
+	into _period_begin, _period_end 
+	from "period".list 
+	where is_working = true;
+
+	_is_global = (select up.is_global from utility.provider up where up.id = _provider_id);	
+
+	drop table if exists __house;
+	drop table if exists __house_territory;
+	drop table if exists __tarifs;
+	drop table if exists __tarif_house_id;
+	drop table if exists __max_number;
+
+	create temp table __house 			(house_id int not null primary key);
+	create temp table __house_territory (house_id int not null primary key, territory_id int);
+	create temp table __tarifs 			(tarif_id int not null primary key, territory_id int, sublist_id int);
+	create temp table __tarif_house_id 	(id int not null primary key);
+	create temp table __max_number 		(house_id int, sublist_id int, max_number int, constraint pk_max_number primary key (house_id, sublist_id));
+
+	insert into __house
+	select h.house_id 
+	from jsonb_populate_recordset(null::house.list, _house) h;
+		
+	insert into __house_territory
+	select ah.id, ah.territory_id 
+	from adress.house ah
+		inner join __house h on h.house_id = ah.id;
+	
+	with cte as
+	(
+		insert into tarif.list ("name", provider_id, sublist_id, territory_id, value, "document", is_global)
+		select _name, _provider_id, _sublist_id, territory_id, _value, _document, _is_global 
+		from __house_territory 
+		group by territory_id
+		union all
+		select _name || ' (превыш. платы)', _provider_id, sp.sublist_id, ht.territory_id, _value, _document, _is_global 
+		from __house_territory ht
+			inner join utility.sublist_provider sp on sp.house_id = ht.house_id 
+													and sp.territory_id = ht.territory_id 
+													and sp.sublist_id = _sublist_id + 10 
+													and sp.provider_id = _provider_id 
+													and sp.date_end is null
+		where _sublist_id in (22,24,27)
+		group by sp.sublist_id, ht.territory_id
+		on conflict (territory_id, sublist_id, provider_id, value)
+		do update
+			set value = excluded.value
+		returning id, territory_id, sublist_id
+	)
+	
+	insert into __tarifs
+	select *
+	from cte;
+
+	if (_is_closed_prev_tarif = true)
+		then
+			begin
+				update tarif.house_tarif th 
+				set date_end = (_date_begin - 1)
+				from tarif.list tl  
+					inner join __house h on true 
+				where tl.id = th.tarif_id 
+					and h.house_id = th.house_id
+					and th.date_end is null 
+					and th.date_begin < _period_begin
+					and (tl.sublist_id = _sublist_id or (tl.sublist_id = _sublist_id+10 and _sublist_id in (22,24,27)));
+			end;
+	end if;
+
+	with cte as 
+	(
+		select tarif_id, territory_id, sublist_id, 
+		row_number () over (partition by territory_id, sublist_id order by territory_id, sublist_id, tarif_id asc) rn 
+		from __tarifs
+	)
+	
+	delete 
+	from __tarifs ts
+	using cte ct
+	where ct.rn > 1 
+		and ct.tarif_id = ts.tarif_id 
+		and ct.territory_id = ts.territory_id 
+		and ct.sublist_id = ts.sublist_id;
+
+	with cte as 
+	(
+		insert into tarif.house_tarif (house_id, tarif_id, date_begin, date_end)
+		select h.house_id, t.tarif_id, _date_begin, _date_end
+		from __house_territory h
+			inner join __tarifs t on t.territory_id = h.territory_id
+		returning id
+	)
+	insert into __tarif_house_id
+	select *
+	from cte;
+
+	insert into __max_number
+	select th.house_id, tl.sublist_id, max("number") as mn
+	from tarif.list tl
+		inner join tarif.house_tarif th on th.tarif_id = tl.id 
+	where coalesce(date_end, _date_begin) >= _date_begin	
+		and (tl.sublist_id = _sublist_id or (tl.sublist_id = _sublist_id + 10 and _sublist_id in (22,24,27)))
+	group by th.house_id, tl.sublist_id;
+		
+	update tarif.house_tarif tht
+	set "number" = coalesce(max_number, 0) + 1
+	from __tarif_house_id i
+		inner join tarif.list tl on true
+		left join __max_number m on m.sublist_id = tl.sublist_id
+	where tht.id = i.id	and tl.id = tht.tarif_id and m.house_id = tht.house_id;
+
+	drop table if exists __max_number;
+	drop table if exists __tarif_house_id;
+	drop table if exists __tarifs;
+	drop table if exists __house_territory;
+	drop table if exists __house;
+
+end
+"""
+  arguments = <
+    {
+      name = _sublist_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _provider_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _house
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _value
+      type = numeric
+      mode = IN
+    }
+
+    {
+      name = _date_begin
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _document
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _name
+      type = character varying
+      mode = IN
+      default = NULL::character varying
+    }
+
+    {
+      name = _is_closed_prev_tarif
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+    {
+      name = _date_end
+      type = date
+      mode = IN
+      default = NULL::date
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 29.07.2014
+ description:	создание тарифа тарифов
+ Modify Author: Юркин Е.Ю.
+ Modify date: 16.04.2024
+ Modify description: Автоматическое создание тарифов превышения платы
+ =============================================
+"""
+}
+

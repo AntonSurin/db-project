@@ -1,0 +1,84 @@
+table "contragent"."parametr" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_parametr_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('contragent.parametr_id_seq'::regclass)
+    }
+    column "contragent_account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "parametr_id" {
+      type = integer
+    }
+    column "book_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "contragent"."parametr"."fk_parametr_account" {
+  columns = [
+    "contragent_account_id"
+  ]
+  referencedTable = "contragent"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "contragent"."parametr"."fk_parametr_list" {
+  columns = [
+    "parametr_id"
+  ]
+  referencedTable = "parametr"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "contragent"."parametr_idx_contragent_parametr" {
+  table = "contragent"."parametr"
+  type = btree
+  columns = <
+    {
+      definition = contragent_account_id
+    }
+
+    {
+      definition = parametr_id
+    }
+
+  >
+  isUnique = True
+  includeColumns = [
+    book_id
+  ]
+}
+
+index "contragent"."parametr_idx_parametr" {
+  table = "contragent"."parametr"
+  type = btree
+  columns = <
+    {
+      definition = parametr_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    contragent_account_id
+    book_id
+  ]
+}
+

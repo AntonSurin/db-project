@@ -1,0 +1,61 @@
+table "utility"."sublist_group_info" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sublist_group_info"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('utility.sublist_group_info_id_seq'::regclass)
+    }
+    column "group_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "utility"."sublist_group_info"."fk_sublist_group_info_sub_list" {
+  columns = [
+    "sublist_id"
+  ]
+  referencedTable = "utility"."sublist"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "utility"."sublist_group_info"."fk_sublist_group_info_sublist_group" {
+  columns = [
+    "group_id"
+  ]
+  referencedTable = "utility"."sublist_group"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "utility"."sublist_group_info_idx_susblist_id_group_id" {
+  table = "utility"."sublist_group_info"
+  type = btree
+  columns = <
+    {
+      definition = sublist_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    group_id
+  ]
+}
+

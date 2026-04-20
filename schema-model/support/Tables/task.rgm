@@ -1,0 +1,74 @@
+table "support"."task" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_task_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "parent_id" {
+      type = uuid
+    }
+    column "item_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "created_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+    }
+    column "date_end" {
+      type = timestamp(3) without time zone
+    }
+    column "last_update_date" {
+      type = timestamp(6) without time zone
+    }
+    column "number" {
+      type = integer
+    }
+    column "applicant_name" {
+      type = character varying(50)
+    }
+    column "applicant_phone" {
+      type = character varying(50)
+    }
+    column "title" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "description" {
+      type = character varying(3000)
+      null = NOT NULL
+    }
+    column "responsible" {
+      type = character varying(100)
+    }
+    column "status" {
+      type = integer
+      null = NOT NULL
+    }
+    column "rating" {
+      type = smallint
+    }
+    column "date_rating" {
+      type = timestamp(3) without time zone
+    }
+    column "favorites" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "attachments" {
+      type = text
+    }
+  )
+}
+

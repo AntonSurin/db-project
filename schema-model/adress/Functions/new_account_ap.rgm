@@ -1,0 +1,54 @@
+function "adress"."new_account_ap()" {
+  text = """
+
+declare
+	_flats jsonb;
+begin
+	
+	drop table if exists _account_names;
+
+	create temp table _account_names 	(id int, "name" text);
+	create temp table _flats 			(object_id int, "parameter" int);
+
+	insert into _flats
+	select id, null 
+	from _inserted;
+
+	select jsonb_agg(jsonb_build_object('object_id', i.id, 'parameter', null))
+	into _flats
+	from _inserted i;
+
+	call account.generate_account_name (_flats);
+	
+	if((select count(1) from _account_names) != (select count(1) from _flats))
+		then
+		raise notice 'Ошибка генерации имен лс, обратитесь в техподдержку';
+		return null;
+	end if;
+
+	insert into adress.account (flat_id, "name", password_site, old_name, house_id)
+	select
+		 i.id
+		,g."name"
+		,left(regexp_replace(md5(g."name"),'\D', '', 'g'),6)::int  as password_site
+		,null as old_name
+		,house_id
+	from _inserted i
+		join _account_names g on g.id = i.id
+	order by i.id;
+
+	drop table if exists _account_names;
+	drop table if exists _flats;
+	
+	return null;
+	
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = ****** Object:  Trigger Adress.NEW_ACCOUNT_AP    Script Date: 13.10.2022 13:13:03 ******
+}
+

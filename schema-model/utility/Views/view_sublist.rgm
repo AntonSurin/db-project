@@ -1,0 +1,27 @@
+view "utility"."view_sublist" {
+  text = """-
+SELECT us.id,
+    us.name,
+    uu.name AS unit_name,
+    uu.code AS okei
+   FROM (utility.sublist us
+     JOIN utility.unit uu ON ((uu.id = us.unit_id)));
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "unit_name" {
+      type = character varying(50)
+    }
+    column "okei" {
+      type = character varying(50)
+    }
+  )
+}
+

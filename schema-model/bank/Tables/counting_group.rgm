@@ -1,0 +1,67 @@
+table "bank"."counting_group" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_counting_group"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('bank.counting_group_id_seq'::regclass)
+    }
+    column "bank_id" {
+      type = integer
+    }
+    column "group_id" {
+      type = integer
+    }
+    column "counting_id" {
+      type = integer
+    }
+    column "code" {
+      type = character varying(20)
+    }
+    column "code_fine" {
+      type = character varying(20)
+    }
+  )
+}
+
+foreignKey "bank"."counting_group"."fk_counting_group_contragent_counting" {
+  columns = [
+    "counting_id"
+  ]
+  referencedTable = "contragent"."counting"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "bank"."counting_group"."fk_counting_group_contragent_group" {
+  columns = [
+    "group_id"
+  ]
+  referencedTable = "utility"."contragent_group"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "bank"."counting_group"."fk_counting_group_list" {
+  columns = [
+    "bank_id"
+  ]
+  referencedTable = "bank"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+  onDelete = CASCADE
+}
+

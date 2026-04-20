@@ -1,0 +1,171 @@
+function "counter"."close_house(integer, integer, jsonb, integer, boolean)" {
+  text = """
+
+declare 
+		_period_id 	int;
+		_date_end 	date;
+		_sql 		text = '';
+		_conditions text = '';
+begin
+
+	create temp table _counters_id (id int not null);
+
+	select pl.date_begin - 1, pl.id 
+	into _date_end, _period_id
+	from "period".list pl
+	where pl.is_working = true;
+	
+	_sql = '
+	insert into _counters_id
+	select cl.id
+	from counter.list cl 
+		inner join parametr.sublist ps on ps.sublist_id = cl.sublist_id
+		inner join parametr.list pl on pl.id = ps.parametr_id';
+		
+	_conditions = '
+	where ps.catalog_id = 1 and active = true and cl.number = ' || _number || '
+		and cl.date_begin <= ''' || _date_end || '''';
+
+	if (_close_house = true)
+		then
+			begin
+				_sql = _sql || '
+		inner join counter.house ch on ch.counter_id = cl.id ';
+		
+				_conditions = _conditions || '
+		and ch.house_id = ' || _house_id;
+			end;
+		else
+			begin
+				_sql = _sql || '
+		inner join counter.account ca on ca.counter_id = cl.id
+		inner join adress.account aa on ca.account_id = aa.id
+		inner join adress.flat af on af.id = aa.flat_id
+		inner join jsonb_populate_recordset(null::special.objects, ''' || _flat_books || '''::jsonb) as f on f.object_id = af.flat_book_id';
+
+				_conditions = _conditions || '
+		and aa.house_id = ' || _house_id; 
+			end;
+	end if;
+
+	if (_sublist_id is not null)
+		then
+			begin
+				_conditions = _conditions || '
+		and ' || _sublist_id || ' = ps.sublist_id';
+			end;
+	end if;
+
+	_sql = _sql || _conditions;
+
+	execute (_sql); 
+	
+	create temp table _close_counter_id (counter_id int, verification_interval int, verification_date date, failure_date date, sublist_id int, account_id int, value numeric(13,5), c_value numeric(13,5), flow_type_id int2, flow_date date, close_type varchar(50));
+
+	insert into _close_counter_id
+	select cl.id, cl.verification_interval, cl.verification_date, cl.failure_date, cl.sublist_id, ca.account_id, cf.value, cf.c_value, cf.flow_type_id, cf.date, 'массовое закрытие по дому предыдущим периодом' as close_type
+	from counter.list cl
+		inner join counter.flow cf on cf.counter_id = cl.id and cf.period_id = _period_id 
+		left join counter.account ca on ca.counter_id = cl.id
+	where cl.id in (select c.id from _counters_id c);
+
+	delete 
+	from counter.flow 
+	where period_id = _period_id and counter_id in (select c.id from _counters_id c);
+
+	update counter.list cl
+		set
+			active = false,
+			date_end = _date_end
+	where cl.id in (select c.id from _counters_id c); 
+
+	merge into counter.closed_verification_date as targets
+	using (select 
+			counter_id
+			,_period_id as period_id
+			,verification_interval
+			,verification_date
+			,failure_date
+			,sublist_id
+			,account_id
+			,value
+			,c_value
+			,flow_type_id
+			,flow_date
+			,close_type
+		from _close_counter_id)
+	as sources (counter_id, period_id, verification_interval, verification_date, failure_date, sublist_id, account_id, value, c_value, flow_type_id, flow_date, close_type)
+	on (targets.counter_id = sources.counter_id)
+	when matched then
+		update set
+			period_id = sources.period_id,
+			verification_interval = sources.verification_interval,
+			verification_date = sources.verification_date,
+			failure_date = sources.failure_date,
+			sublist_id = sources.sublist_id,
+			account_id = sources.account_id,
+			value = sources.value,
+			c_value = sources.c_value,
+			flow_type_id = sources.flow_type_id,
+			flow_date = sources.flow_date,
+			close_type = sources.close_type
+	when not matched then
+		insert (counter_id, period_id, verification_interval, verification_date, failure_date, sublist_id, account_id, value, c_value, flow_type_id, flow_date, close_type)
+		values (sources.counter_id, sources.period_id, sources.verification_interval, sources.verification_date, sources.failure_date, sources.sublist_id, sources.account_id, sources.value, sources.c_value, sources.flow_type_id, sources.flow_date, sources.close_type);
+	
+	return query
+	select c.id 
+	from _counters_id c;
+
+	
+drop table if exists _counters_id ;	
+drop table if exists _close_counter_id;
+	
+end;
+"""
+  returnType = TABLE(id integer)
+  arguments = <
+    {
+      name = _house_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _number
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _flat_books
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _sublist_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _close_house
+      type = boolean
+      mode = IN
+      default = true
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		макарова е.а.
+ create date: 10.01.2019
+ description:	закрытие счётчиков по дому (или л/с дома) и указанной услуге последним днем предыдущего периода
+ =============================================
+"""
+}
+

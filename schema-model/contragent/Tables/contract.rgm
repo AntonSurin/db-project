@@ -1,0 +1,50 @@
+table "contragent"."contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_contract_4"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('contragent.contract_id_seq'::regclass)
+    }
+    column "contragent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "kind_id" {
+      type = integer
+    }
+    column "number" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "type" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "contragent"."contract"."fk_contract_list" {
+  columns = [
+    "contragent_id"
+  ]
+  referencedTable = "contragent"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

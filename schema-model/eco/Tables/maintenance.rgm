@@ -1,0 +1,52 @@
+table "eco"."maintenance" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_maintenance"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.maintenance_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "profit" {
+      type = numeric(9,2)
+    }
+    column "in_balance" {
+      type = numeric(9,2)
+      null = NOT NULL
+    }
+    column "balance_by_content" {
+      type = numeric(9,2)
+    }
+    column "year" {
+      type = integer
+    }
+    column "period_end_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "eco"."maintenance"."fk_eco_maintenance_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,83 @@
+table "gis"."appeal_answers" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_appeal_answers"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.appeal_answers_id_seq'::regclass)
+    }
+    column "appeal_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "type" {
+      type = integer
+    }
+    column "answer_number" {
+      type = character varying(35)
+    }
+    column "answer_send_date" {
+      type = timestamp(3) without time zone
+    }
+    column "answerer_guid" {
+      type = uuid
+    }
+    column "answer_text" {
+      type = text
+    }
+    column "answer_is_sent" {
+      type = boolean
+    }
+    column "assesment" {
+      type = integer
+    }
+    column "not_required_cause" {
+      type = character varying(250)
+    }
+    column "redirected_receiver" {
+      type = uuid
+    }
+    column "execution_date" {
+      type = timestamp(3) without time zone
+    }
+    column "comment" {
+      type = character varying(1000)
+    }
+    column "attachment" {
+      type = text
+    }
+    column "organization" {
+      type = uuid
+    }
+    column "change_date" {
+      type = timestamp(3) without time zone
+    }
+    column "status" {
+      type = integer
+    }
+    column "error_text" {
+      type = text
+    }
+  )
+}
+
+foreignKey "gis"."appeal_answers"."fk_appeal_answers_appeals" {
+  columns = [
+    "appeal_id"
+  ]
+  referencedTable = "gis"."appeals"
+  referencedColumns = [
+    "id"
+  ]
+}
+

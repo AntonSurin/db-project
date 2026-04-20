@@ -1,0 +1,30 @@
+table "report"."contract_list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_dbo_test_reports"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.contract_list_id_seq'::regclass)
+    }
+    column "value" {
+      type = text
+    }
+    column "caption" {
+      type = text
+    }
+    column "name" {
+      type = text
+    }
+    column "old_value" {
+      type = text
+    }
+  )
+}
+

@@ -1,0 +1,207 @@
+table "calculation"."tarif_arch" {
+  primaryKey = {
+    columns = [
+      "account_id"
+      "period_id"
+    ]
+    name = "pk_tarif_arch"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "t_avance" {
+      type = numeric(10,5)
+    }
+    column "t_cg" {
+      type = numeric(10,5)
+    }
+    column "t_domofon" {
+      type = numeric(10,5)
+    }
+    column "t_dop1" {
+      type = numeric(10,5)
+    }
+    column "t_dop2" {
+      type = numeric(10,5)
+    }
+    column "t_dop3" {
+      type = numeric(10,5)
+    }
+    column "t_dop4" {
+      type = numeric(10,5)
+    }
+    column "t_dop5" {
+      type = numeric(10,5)
+    }
+    column "t_ed" {
+      type = numeric(10,5)
+    }
+    column "t_eddt" {
+      type = numeric(10,5)
+    }
+    column "t_el_lgot" {
+      type = numeric(10,5)
+    }
+    column "t_el_lgot_day" {
+      type = numeric(10,5)
+    }
+    column "t_el_lgot_night" {
+      type = numeric(10,5)
+    }
+    column "t_el_oi" {
+      type = numeric(10,5)
+    }
+    column "t_elodnday" {
+      type = numeric(10,5)
+    }
+    column "t_elodnnight" {
+      type = numeric(10,5)
+    }
+    column "t_en" {
+      type = numeric(10,5)
+    }
+    column "t_eodn" {
+      type = numeric(10,5)
+    }
+    column "t_gv" {
+      type = numeric(10,5)
+    }
+    column "t_gv_oi" {
+      type = numeric(10,5)
+    }
+    column "t_gvodn" {
+      type = numeric(10,5)
+    }
+    column "t_gz" {
+      type = numeric(10,5)
+    }
+    column "t_k" {
+      type = numeric(10,5)
+    }
+    column "t_kaprem" {
+      type = numeric(10,5)
+    }
+    column "t_knl_oi" {
+      type = numeric(10,5)
+    }
+    column "t_left_peop" {
+      type = numeric(10,5)
+    }
+    column "t_lift" {
+      type = numeric(10,5)
+    }
+    column "t_nxv" {
+      type = numeric(10,5)
+    }
+    column "t_nxvgaz" {
+      type = numeric(10,5)
+    }
+    column "t_odnxv" {
+      type = numeric(10,5)
+    }
+    column "t_ot" {
+      type = numeric(10,5)
+    }
+    column "t_pen" {
+      type = numeric(10,5)
+    }
+    column "t_rg" {
+      type = numeric(10,5)
+    }
+    column "t_vm" {
+      type = numeric(10,5)
+    }
+    column "t_vm_kom" {
+      type = numeric(10,5)
+    }
+    column "t_vm1" {
+      type = numeric(10,5)
+    }
+    column "t_xv" {
+      type = numeric(10,5)
+    }
+    column "t_xv_oi" {
+      type = numeric(10,5)
+    }
+    column "t_gv_oi_xv" {
+      type = numeric(9,5)
+    }
+    column "t_gv_oi_nxv" {
+      type = numeric(9,5)
+    }
+    column "t_gvr" {
+      type = numeric(9,5)
+    }
+    column "t_xvr" {
+      type = numeric(9,5)
+    }
+    column "t_edr" {
+      type = numeric(9,5)
+    }
+    column "t_el_span" {
+      type = numeric(10,5)
+    }
+    column "t_el_span_day" {
+      type = numeric(10,5)
+    }
+    column "t_el_span_night" {
+      type = numeric(10,5)
+    }
+    column "t_gjyyfgh" {
+      type = numeric(10,5)
+    }
+    column "t_gjyygh" {
+      type = numeric(10,5)
+    }
+    column "t_hhjjfg" {
+      type = numeric(10,5)
+    }
+    column "t_nxvodn" {
+      type = numeric(10,5)
+    }
+    column "t_opressovka" {
+      type = numeric(10,5)
+    }
+    column "t_radio" {
+      type = numeric(10,5)
+    }
+    column "t_sverh_norm_s" {
+      type = numeric(10,5)
+    }
+    column "t_term" {
+      type = numeric(10,5)
+    }
+    column "t_to_gaz" {
+      type = numeric(10,5)
+    }
+    column "t_uslugi_banka" {
+      type = numeric(10,5)
+    }
+    column "t_remstkov" {
+      type = numeric(9,5)
+    }
+    column "t_dymv" {
+      type = numeric(9,5)
+    }
+    column "t_plgazch" {
+      type = numeric(9,5)
+    }
+  )
+}
+

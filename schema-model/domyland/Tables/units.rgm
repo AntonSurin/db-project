@@ -1,0 +1,25 @@
+table "domyland"."units" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_units"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.units_id_seq'::regclass)
+    }
+    column "unit_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "domyland_code" {
+      type = integer
+    }
+  )
+}
+

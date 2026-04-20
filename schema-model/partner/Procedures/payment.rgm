@@ -1,0 +1,105 @@
+procedure "partner"."payment(jsonb)" {
+  text = """
+
+declare 
+		_period_begin	int;
+		_period_end		int;
+begin
+	
+	select min(p.period_id), max(p.period_id)
+	into _period_begin, _period_end
+	from jsonb_populate_recordset(null::partner.data_from_1c, _payment) p;
+
+	create temp table _table (period_id int, provider_id int, document_id int, house_id int, "sum" numeric(15, 2), debt numeric(15, 2), pay numeric(15, 2));
+
+	with cte as 
+	(
+		select
+			pb.period_id,
+			usp.provider_id,
+			ud.document_id,
+			usp.house_id,
+			p."sum",
+			sum(pb.in_balance - pay) as debt
+		from jsonb_populate_recordset(null::partner.data_from_1c, _payment) p
+			inner join partner."document" pd on pd.guid = p.guid
+			inner join utility.documents ud on ud.document_id = pd.id
+			inner join utility.sublist_provider usp on usp.id = ud.sublist_provider_id
+			inner join payment.balance pb on pb.house_id = usp.house_id
+				and pb.sublist_id = usp.sublist_id
+				and pb.period_id = p.period_id
+		group by pb.period_id, p."sum", usp.provider_id, ud.document_id, usp.house_id
+	), cte2 as 
+	(
+		select c.*, round(sum * c.debt / nullif(sum(c.debt) over (partition by c.period_id, c.provider_id, c.document_id), 0.0), 2) as pay
+		from cte c
+	)
+	insert into _table (period_id, provider_id, document_id, house_id, "sum", debt, pay)
+	select ct.period_id, ct.provider_id, ct.document_id, ct.house_id, ct."sum", ct.debt, pay 
+	from cte2 ct;
+
+	with cte as 
+	(
+		select t.period_id, t.document_id, t."sum", sum(t.pay) as "result"
+		from _table t
+		group by t.period_id, t.document_id, t."sum"
+		having t."sum" != sum(t.pay)
+	)
+	update _table tt 
+		set pay = t.pay + c."sum" - c."result"
+	from cte c
+		left join lateral (
+								select * 
+								from _table tb
+								limit 1
+							) t on t.period_id = c.period_id and t.document_id = c.document_id
+	where t.period_id = tt.period_id and t.document_id = tt.document_id;
+
+	with cte as 
+	(
+		update partner.balance pb 
+			set pay = coalesce(t.pay, 0.0)
+		from _table t
+		where pb.period_id = t.period_id 
+			and pb.house_id = t.house_id 
+			and pb.document_id = t.document_id 
+			and pb.provider_id = t.provider_id
+		returning pb.*
+	) 
+	insert into partner.balance (period_id, provider_id, document_id, house_id, pay)
+	select tt.period_id, tt.provider_id, tt.document_id, tt.house_id, tt.pay 
+	from _table tt
+	where not exists (
+						select * 
+						from cte ct 
+						where ct.period_id = tt.period_id 
+							and ct.house_id = tt.house_id 
+							and ct.document_id = tt.document_id 
+							and ct.provider_id = tt.provider_id
+					);
+	
+	call partner.calc_in_balance (_period_begin, _period_end);
+	
+	drop table if exists _table;
+
+end
+"""
+  arguments = <
+    {
+      name = _payment
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 26.10.2016
+ description:	импорт суммы оплаты поставщику жку по договору
+ =============================================
+"""
+}
+

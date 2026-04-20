@@ -1,0 +1,78 @@
+function "account"."owner(integer)" {
+  text = """
+
+declare 
+	_date_begin date;
+begin
+	_date_begin = (select pl.date_begin from "period".list pl where pl.is_working = true);
+
+	return query
+	select 
+		 ca.contragent_id
+		,cl.full_name
+		,ci.date_birth
+		,co.series
+		,co."number"
+		,co.date_begin
+		,co.date_end
+		,co."share"
+		,ca.reg_date_begin
+		,ca.reg_date_end
+		,ci.place_birth
+		,dk."name" as kind_name
+		,ca.is_responsible
+		,(case when coalesce(co.date_end, _date_begin ) >= _date_begin then true else false end) as is_active
+		,max(case when cp.parametr_id = 358 then pb."name" end) as "rs"
+		,max(case when cp.parametr_id = 1383 then pb."name" end) as "t_prop"
+		,max(case when cp.parametr_id = 1452 then pb."name" end) as "t_status"
+		,max(case when cp.parametr_id = 1451 then pb."name" end) as "t_reg"
+		,max(case when cp.parametr_id = 1472 then pb."name" end) as "el_lgot_type"
+	from contragent.list cl
+		inner join contragent.account ca on ca.contragent_id = cl.id
+		inner join contragent.info ci on ci.contragent_id = cl.id
+		inner join contragent.owner_documents co on co.contragent_account_id = ca.id
+		inner join documents.kind dk on dk.id = co.kind_id
+		inner join contragent.parametr cp on cp.contragent_account_id = ca.id 
+		left join parametr.book pb on  pb.id = cp.book_id
+		left join 
+		(
+			select
+			ca.id contragent_account_id,
+			sum(case when lower(pl.short_name) = 't_prop' then case when (lower(pb.name) = 'не проживает' or pb.id is null) then 0 else 1 end else 0 end) as status,
+			sum(case when lower(pl.short_name) = 't_reg' then case when (lower(pb.name) = 'не зарегистрирован' or pb.id is null) then 0 else 1 end else 0 end) as reg
+			from contragent.account ca
+				left join contragent.parametr cp on cp.contragent_account_id = ca.id
+				left join parametr.list pl on pl.id = cp.parametr_id
+				left join parametr.book pb on pb.id = cp.book_id
+			group by ca.id
+		) param on param.contragent_account_id = ca.id 
+	where ca.account_id = _account_id 
+			and 
+				(
+					(co.date_end is null or co.date_end >= _date_begin) or 
+					(co.date_end < _date_begin and param.status = 0 and param.reg = 0) or
+					(param.reg > 0 and ca.reg_date_end < _date_begin)
+				)
+	group by ca.contragent_id, cl.full_name, ca.is_responsible, ci.date_birth, co.date_begin, co.date_end, co.series, co."number", co."share", ca.reg_date_begin, ca.reg_date_end, ci.place_birth, dk."name";
+end;
+"""
+  returnType = TABLE(contragent_id integer, full_name character varying, date_birth date, series character varying, number character varying, date_begin date, date_end date, share character varying, reg_date_begin date, reg_date_end date, place_birth character varying, kind_name character varying, is_responsible boolean, is_active boolean, rs text, t_prop text, t_status text, t_reg text, el_lgot_type text)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 18.12.2015
+ description:	отображение параметров собственников в справочнике л/с
+ =============================================
+"""
+}
+

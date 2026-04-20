@@ -1,0 +1,187 @@
+table "payment"."balance" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__balance"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.balance_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "tarif" {
+      type = numeric(9,2)
+      null = NOT NULL
+      default = 0.0
+    }
+    column "normativ" {
+      type = numeric(9,5)
+    }
+    column "volume" {
+      type = numeric(11,5)
+    }
+    column "in_balance" {
+      type = numeric(9,2)
+      null = NOT NULL
+      default = 0.0
+    }
+    column "current_calculate" {
+      type = numeric(9,2)
+      null = NOT NULL
+      default = 0.0
+    }
+    column "recalculate" {
+      type = numeric(9,2)
+      null = NOT NULL
+      default = 0.0
+    }
+    column "rate_normativ" {
+      type = numeric(9,2)
+    }
+    column "pay" {
+      type = numeric(9,2)
+      null = NOT NULL
+      default = 0.0
+    }
+    column "account_parent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "print" {
+      type = integer
+      generatedAs = """-
+
+CASE
+    WHEN ((COALESCE(current_calculate, (0)::numeric) <> 0.0) OR (COALESCE(recalculate, (0)::numeric) <> 0.0)) THEN 1
+    ELSE 0
+END
+"""
+    }
+  )
+}
+
+index "payment"."balance_idx_account_parent_id" {
+  table = "payment"."balance"
+  type = btree
+  columns = <
+    {
+      definition = account_parent_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    in_balance
+    current_calculate
+    recalculate
+    pay
+  ]
+}
+
+index "payment"."balance_idx_account_parent_id_period_id" {
+  table = "payment"."balance"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+    {
+      definition = account_parent_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    sublist_id
+    tarif
+    volume
+    in_balance
+    current_calculate
+    recalculate
+    pay
+  ]
+}
+
+index "payment"."balance_idx_account_period" {
+  table = "payment"."balance"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    current_calculate
+    recalculate
+    pay
+    in_balance
+    house_id
+    sublist_id
+    normativ
+    volume
+    rate_normativ
+    account_parent_id
+    tarif
+    flat_id
+  ]
+}
+
+index "payment"."balance_idx_house_id" {
+  table = "payment"."balance"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    sublist_id
+    tarif
+    volume
+    in_balance
+    current_calculate
+    recalculate
+    pay
+    normativ
+    rate_normativ
+    account_id
+  ]
+}
+

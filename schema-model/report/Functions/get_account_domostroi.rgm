@@ -1,0 +1,75 @@
+function "report"."get_account_domostroi(jsonb)" {
+  text = """
+
+ 
+	select 
+		ai.account_name as account_id,
+		ai.account_name,
+		osq.value::numeric(6,2) as space_total,
+		crm.value::int2 as house_room,
+		ai.flat_id as estate_id, 
+		ast."name" as city_name, 
+		ai.street_name, 
+		ah."number" as house_number, 
+		ah.korpus as building_number,
+		n_pod.value::int2 as lobby_number,
+		et.value::int2 as floor_number, 
+		ai.flat_book_short_name || ' ' || ai.flat_name as room_number
+ 	from  adress.info ai 
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = ai.account_id
+		inner join adress.house ah on ah.id = ai.house_id
+		inner join adress.street s on s.id = ah.street_id
+		inner join adress.settlement ast on ast.id = s.settlement_id
+		left join (
+					select pa.flat_id, pa.value 
+					from parametr.list pl
+						inner join parametr.flat pa on pa.parametr_id = pl.id
+					where lower(pl.short_name) = 'et' and pa.date_end is null
+				) et on et.flat_id = ai.flat_id
+		left join (
+					select pa.flat_id, pa.value, pl.* 
+					from parametr.list pl
+						inner join parametr.flat pa on pa.parametr_id = pl.id
+					where lower(pl.short_name) = 'n_pod' and pa.date_end is null
+				) n_pod on n_pod.flat_id = ai.flat_id 
+		left join (
+					select pa.account_id, pa.value 
+					from parametr.list pl
+						inner join parametr.account pa on pa.parametr_id = pl.id
+					where lower(pl.short_name) = 'osq' and pa.date_end is null
+				) osq on osq.account_id = ai.account_id
+		left join (
+					select pa.account_id, pa.value 
+					from parametr.list pl
+						inner join parametr.account pa on pa.parametr_id = pl.id
+					where lower(pl.short_name) = 'is_closed' and pa.date_end is null
+				) is_closed on is_closed.account_id = ai.account_id
+		left join (
+					select pa.flat_id, pa.value 
+					from parametr.list pl
+						inner join parametr.flat pa on pa.parametr_id = pl.id
+					where lower(pl.short_name) = 'crm' and pa.date_end is null
+				) crm on crm.flat_id = ai.flat_id
+	where account_parent_id is null and is_closed.value = '1';
+	
+"""
+  returnType = TABLE(account_id character varying, account_name character varying, space_total numeric, house_room smallint, estate_id integer, city_name text, street_name text, house_number character varying, building_number character varying, lobby_number smallint, floor_number smallint, room_number text)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		казакова с. и.
+ create date: 03.08.2018
+ description:	выгрузка в домострой
+ =============================================
+"""
+}
+

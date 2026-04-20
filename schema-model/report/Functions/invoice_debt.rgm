@@ -1,0 +1,192 @@
+function "report"."invoice_debt(jsonb, smallint, boolean, integer, integer)" {
+  text = """
+
+declare 
+	_period_id 		int;
+	_parametr_id	int;
+	_date_begin		date;
+begin
+	
+	drop table if exists __account;
+	create temp table __account (account_id int primary key not null, account_parent_id int not null);
+
+	if (_group_id is null)
+		then
+			insert into __account(account_id, account_parent_id)
+			select aa.id, aa.parent_id
+			from adress.account aa
+				inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id;
+		else 
+			insert into __account(account_id, account_parent_id)
+			select aa.id, aa.parent_id
+			from adress.account aa
+				inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.parent_id
+			where aa.group_id = _group_id;	
+	end if;
+
+	_date_begin = (select pl.date_begin from "period".list pl where pl.is_working = true);
+
+	/*выбираем лицевые счета, у которых стоит печать долговых квитанций - да*/
+	_parametr_id = (select pl.id from parametr.list pl where lower(pl.short_name) = 'is_print_debt');
+
+	create temp table _account_filter (account_id int);
+
+	insert into _account_filter
+	select a.account_id
+	from parametr.account pa
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pa.account_id
+	where pa.parametr_id = _parametr_id 
+		and pa.date_begin = (select paa.date_begin from parametr.account paa where paa.parametr_id = _parametr_id and paa.account_id = a.account_id order by paa.date_begin desc limit 1)
+		and pa.value = '1';
+	
+	_period_id = (select pl.id from "period".list pl where pl.is_working = true) - _use_calculation;
+
+	create temp table _payment (account_id int, pay numeric(20, 2));
+	create temp table _payment_fine (account_id int, pay numeric(20, 2));
+
+	insert into _payment
+	select a.account_id, sum(pl.pay)
+	from __account a
+		inner join payment.balance pl on a.account_id = pl.account_id
+	where pl.period_id >= _period_id
+	group by a.account_id;
+
+	insert into _payment_fine 
+	select pb.account_id, sum(pb.pay)
+	from payment.balance pb
+		inner join __account a on pb.account_id = a.account_id
+	where pb.sublist_id = 7 and pb.period_id >= _period_id
+	group by pb.account_id;
+	
+	return query
+	select 
+		 ai.account_id
+		,ai.account_name
+		,coalesce(g.full_name, ot.short_name || ' ' || ol.short_name) as organization_name
+		,coalesce(g.ogrn, ol.ogrn) as ogrn
+		,coalesce(g.inn, ol.inn) as inn
+		,coalesce(g.kpp, ol.kpp) as kpp
+		,coalesce(g.bik, oc.bik) as bik
+		,coalesce(g.rs, oc.rs) as rs
+		,coalesce(g.ks, oc.ks) as ks
+		,coalesce(g."name", oc.bank_name) as bank_name
+		,(
+			select string_agg(
+				case 
+					when _show_work_details = false
+					then 
+						case 
+							when _person_type = 0 then cl.full_name
+							when _person_type = 1 then cl.short_name
+							when _person_type = 2 then cl.surname
+							when _person_type = 3 then coalesce(cl."name" || ' ', '') || coalesce(cl.middlename || ' ', '') || case when length(coalesce(cl.surname, '')) > 0 then substring(cl.surname, 1, 1) || '.' else '' end
+						end
+					else cl.short_name
+				end
+				, ', ')
+				from contragent.list cl
+					inner join contragent.account ca on ca.contragent_id = cl.id
+					inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+				where ca.account_id = ai.account_id and ca.is_responsible = true and coalesce(od.date_end,_date_begin) >= _date_begin
+		) as owners
+		,ai.short_name_flat
+		,sum(case when coalesce(d.debt, 0.0) <= 0.0 then 0.0 else d.debt end) as debt
+		,sum(coalesce(d.debt, 0.0)) as debt_value
+		,sum(coalesce(df.fine_debt, 0.0)) as fine_debt 
+		,ow."name" as work_name
+		,ow.inn as work_inn
+		,ow.kpp as work_kpp
+		,ocw.bank_name as work_bank_name
+		,ocw.rs as work_rs
+		,ocw.ks as work_ks
+		,ocw.bik as work_bik
+		,ai.order_id
+		,ai.account_order_id
+		,ac.password_site
+		,_date_begin as period_begin
+	from __account aa
+		inner join (
+						select pb.account_id, pb.in_balance - p.pay as debt
+						from payment.balance_group pb 
+							inner join _payment p on p.account_id = pb.account_id
+						where pb.period_id = _period_id 
+					) d on d.account_id = aa.account_id
+		inner join (
+						select pb.account_id, pb.in_balance - p.pay as fine_debt
+						from payment.balance pb
+							inner join _payment_fine p on p.account_id = pb.account_id
+						where pb.sublist_id = 7 and pb.period_id = _period_id 
+					) df on df.account_id = aa.account_id
+		inner join _account_filter a on a.account_id = aa.account_parent_id
+		inner join adress.account ac on ac.id = aa.account_parent_id
+		inner join adress.info ai  on ai.account_id = aa.account_parent_id
+		inner join adress.house ah on ah.id = ai.house_id
+		inner join organization.list ol on ol.id = ah.organization_id
+		inner join organization."type" ot on ot.id = ol.type_id
+		inner join organization.counting oc on oc.id = ah.organization_counting_id
+		inner join organization.list ow on ow.id = ai.work_id
+		inner join organization.counting ocw on ocw.id = ai.work_counting_id
+		left join (
+					select cl.full_name, cl.inn, cl.kpp, cl.ogrn, cc."name", cc.rs, cc.ks, cc.bik  
+					from utility.contragent_group cg
+						inner join contragent.list cl on cl.id = cg.contragent_id
+						inner join contragent.counting cc on cc.id = cg.counting_id
+					where cg.id = _group_id
+				) g on 1 = 1
+	 group by ai.account_id, ai.account_name, ot.short_name, ol.short_name, ol.inn, ol.ogrn, ol.kpp, oc.rs, oc.ks, oc.bik, oc.bank_name, oc.bank_adress
+		,ai.short_name_flat, ow."name", ow.inn, ow.kpp, ocw.bank_name, ocw.rs, ocw.ks, ocw.bik, ai.order_id, ai.account_order_id, g.bik, g.full_name, g.inn, g.kpp, g.ks
+		, g."name", g.rs, g.ogrn, ac.password_site;
+	 	 
+	drop table if exists __account;
+	drop table if exists _account_filter;
+	drop table if exists _payment;
+	drop table if exists _payment_fine;
+	
+end;
+"""
+  returnType = TABLE(account_id integer, account_name character varying, organization_name character varying, ogrn character varying, inn character varying, kpp character varying, bik character varying, rs character varying, ks character varying, bank_name character varying, owners text, short_name_flat text, debt numeric, debt_value numeric, fine_debt numeric, work_name character varying, work_inn character varying, work_kpp character varying, work_bank_name character varying, work_rs character varying, work_ks character varying, work_bik character varying, order_id integer, account_order_id integer, password_site integer, period_begin date)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _use_calculation
+      type = smallint
+      mode = IN
+    }
+
+    {
+      name = _show_work_details
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _group_id
+      type = integer
+      mode = IN
+      default = NULL::integer
+    }
+
+    {
+      name = _person_type
+      type = integer
+      mode = IN
+      default = 0
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 20.07.2016
+ description:	долговая квитанция
+ =============================================
+"""
+}
+

@@ -1,0 +1,93 @@
+table "service"."single_user_request" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_single_user_request"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('service.single_user_request_id_seq'::regclass)
+    }
+    column "employee_id" {
+      type = integer
+    }
+    column "machine_name" {
+      type = character varying(15)
+      null = NOT NULL
+    }
+    column "mac_address_hash" {
+      type = integer
+      null = NOT NULL
+    }
+    column "reason" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "start_time" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "end_time" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "is_active" {
+      type = integer
+      generatedAs = """-
+
+CASE
+    WHEN (end_time > public.getdate()) THEN 1
+    ELSE 0
+END
+"""
+    }
+  )
+}
+
+foreignKey "service"."single_user_request"."fk_single_user_request_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "service"."single_user_request_idx_mach_name_mac_adr_time" {
+  table = "service"."single_user_request"
+  type = btree
+  columns = <
+    {
+      definition = machine_name
+    }
+
+    {
+      definition = mac_address_hash
+    }
+
+    {
+      definition = start_time
+    }
+
+    {
+      definition = end_time
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    employee_id
+    reason
+  ]
+}
+

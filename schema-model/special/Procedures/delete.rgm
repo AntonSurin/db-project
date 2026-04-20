@@ -1,0 +1,269 @@
+procedure "special"."delete(text, integer, character varying)" {
+  text = """
+
+declare 
+	_max_sub_value 				int;
+	_parent_table_schema		text;
+	_parent_table_names			text;
+	_sql		 				text = '';
+	_condition 					text = '';
+	_error_message 				text;
+begin
+
+	if exists(
+				select 1
+				from information_schema.table_constraints
+				where lower(constraint_name) = 'fk_payment_document_to_payment_list'
+			 )
+		then 
+			begin
+				alter table payment."document" drop constraint fk_payment_document_to_payment_list;
+			end;
+	end if;
+
+	create temp table _table 
+	(
+		value int, 
+		sub_value int, 
+		referenced_object_schema varchar(100), 
+		referenced_object_name varchar(100), 
+		referenced_object_column varchar(100), 
+		parent_object_schema varchar(100),
+		parent_object_name varchar(100), 
+		parent_object_column varchar(100)
+	);
+
+	with recursive cte as 
+	(
+		select row_number() over (partition by ccu.table_schema, ccu.table_name, ccu.column_name order by ccu.table_schema, ccu.table_name, ccu.column_name) as value
+			,1 as sub_value
+			,ccu.table_schema as referenced_table_schema
+			,ccu.table_name as referenced_table_name
+			,ccu.column_name as referenced_column_name
+			,stc.table_schema as parent_table_schema
+			,stc.table_name as parent_table_name
+			,kcu.column_name as parent_column_name
+		from information_schema.constraint_column_usage ccu
+			inner join information_schema.key_column_usage kcu on kcu.constraint_name = ccu.constraint_name 
+			inner join information_schema.table_constraints stc on stc.constraint_name = kcu.constraint_name and stc.table_schema = kcu.table_schema and stc.constraint_schema = ccu.constraint_schema 
+		where lower(ccu.table_schema) = lower(split_part(_table_name, '.', 1)) and lower(ccu.table_name) = lower(split_part(_table_name, '.', 2)) and lower(stc.constraint_type) = 'foreign key' 
+		union all 
+		select c.value
+			  ,c.sub_value + 1, f.*
+		from (
+				select 
+					 ccu.table_schema as referenced_table_schema
+					,ccu.table_name as referenced_table_name
+					,ccu.column_name as referenced_column_name
+					,stc.table_schema as parent_table_schema
+					,stc.table_name as parent_table_name
+					,kcu.column_name as parent_column_name
+				from information_schema.constraint_column_usage ccu
+					inner join information_schema.key_column_usage kcu on kcu.constraint_name = ccu.constraint_name 
+					inner join information_schema.table_constraints stc on stc.constraint_name = kcu.constraint_name and stc.table_schema = kcu.table_schema and stc.constraint_schema = ccu.constraint_schema 
+				where lower(stc.constraint_type) = 'foreign key'
+			) f
+				inner join cte c on c.parent_table_schema = f.referenced_table_schema and c.parent_table_name = f.referenced_table_name
+	)
+
+	insert into _table (value, sub_value, referenced_object_schema, referenced_object_name, referenced_object_column ,parent_object_schema, parent_object_name, parent_object_column)
+	select value, sub_value, referenced_table_schema, referenced_table_name, referenced_column_name, parent_table_schema, parent_table_name, parent_column_name
+	from cte;
+
+	_max_sub_value = (select max(sub_value) from _table);
+
+	begin
+
+		while (_max_sub_value > 0) loop
+	
+			while (select count(*) from _table where sub_value = _max_sub_value) > 0 loop
+				
+				select 
+					 t.parent_object_schema
+					,t.parent_object_name
+					,'
+						delete ' || ' 
+						from ' || '"' || t.parent_object_schema || '"' || '.' || '"' || parent_object_name || '"' || ' as ' || '"' || t.parent_object_schema || parent_object_name || '"' || '
+						using '				
+				into _parent_table_schema, _parent_table_names, _sql 
+				from _table t
+				where sub_value = _max_sub_value and parent_object_schema != 'dbo' and parent_object_schema not like 'temp%'
+				limit 1;
+	
+				with recursive cte as 
+				(
+					select *
+					from (	
+							select *
+							from _table
+							where parent_object_schema = _parent_table_schema and parent_object_name = _parent_table_names
+							limit 1 
+						 ) as d
+					union all
+					select t.*
+					from cte c
+						inner join _table t on t.parent_object_schema = c.referenced_object_schema and t.parent_object_name = c.referenced_object_name
+				)	
+				
+				select _sql || sq, db
+				into _sql, _condition
+				from (
+					select   
+							string_agg(distinct '"' || tt.referenced_object_schema || '"' || '.' || '"' || tt.referenced_object_name || '"' || ' as ' || '"' || tt.referenced_object_schema || tt.referenced_object_name || '"', ',') as sq
+						   ,string_agg(distinct 
+								 ' and ' || '"' || referenced_object_schema || referenced_object_name || '"' || '.' || '"' || referenced_object_column || '"' || ' = ' 
+								|| '"' || parent_object_schema || parent_object_name || '"' || '.' || '"' || parent_object_column || '"', '') as db				
+					from cte tt
+					where tt.parent_object_schema != 'dbo' and tt.parent_object_schema not like 'temp%'
+					) as t;
+				
+			
+				
+				_sql = _sql ||'
+						where ' || '"' || lower(split_part(_table_name, '.', 1)) || lower(split_part(_table_name, '.', 2)) || '"' || '.' || '"id"' || ' = ' || _object_id || _condition || ';';
+				
+				execute(_sql);
+	
+				delete 
+				from _table 
+				where parent_object_schema = _parent_table_schema and parent_object_name = _parent_table_names;
+	
+			end loop;
+		
+			_max_sub_value = _max_sub_value - 1;
+		
+		end loop;
+	
+		_sql = '';
+	
+		if (lower(_table_name) = 'adress.house')
+			then
+				begin
+					_sql = _sql || '
+					delete from eco.year_plan where house_id = ' || _object_id ||';
+					delete from house.ogf_data where house_id = ' || _object_id ||';
+					delete from gis.outage_object where house_id = ' || _object_id ||';
+					delete from documents.contracts_houses where house_id = ' || _object_id ||';
+					delete from documents.charters_houses where house_id = ' || _object_id ||';
+					delete from documents.supply_contract_houses where house_id = ' || _object_id ||';';
+				end;
+		end if;	
+	
+		_sql = _sql || (
+						select string_agg('
+					delete from ' || '"' || t.table_schema || '"' || '.' || '"' || t.table_name || '"' || ' where ' || lower(_non_foreign_column_name) || ' = ' || _object_id || ';', '')
+						from information_schema."tables" t
+							inner join information_schema."columns" c on t.table_catalog = c.table_catalog and t.table_schema = c.table_schema and t.table_name = c.table_name 
+						where not exists (	
+											select *
+											from information_schema.table_constraints stc
+												inner join information_schema.key_column_usage kcu on kcu.table_catalog = stc.table_catalog and stc.table_schema = kcu.table_schema and stc.table_name = kcu.table_name
+											where stc.table_catalog = t.table_catalog 
+													and stc.table_schema = t.table_schema 
+													and stc.table_name = t.table_name 
+													and lower(stc.constraint_type) = 'foreign key' 
+													and kcu.column_name = c.column_name 
+										)	
+							and lower(c.column_name) = lower(_non_foreign_column_name)
+							and lower(t.table_schema) <> lower('dbo')
+						);
+						
+		if (lower(_table_name) = 'adress.account')
+			then
+				begin
+					_sql = _sql || '
+					delete from payment.balance where account_parent_id = ' || _object_id || ';
+					truncate table calculation.account; 
+					delete from adress.account where parent_id = ' || _object_id || ';';
+				end;
+		end if;
+	
+		-- удаление чеков на документы
+		_sql = _sql || '
+					delete 
+					from payment.document_check pc
+					using (select id as account_id, flat_id, house_id from adress.account) as aa 
+					where pc.account_id = aa.account_id and aa.' || _non_foreign_column_name || ' = ' || _object_id || ';';
+	
+		_sql = _sql || '
+
+		------------- удаление счётчиков
+
+					create temp table _counters (id int);
+				
+					insert into _counters 
+					select id 
+					from counter.list cl
+						left join (select counter_id from counter.house 
+									union all
+									select counter_id from counter.account
+									union all
+									select counter_id from counter.flat
+									) as cp on cp.counter_id = cl.id
+					where cp.counter_id is null;
+				
+					delete from counter.flow where counter_id in (select id from _counters);
+					delete from input.counter where counter_id in (select id from _counters);
+					delete from counter.verification_history where counter_id in (select id from _counters);
+					delete from counter.closed_verification_date where counter_id in (select id from _counters);
+					delete from counter.list where id in (select id from _counters);
+
+					-----------------------------------------------------------------------------
+
+					delete from ' || _table_name || ' where id = ' || _object_id || ';' ||
+					'drop table if exists _counters;';
+	
+		execute(_sql);
+		
+		exception when others
+		then
+			get stacked diagnostics
+				_error_message = pg_exception_detail;
+	
+		raise exception '%', _error_message;
+	
+	end;
+
+	alter table only payment."document"
+    add constraint fk_payment_document_to_payment_list foreign key (payment_id) references payment.list(id);
+
+	drop table if exists _table;
+
+end
+"""
+  arguments = <
+    {
+      name = _table_name
+      type = text
+      mode = IN
+    }
+
+    {
+      name = _object_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _non_foreign_column_name
+      type = character varying
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Create date: <Create Date,,>
+ Description:	<Description,,>
+
+ Изменение: 08.10.2019
+ Описание: Добавлено удаление счётчиков, у которых нет привязки ни к дому, ни к лс, ни к квартире.
+ Информация удаляется из таблиц: Counter.Flow, Input.Counter, Counter.List
+ Автор: Макарова Е.А.
+ =============================================
+"""
+}
+

@@ -1,0 +1,54 @@
+table "gis"."liv_flat_charter" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_liv_flat_charter"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.liv_flat_charter_id_seq'::regclass)
+    }
+    column "charter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "payment_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "begin_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "end_date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "for_members_payment" {
+      type = numeric(10,2)
+    }
+    column "for_non_members_payment" {
+      type = numeric(10,2)
+    }
+    column "status_gis" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "gis"."liv_flat_charter"."fk_liv_flat_charter_charter" {
+  columns = [
+    "charter_id"
+  ]
+  referencedTable = "gis"."charter_data"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,70 @@
+table "documents"."payment_document" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_payment_document"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.payment_document_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "document_type" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "unique_number" {
+      type = character varying(36)
+    }
+    column "date_create" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "total" {
+      type = numeric(18,2)
+      null = NOT NULL
+    }
+    column "state" {
+      type = integer
+      null = NOT NULL
+    }
+    column "error" {
+      type = character varying(8000)
+    }
+    column "group_id" {
+      type = integer
+    }
+  )
+}
+
+index "documents"."payment_document_ix_payment_document" {
+  table = "documents"."payment_document"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = False
+}
+

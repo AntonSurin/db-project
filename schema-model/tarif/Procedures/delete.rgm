@@ -1,0 +1,117 @@
+procedure "tarif"."delete(jsonb)" {
+  text = """
+
+declare 
+	_period_id		int;
+	_period_begin	date;
+	_error_message	text;
+begin
+
+	select id, date_begin
+	into _period_id, _period_begin
+	from "period".list 
+	where is_working = true;
+
+	delete 
+	from tarif.house_tarif tht
+	using jsonb_populate_recordset(null::house.tarif_list, _house_tarif) ht, tarif.house_tarif th, tarif.list tl, tarif.list li
+	where th.date_begin >= _period_begin 
+		and tl.sublist_id in (22,24,27)
+		and ht.house_id = th.house_id
+		and ht.tarif_id = th.tarif_id
+		and ht.number = th.number
+		and ht.date_begin = th.date_begin
+		and tht.house_id = th.house_id 
+		and tht.number = th.number 
+		and tht.date_begin = th.date_begin
+		and tl.id = ht.tarif_id
+		and li.sublist_id = tl.sublist_id + 10 
+		and li.value = tl.value 
+		and li.provider_id = tl.provider_id 
+		and li.territory_id = tl.territory_id 
+		and coalesce(li.is_global,false) = coalesce(tl.is_global,false) 
+		and coalesce(li.document,'') = coalesce(tl.document,'');
+
+	delete 
+	from tarif.house_tarif th
+	using jsonb_populate_recordset(null::house.tarif_list, _house_tarif) ht, tarif.list tl
+	where th.date_begin >= _period_begin
+		and ht.house_id = th.house_id
+		and ht.tarif_id = th.tarif_id
+		and ht.number = th.number
+		and ht.date_begin = th.date_begin
+		and tl.id = ht.tarif_id;
+	
+	delete 
+	from tarif.list tl
+	where not exists (select 1 from tarif.house_tarif th where th.tarif_id = tl.id);
+
+	drop table if exists __tarif;
+	create temp table __tarif (tarif_id int not null primary key, name varchar(100), value numeric(10, 2));
+	
+	insert into __tarif
+	select tl.id, tl.name, tl.value
+	from tarif.house_tarif th
+		inner join jsonb_populate_recordset(null::house.tarif_list, _house_tarif) ht on ht.house_id = th.house_id 
+			and ht.tarif_id = th.tarif_id
+			and ht.number = th.number
+			and ht.date_begin = th.date_begin
+		inner join tarif.list tl on tl.id = ht.tarif_id
+	union all
+	select li.id, li.name, li.value
+	from jsonb_populate_recordset(null::house.tarif_list, _house_tarif) ht 
+		inner join tarif.house_tarif th on ht.house_id = th.house_id
+			and ht.tarif_id = th.tarif_id
+			and ht.number = th.number
+			and ht.date_begin = th.date_begin
+		inner join tarif.house_tarif tht on tht.house_id = th.house_id 
+			and tht.number = th.number 
+			and tht.date_begin = th.date_begin
+		inner join tarif.list tl on tl.id = ht.tarif_id
+		inner join tarif.list li on li.sublist_id = tl.sublist_id + 10 and li.value = tl.value and li.provider_id = tl.provider_id and li.territory_id = tl.territory_id and coalesce(li.is_global,false) = coalesce(tl.is_global,false) and coalesce(li.document,'') = coalesce(tl.document,'')
+	where th.date_begin >= _period_begin and tl.sublist_id in (22,24,27);
+
+	if exists(select * from __tarif)
+		then 
+			begin
+				_error_message =(
+									select string_agg(t.d, ', ')
+									from (
+											select --top 5
+												('id: ' || tr.tarif_id || ', Наименование: ' || tr.name || ', Значение: ' || tr.value || chr(10)) as d
+											from __tarif tr
+											group by tarif_id, name, value
+										 ) as t
+								);
+				
+				_error_message = 'Невозможно удалить следующие тарифы:' || chr(10) || _error_message || 'т.к. они созданы в архивном периоде';
+				raise notice '%',_error_message;
+			end;
+	end if;
+
+	drop table if exists __Tarif;
+	
+end;
+"""
+  arguments = <
+    {
+      name = _house_tarif
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 30.07.2014
+ description:	удаление связки тариф->дом
+ Modify Author: Юркин Е.Ю.
+ Modify date: 16.04.2024
+ Modify description: Автоматическое удаление тарифов превышения платы
+ =============================================
+"""
+}
+

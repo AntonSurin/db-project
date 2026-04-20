@@ -1,0 +1,30 @@
+table "dbo"."__migration_history" {
+  primaryKey = {
+    columns = [
+      "migration_id"
+      "context_key"
+    ]
+    name = "pk_dbo__migration_history"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "migration_id" {
+      type = character varying(150)
+      null = NOT NULL
+    }
+    column "context_key" {
+      type = character varying(300)
+      null = NOT NULL
+    }
+    column "model" {
+      type = bytea
+      null = NOT NULL
+    }
+    column "product_version" {
+      type = character varying(32)
+      null = NOT NULL
+    }
+  )
+}
+

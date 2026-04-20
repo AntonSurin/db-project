@@ -1,0 +1,85 @@
+function "report"."contract(integer)" {
+  text = """
+
+declare 
+	_person_count int;
+begin
+
+	_person_count = (
+						select count(distinct ca.contragent_id)
+						from contragent.account ca
+							inner join contragent.owner_documents od on od.contragent_account_id = ca.id
+						where ca.account_id = _account_id and coalesce(od.date_end, current_date ) >= current_date
+					);
+
+	return query
+	select 
+		al.house_id,
+		al.account_id,
+		al.settlement_name,
+		al.street_book_name,
+		al.street_name,
+		al.house_number,
+		al.korpus,
+		al.flat_book_name,
+		al.flat_name,
+		cp.osq,
+		ot."name" as organization_type,
+		ol.short_name as organization_name,
+		ott.genitive_name as employee_title,
+		oe.genitive_full_name::text as employee_name,
+		al.flat_book_id,
+		ol.inn,
+		ol.kpp,
+		ol.ogrn,
+		ol.email,
+		ott."name" as n_employee_title,
+		oe.short_name::text as n_employee_name,
+		(
+			select string_agg(cl.full_name ||case when pa.id is not null and cl."type" = true then ' в лице ' || pa.genitive_full_name || ' действующего на основании устава' else ' ' end  ,'и ')
+			from contragent.list cl
+				inner join contragent.account ca on ca.contragent_id = cl.id
+				inner join contragent.owner_documents od on ca.id = od.contragent_account_id
+				left join person.agent pa on pa.contragent_id = cl.id
+			where ca.account_id = al.account_id and coalesce(od.date_end, current_date) >= current_date and coalesce(pa.is_confidant, true) = true
+		) as owners,
+		(
+			select distinct concat(dk.genitive_name,  ' ', od.series, ' ', od."number", ' от ', to_char(od.date_begin, 'dd.mm.yyyy г.'), ', выдан ', di."name", '/')
+			from contragent.account ca
+				inner join contragent.owner_documents od on od.contragent_account_id= ca.id
+				inner join documents.kind dk on dk.id = od.kind_id
+				inner join documents.is_by di on od.is_by_id = di.id
+			where ca.account_id = al.account_id and coalesce(od.date_end, current_date) >= current_date 
+		) as "document",
+		_person_count as person_count
+	from adress.light_info al 
+		inner join adress.house ah on ah.id = al.house_id
+		inner join organization.list ol on ol.id = ah.work_id
+		inner join organization."type" ot on ot.id = ol.type_id
+		inner join calculation.parametr_transporate cp on cp.account_id = al.account_id
+		inner join organization.employee oe on oe.list_id = ol.id
+		inner join organization.title ott on ott.id = oe.title_id
+	where al.account_id = _account_id and oe."type" = 1;
+
+end;
+"""
+  returnType = TABLE(house_id integer, account_id integer, settlement_name text, street_book_name character varying, street_name character varying, house_number character varying, korpus character varying, flat_book_name character varying, flat_name character varying, osq numeric, organization_type character varying, organization_name character varying, employee_title character varying, employee_name text, flat_book_id smallint, inn character varying, kpp character varying, ogrn character varying, email character varying, n_employee_title character varying, n_employee_name text, owners text, document text, person_count integer)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		<Author,,Name>
+ Create date: <Create Date,,>
+ Description:	<Description,,>
+ =============================================
+"""
+}
+

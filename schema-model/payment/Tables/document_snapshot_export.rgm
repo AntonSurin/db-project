@@ -1,0 +1,15 @@
+table "payment"."document_snapshot_export" {
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.document_snapshot_export_id_seq'::regclass)
+    }
+    column "document_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+

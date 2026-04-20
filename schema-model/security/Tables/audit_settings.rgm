@@ -1,0 +1,47 @@
+table "security"."audit_settings" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk__audit_set__3214ec070690a66d"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('security.audit_settings_id_seq'::regclass)
+    }
+    column "modified_at" {
+      type = timestamp(6) without time zone
+      null = NOT NULL
+      default = now()
+    }
+    column "session_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "key" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "old_value" {
+      type = character varying(100)
+    }
+    column "new_value" {
+      type = character varying(100)
+    }
+  )
+}
+
+foreignKey "security"."audit_settings"."fk_audit_settings_to_session" {
+  columns = [
+    "session_id"
+  ]
+  referencedTable = "security"."session"
+  referencedColumns = [
+    "id"
+  ]
+}
+

@@ -1,0 +1,13 @@
+table "temp"."fine_account" {
+  owner = postgres
+  columns = (
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "fine_id" {
+      type = integer
+    }
+  )
+}
+

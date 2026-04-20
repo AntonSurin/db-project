@@ -1,0 +1,45 @@
+table "connection"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_connection_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('connection.list_id_seq'::regclass)
+    }
+    column "type_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "url" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "login" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+    column "password" {
+      type = character varying(200)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "connection"."list"."fk_connection_type" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "connection"."type"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,22 @@
+table "benefit"."type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_type_4"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('benefit.type_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+  )
+}
+

@@ -1,0 +1,97 @@
+table "bank"."registry_payment" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_registry_payment"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('bank.registry_payment_id_seq'::regclass)
+    }
+    column "registry_batch_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "payment_id" {
+      type = integer
+    }
+    column "is_error" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "person_data" {
+      type = character varying(500)
+    }
+    column "date" {
+      type = date
+    }
+    column "account_name" {
+      type = character varying(20)
+    }
+    column "payment_type" {
+      type = smallint
+    }
+    column "fee" {
+      type = numeric(9,2)
+    }
+    column "sum" {
+      type = numeric(12,2)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "bank"."registry_payment"."fk_registry_payment_payment_list" {
+  columns = [
+    "payment_id"
+  ]
+  referencedTable = "payment"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "bank"."registry_payment"."fk_registry_payment_registry_batch" {
+  columns = [
+    "registry_batch_id"
+  ]
+  referencedTable = "bank"."registry_batch"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "bank"."registry_payment_idx_bank_reg_pay_unique_pay_id" {
+  table = "bank"."registry_payment"
+  type = btree
+  columns = <
+    {
+      definition = payment_id
+    }
+
+  >
+  isUnique = True
+}
+
+index "bank"."registry_payment_idx_registry_payment_registry_batch_id" {
+  table = "bank"."registry_payment"
+  type = btree
+  columns = <
+    {
+      definition = registry_batch_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    fee
+  ]
+}
+

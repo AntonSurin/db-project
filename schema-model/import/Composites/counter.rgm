@@ -1,0 +1,21 @@
+composite "import"."counter" {
+  owner = postgres
+  fields = (
+    field "counter_id" {
+      type = integer
+    }
+    field "counter_guid" {
+      type = uuid
+    }
+    field "value" {
+      type = numeric(20,5)
+    }
+    field "flow_type_id" {
+      type = smallint
+    }
+    field "date" {
+      type = date
+    }
+  )
+}
+

@@ -1,0 +1,609 @@
+table "calculation"."parametr_transporate" {
+  primaryKey = {
+    columns = [
+      "account_id"
+    ]
+    name = "pk_parametr_transporate"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('calculation.parametr_transporate_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "territory_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "dls" {
+      type = numeric(4,0)
+    }
+    column "dld" {
+      type = numeric(4,0)
+    }
+    column "dsq" {
+      type = numeric(8,2)
+    }
+    column "dsqxv1354" {
+      type = numeric(8,2)
+    }
+    column "dsqot1354" {
+      type = numeric(8,2)
+    }
+    column "osq" {
+      type = numeric(6,2)
+    }
+    column "cpr" {
+      type = smallint
+    }
+    column "cbp" {
+      type = smallint
+    }
+    column "vs" {
+      type = smallint
+    }
+    column "br1" {
+      type = smallint
+    }
+    column "nsq" {
+      type = numeric(6,2)
+    }
+    column "chblk" {
+      type = smallint
+    }
+    column "sn_kt" {
+      type = smallint
+    }
+    column "osv" {
+      type = smallint
+    }
+    column "co" {
+      type = smallint
+    }
+    column "lf" {
+      type = smallint
+    }
+    column "mu" {
+      type = smallint
+    }
+    column "pz" {
+      type = smallint
+    }
+    column "gv" {
+      type = smallint
+    }
+    column "xv" {
+      type = smallint
+    }
+    column "kub_mus" {
+      type = numeric(7,4)
+    }
+    column "pldop" {
+      type = numeric(6,2)
+    }
+    column "npldop" {
+      type = numeric(6,2)
+    }
+    column "cprxv1354" {
+      type = numeric(4,0)
+    }
+    column "dsqgv1354" {
+      type = numeric(8,2)
+    }
+    column "dsqos1354" {
+      type = numeric(8,2)
+    }
+    column "is_closed" {
+      type = smallint
+    }
+    column "ohr" {
+      type = smallint
+    }
+    column "itp" {
+      type = smallint
+    }
+    column "crm" {
+      type = smallint
+    }
+    column "ep" {
+      type = smallint
+    }
+    column "gp" {
+      type = smallint
+    }
+    column "gk" {
+      type = smallint
+    }
+    column "sum_ol" {
+      type = numeric(8,2)
+    }
+    column "tar_mus" {
+      type = numeric(6,2)
+    }
+    column "k_mus" {
+      type = numeric(6,2)
+    }
+    column "rasel" {
+      type = numeric(11,5)
+    }
+    column "raselday" {
+      type = numeric(11,5)
+    }
+    column "lsrasel" {
+      type = numeric(1,0)
+    }
+    column "raselnight" {
+      type = numeric(11,5)
+    }
+    column "rasgv" {
+      type = numeric(9,5)
+    }
+    column "rasxv" {
+      type = numeric(9,5)
+    }
+    column "rasot" {
+      type = numeric(9,5)
+    }
+    column "hrasot" {
+      type = numeric(11,5)
+    }
+    column "hrasgv" {
+      type = numeric(11,5)
+    }
+    column "hgkal" {
+      type = numeric(11,5)
+    }
+    column "hrasel" {
+      type = numeric(12,5)
+    }
+    column "hrasxv" {
+      type = numeric(11,5)
+    }
+    column "hraselday" {
+      type = numeric(12,5)
+    }
+    column "hraselnight" {
+      type = numeric(12,5)
+    }
+    column "rasgaz" {
+      type = numeric(10,5)
+    }
+    column "cprel" {
+      type = numeric(5,1)
+    }
+    column "cprgv" {
+      type = numeric(5,1)
+    }
+    column "hrasgvgaz" {
+      type = numeric(11,5)
+    }
+    column "dsqmus" {
+      type = numeric(8,2)
+    }
+    column "cprmus" {
+      type = numeric(6,2)
+    }
+    column "cprlf" {
+      type = numeric(4,0)
+    }
+    column "dsqlf" {
+      type = numeric(8,2)
+    }
+    column "sum_lf" {
+      type = numeric(8,2)
+    }
+    column "et_lf" {
+      type = numeric(2,0)
+    }
+    column "etd" {
+      type = smallint
+    }
+    column "hchblk" {
+      type = smallint
+    }
+    column "hgv" {
+      type = smallint
+    }
+    column "hxv" {
+      type = smallint
+    }
+    column "sqmop" {
+      type = numeric(9,2)
+    }
+    column "vn" {
+      type = smallint
+    }
+    column "et" {
+      type = smallint
+    }
+    column "coeff" {
+      type = numeric(4,2)
+    }
+    column "tech_water" {
+      type = smallint
+    }
+    column "tk_rem" {
+      type = smallint
+    }
+    column "upr_usl" {
+      type = smallint
+    }
+    column "cprot" {
+      type = numeric(5,0)
+    }
+    column "sum_rasot" {
+      type = numeric(11,5)
+    }
+    column "hcocall" {
+      type = smallint
+    }
+    column "col_reg" {
+      type = numeric(3,0)
+    }
+    column "ellgot" {
+      type = numeric(1,0)
+    }
+    column "ellgotall" {
+      type = numeric(7,2)
+    }
+    column "gv_oi_gkal" {
+      type = numeric(9,5)
+    }
+    column "vhrasel" {
+      type = numeric(9,4)
+    }
+    column "vhrasot" {
+      type = numeric(9,4)
+    }
+    column "vhraselday" {
+      type = numeric(9,4)
+    }
+    column "vhraselnight" {
+      type = numeric(9,4)
+    }
+    column "vhrasxv" {
+      type = numeric(9,4)
+    }
+    column "vhrasgv" {
+      type = numeric(9,4)
+    }
+    column "vdsqel" {
+      type = numeric(9,4)
+    }
+    column "vdsqxv" {
+      type = numeric(9,4)
+    }
+    column "vdsqelday" {
+      type = numeric(9,4)
+    }
+    column "vdsqelnight" {
+      type = numeric(9,4)
+    }
+    column "vdsqgv" {
+      type = numeric(9,4)
+    }
+    column "vdsqot" {
+      type = numeric(9,4)
+    }
+    column "vcprel" {
+      type = numeric(9,4)
+    }
+    column "vcprxv" {
+      type = numeric(9,4)
+    }
+    column "vcprgv" {
+      type = numeric(9,4)
+    }
+    column "vsum_rasot" {
+      type = numeric(11,5)
+    }
+    column "vcprot" {
+      type = numeric(9,4)
+    }
+    column "count_owners" {
+      type = numeric(3,0)
+    }
+    column "flat_type" {
+      type = smallint
+    }
+    column "new_kom" {
+      type = smallint
+    }
+    column "hxv_nasos" {
+      type = smallint
+    }
+    column "hgv_nasos" {
+      type = smallint
+    }
+    column "hosv_ou" {
+      type = smallint
+    }
+    column "hosv_other" {
+      type = smallint
+    }
+    column "hco_eu" {
+      type = smallint
+    }
+    column "hco_nasos" {
+      type = smallint
+    }
+    column "lfd" {
+      type = smallint
+    }
+    column "dsqot_ind" {
+      type = numeric(8,2)
+    }
+    column "sumrasot_ind" {
+      type = numeric(9,5)
+    }
+    column "vdsqot_ind" {
+      type = numeric(9,4)
+    }
+    column "vsumrasot_ind" {
+      type = numeric(9,4)
+    }
+    column "hrasgaz" {
+      type = numeric(11,5)
+    }
+    column "gv_oi_fakt" {
+      type = smallint
+    }
+    column "accountopen" {
+      type = numeric(2,0)
+    }
+    column "houseopen" {
+      type = numeric(2,0)
+    }
+    column "hco_tech_mop" {
+      type = smallint
+    }
+    column "dsqot_odn" {
+      type = numeric(8,2)
+    }
+    column "prev_minus_odn" {
+      type = smallint
+    }
+    column "negativ_odn_xv" {
+      type = numeric(15,5)
+    }
+    column "negativ_odn_gv" {
+      type = numeric(15,5)
+    }
+    column "negativ_odn_el" {
+      type = numeric(15,5)
+    }
+    column "negativ_odn_nxv" {
+      type = numeric(15,5)
+    }
+    column "otopoff" {
+      type = smallint
+    }
+    column "otopsezon" {
+      type = numeric(1,0)
+    }
+    column "span_el1" {
+      type = numeric(15,5)
+    }
+    column "span_el2" {
+      type = numeric(15,5)
+    }
+    column "code_region" {
+      type = numeric(2,0)
+    }
+    column "hxv_dorm" {
+      type = smallint
+    }
+    column "hxv_type" {
+      type = smallint
+    }
+    column "hgv_type" {
+      type = smallint
+    }
+    column "hgv_ps" {
+      type = smallint
+    }
+    column "hgv_stoyak" {
+      type = smallint
+    }
+    column "ra" {
+      type = smallint
+    }
+    column "to_gaz" {
+      type = smallint
+    }
+    column "oprotoplgvs" {
+      type = smallint
+    }
+    column "tarifvdgot" {
+      type = numeric(9,2)
+    }
+    column "remstkov1" {
+      type = smallint
+    }
+    column "dymok" {
+      type = smallint
+    }
+    column "plgazsch" {
+      type = smallint
+    }
+  )
+}
+
+index "calculation"."parametr_transporate_idx_account_id" {
+  table = "calculation"."parametr_transporate"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = False
+}
+
+index "calculation"."parametr_transporate_idx_house_id" {
+  table = "calculation"."parametr_transporate"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+  ]
+}
+
+index "calculation"."parametr_transporate_idx_is_clos_co_house_id" {
+  table = "calculation"."parametr_transporate"
+  type = btree
+  columns = <
+    {
+      definition = is_closed
+    }
+
+    {
+      definition = co
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+    osq
+    nsq
+    pldop
+    npldop
+  ]
+}
+
+index "calculation"."parametr_transporate_idx_is_clos_gv_house_id" {
+  table = "calculation"."parametr_transporate"
+  type = btree
+  columns = <
+    {
+      definition = is_closed
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+    osq
+    nsq
+  ]
+}
+
+index "calculation"."parametr_transporate_idx_is_clos_house_id_cbp" {
+  table = "calculation"."parametr_transporate"
+  type = btree
+  columns = <
+    {
+      definition = is_closed
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+    cbp
+    br1
+    cpr
+  ]
+}
+
+index "calculation"."parametr_transporate_idx_is_clos_house_id_osq" {
+  table = "calculation"."parametr_transporate"
+  type = btree
+  columns = <
+    {
+      definition = is_closed
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+    osq
+    nsq
+  ]
+}
+
+index "calculation"."parametr_transporate_idx_is_clos_osv_house_id_osq" {
+  table = "calculation"."parametr_transporate"
+  type = btree
+  columns = <
+    {
+      definition = is_closed
+    }
+
+    {
+      definition = osv
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+    osq
+    nsq
+  ]
+}
+
+index "calculation"."parametr_transporate_idx_is_clos_xv_house_id_osq" {
+  table = "calculation"."parametr_transporate"
+  type = btree
+  columns = <
+    {
+      definition = is_closed
+    }
+
+    {
+      definition = xv
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+    osq
+    nsq
+  ]
+}
+
+index "calculation"."parametr_transporate_idx_is_closed_xv_house_id_cpr" {
+  table = "calculation"."parametr_transporate"
+  type = btree
+  columns = <
+    {
+      definition = is_closed
+    }
+
+    {
+      definition = xv
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    house_id
+    cpr
+  ]
+}
+

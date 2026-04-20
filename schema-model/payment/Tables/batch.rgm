@@ -1,0 +1,104 @@
+table "payment"."batch" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_payment_batch"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.batch_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "counting_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "number" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(9,2)
+      null = NOT NULL
+      default = 0
+    }
+    column "bank_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "created_at" {
+      type = timestamp(6) without time zone
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "description" {
+      type = character varying(100)
+    }
+    column "origin" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+  )
+}
+
+foreignKey "payment"."batch"."fk_batch_book" {
+  columns = [
+    "bank_id"
+  ]
+  referencedTable = "parametr"."book"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."batch"."fk_batch_counting" {
+  columns = [
+    "counting_id"
+  ]
+  referencedTable = "organization"."counting"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."batch"."fk_batch_list" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "payment"."batch_idx_period_id" {
+  table = "payment"."batch"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    date
+    number
+  ]
+}
+

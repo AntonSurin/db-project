@@ -1,0 +1,21 @@
+table "group"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list_4"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('"group".list_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(200)
+    }
+  )
+}
+

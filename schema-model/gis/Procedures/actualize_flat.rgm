@@ -1,0 +1,182 @@
+procedure "gis"."actualize_flat(jsonb)" {
+  text = """
+
+begin
+ 
+	create temp table _future_flat (id int);
+	create temp table _upload_flat (flat_id int, is_upload int2);
+	create temp table _house_list (house_id int); 
+
+	drop table if exists _area;
+	create temp table _area (flat_id int, osq numeric (8,2), jsq numeric (8,2), nsq numeric (8,2));
+	create index ix_area on _area (flat_id);
+	
+	drop table if exists _flats_parameters;
+	create temp table _flats_parameters (flat_id int, "floor" int, access_number int, is_residential bool);
+	create index ix_flatsparameters on _flats_parameters (flat_id);
+
+	drop table if exists __flat;
+	create temp table __flat (flat_id int);
+
+	if exists (select * from jsonb_populate_recordset(null::special.objects, _flat) d)
+		then
+			begin
+				insert into __flat (flat_id)
+				select object_id from jsonb_populate_recordset(null::special.objects, _flat);
+			end;
+		else 
+			begin
+				insert into __flat (flat_id)
+				select id from adress.flat;
+			end;
+	end if;
+	
+	with cte as 
+	(
+		insert into gis.book (guid, code, description) 
+  		select guid ,code ,value as description
+		from gis.hand_book 
+		where registry_number = 30 and code = '1' 
+		group by guid, code, value
+		returning id
+	)
+	insert into _future_flat
+	select id 
+	from cte;
+
+	insert into _upload_flat (flat_id, is_upload)
+	select flat_id, value::int2
+	from parametr.flat
+	where parametr_id = 360 and date_end is null;
+
+	insert into _house_list
+	select house_id
+	from house.characteristic;
+
+	insert into _area  (flat_id, osq, jsq, nsq)
+	select al.flat_id
+		,sum (case when pa.parametr_id = 277 then cast (coalesce (value::numeric(8,2),0.0) as numeric (8,2)) end) as osq
+		,sum (case when pa.parametr_id = 278 then cast (coalesce (value::numeric(8,2),0.0) as numeric (8,2)) end) as jsq
+		,sum (case when pa.parametr_id = 285 then cast (coalesce (value::numeric(8,2),0.0) as numeric (8,2)) end) as nsq
+	from adress.account al
+		inner join parametr.account pa on al.id = pa.account_id
+	where pa.date_end is null
+		and pa.parametr_id in (277, 278, 285)
+		and not exists (select * from calculation.parametr_transporate where pa.account_id = account_id and is_closed = 0)
+	group by al.flat_id;
+
+	insert into _flats_parameters (flat_id, "floor", access_number, is_residential)
+	select
+		af.id as flat_id
+		,max (case when pf.parametr_id = 272 then pf.value end)::int as "floor"
+		,max (case when pf.parametr_id = 270 then pf.value end)::int as access_number
+		,coalesce(max(case when pf.parametr_id = 5 then case when pf.value::int2 = 1 then 0 else 1 end end), case when af.flat_book_id > 1 then 0 else 1 end)::bool as is_residential
+	from adress.flat af
+		left join (
+						select * from parametr.flat 
+						where date_end is null
+						and parametr_id in (5, 270, 272)
+					) pf on pf.flat_id = af.id
+	group by af.id, af.flat_book_id;
+	
+	merge into house.flat as targets
+ 	using(
+		select 
+			af.id as flat_id
+			,af.flat_book_id
+			,af.house_id
+			,af.gis_name as flat_guid
+			,af.name
+			,false as is_odn
+			,case when a.nsq is null then a.osq else a.osq - a.nsq end as area
+			,a.jsq as gross_area
+			,pf.floor
+			,null as cadastral_number
+			,pf.access_number
+			,case when af.flat_book_id > 1 then null else ff.id end as feature_room_id
+			,pf.is_residential
+			,null::timestamp as termination_date 
+			,current_date as modification_date
+		from adress.flat af
+			inner join __flat f on f.flat_id = af.id
+			inner join _house_list h on af.house_id = h.house_id
+			inner join _flats_parameters pf on af.id = pf.flat_id
+			left join _upload_flat uf on af.id = uf.flat_id
+			left join _future_flat ff on ff.id = ff.id
+			left join _area a on a.flat_id = af.id
+		where  
+			 coalesce(uf.is_upload, 1) = 1
+	)
+	as sources(
+		flat_id,
+		flat_book_id,
+		house_id,
+		flat_guid,
+		name,
+		is_odn,area,
+		gross_area,
+		floor,
+		cadastral_number,
+		access_number,
+		feature_room_id,
+		is_residental,
+		termination_date,
+		modification_date
+	)
+	on (targets.flat_id = sources.flat_id)
+	when matched
+	then update 
+	set area = sources.area,
+		gross_area = sources.gross_area,
+		floor = sources.floor,
+		feature_room_id = sources.feature_room_id,
+		flat_book_id = sources.flat_book_id,
+		number = sources.name,
+		access_number = sources.access_number,
+		is_residential = sources.is_residental
+	when not matched
+	then 
+	insert (flat_id,flat_book_id,house_id,flat_guid,number,is_odn,area,gross_area,floor,cadastral_number,access_number,feature_room_id,is_residential,termination_date, modification_date)
+	values (sources.flat_id, sources.flat_book_id,sources.house_id,sources.flat_guid,sources.name, sources.is_odn, sources.area,sources.gross_area,sources.floor,sources.cadastral_number,sources.access_number, sources.feature_room_id,sources.is_residental, sources.termination_date,sources.modification_date);
+
+	delete 
+	from house.flat hf
+		using _upload_flat uf
+	where hf.flat_id = uf.flat_id and uf.is_upload = 0;
+
+	delete 
+	from house.flat hf
+	where not exists (select * from adress.flat af where af.id = hf.flat_id);
+
+	delete 
+	from house.account ha
+	where not exists (select * from house.flat hf where hf.flat_id = ha.flat_id);
+
+ 	drop table if exists _future_flat; 
+	drop table if exists _upload_flat;
+	drop table if exists _house_list;
+	drop table if exists _area;
+	drop table if exists _flats_parameters;
+	drop table if exists __flat;
+
+end
+"""
+  arguments = <
+    {
+      name = _flat
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:  дмитрий глещинский
+ create date: 23-06-2017
+ description: актуализирует ха.ки помещений
+ =============================================
+"""
+}
+

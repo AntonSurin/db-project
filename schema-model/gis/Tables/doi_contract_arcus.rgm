@@ -1,0 +1,57 @@
+table "gis"."doi_contract_arcus" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_doi_contract_arcus"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.doi_contract_arcus_id_seq'::regclass)
+    }
+    column "start_date" {
+      type = timestamp(6) without time zone
+    }
+    column "end_date" {
+      type = timestamp(6) without time zone
+    }
+    column "contract_object" {
+      type = character varying(2000)
+    }
+    column "comments" {
+      type = character varying(300)
+    }
+    column "payment" {
+      type = numeric(10,2)
+    }
+    column "money_spent_direction" {
+      type = character varying(200)
+    }
+    column "payment_interval_type_other" {
+      type = character varying(200)
+    }
+    column "from_interval_date_num" {
+      type = integer
+    }
+    column "from_interval_last_day" {
+      type = boolean
+    }
+    column "from_interval_is_next_month" {
+      type = boolean
+    }
+    column "to_interval_date_num" {
+      type = integer
+    }
+    column "to_interval_last_day" {
+      type = boolean
+    }
+    column "to_interval_is_next_month" {
+      type = boolean
+    }
+  )
+}
+

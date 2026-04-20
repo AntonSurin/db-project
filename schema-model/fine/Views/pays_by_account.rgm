@@ -1,0 +1,33 @@
+view "fine"."pays_by_account" {
+  text = """-
+SELECT pd.account_id,
+    pl.date,
+    sum(pd.sum) AS payment_sum,
+    pl.period_id,
+    pl.account_id AS account_parent_id
+   FROM (payment.list pl
+     JOIN payment.detal pd ON (((pd.account_parent_id = pl.account_id) AND (pl.id = pd.payment_id))))
+  WHERE (pl.type_id = 0)
+  GROUP BY pl.date, pl.period_id, pl.account_id, pd.account_id;
+"""
+  kind = MATERIALIZED
+  owner = postgres
+  columns = (
+    column "account_id" {
+      type = integer
+    }
+    column "date" {
+      type = date
+    }
+    column "payment_sum" {
+      type = numeric
+    }
+    column "period_id" {
+      type = integer
+    }
+    column "account_parent_id" {
+      type = integer
+    }
+  )
+}
+

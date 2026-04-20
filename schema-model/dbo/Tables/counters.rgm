@@ -1,0 +1,33 @@
+table "dbo"."counters" {
+  owner = postgres
+  columns = (
+    column "account_name" {
+      type = character varying(9)
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "prev_value" {
+      type = numeric(12,5)
+    }
+    column "value" {
+      type = numeric(12,5)
+    }
+    column "serial_number" {
+      type = character varying(50)
+    }
+    column "ver_date" {
+      type = date
+    }
+    column "stump_number" {
+      type = character varying(50)
+    }
+    column "number" {
+      type = integer
+    }
+    column "counter_id" {
+      type = integer
+    }
+  )
+}
+

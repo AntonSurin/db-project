@@ -1,0 +1,47 @@
+procedure "flat"."ordering(jsonb)" {
+  text = """
+
+declare 
+	_hf bool;
+begin
+	_hf = (case when exists(select 1 from jsonb_populate_recordset(null::house.list, _houses) h) then true else false end);
+
+	with cte as 
+	(
+		select *,
+			row_number() over (partition by house_id order by house_id, flat_book_id,
+									cast(
+											case 
+												when "name" similar to '%[^0-9]%' 
+													then substring(rtrim(ltrim(lower("name"))),1,strpos(rtrim(ltrim(lower("name"))),left(regexp_replace(rtrim(ltrim(lower("name"))),'[0-9]+',''),1) ) - 1) 
+												else "name" 
+											end as int), id) as ordering
+		from adress.flat
+		where _hf = true and house_id in (select h.house_id from jsonb_populate_recordset(null::house.list, _houses) h) or _hf = false
+	)
+	update adress.flat af 
+	set
+		order_id = ct."ordering"
+	from cte ct 
+	where ct.id = af.id and coalesce(af.order_id, 0) != ct."ordering";
+
+end
+"""
+  arguments = <
+    {
+      name = _houses
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Author: Глещинский Д.В.
+	CreationDate: 09.01.2017
+	Modified: 25.03.2019 Трофимов Б.И.
+	Description: Сортировка квартир
+"""
+}
+

@@ -1,0 +1,43 @@
+table "documents"."contracts_houses" {
+  primaryKey = {
+    columns = [
+      "house_id"
+      "contract_id"
+    ]
+    name = "pk_documents_contracts_houses"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "contract_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "documents"."contracts_houses"."fk_doc_contr_houses_doc_contr_contr_id" {
+  columns = [
+    "contract_id"
+  ]
+  referencedTable = "documents"."contract"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "documents"."contracts_houses"."fk_doc_contr_houses_house_character_house_id" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+}
+

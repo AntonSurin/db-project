@@ -1,0 +1,57 @@
+table "recalculation"."list_preview" {
+  owner = postgres
+  columns = (
+    column "root_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "flat_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+    column "tarif_value" {
+      type = numeric(9,5)
+    }
+    column "volume_value" {
+      type = numeric(12,5)
+    }
+    column "account_parent_id" {
+      type = integer
+    }
+    column "day" {
+      type = smallint
+      generatedAs = public.convert(public."int"(), (public.datediff('day'::text, (date_begin)::timestamp without time zone, (date_end)::timestamp without time zone) + 1))
+    }
+    column "result" {
+      type = numeric
+      generatedAs = public.convert("numeric"((10)::numeric, 3), (COALESCE(volume_value, (0)::numeric) * COALESCE(tarif_value, (0)::numeric)))
+    }
+    column "session_id" {
+      type = integer
+    }
+  )
+}
+

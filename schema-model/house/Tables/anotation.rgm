@@ -1,0 +1,51 @@
+table "house"."anotation" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_anotation_1"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('house.anotation_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "text" {
+      type = character varying(8000)
+    }
+    column "print_text" {
+      type = character varying(400)
+    }
+  )
+}
+
+foreignKey "house"."anotation"."fk_anotation_house" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "adress"."house"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "house"."anotation_ix_house_anotation" {
+  table = "house"."anotation"
+  type = btree
+  columns = <
+    {
+      definition = house_id
+    }
+
+  >
+  isUnique = True
+}
+

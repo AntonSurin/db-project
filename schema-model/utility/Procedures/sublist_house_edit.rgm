@@ -1,0 +1,162 @@
+procedure "utility"."sublist_house_edit(integer, integer, integer, date, jsonb)" {
+  text = """
+
+begin
+
+	if (_document_id is not null)
+		then 
+			begin
+
+				delete 
+				from utility.documents ud
+				using jsonb_populate_recordset(null::special.objects, _siblist_providers) s, utility.sublist_provider us
+				where us.sublist_id not in (32,34,37) 
+						and us.id = s.object_id 
+						and ud.sublist_provider_id = s.object_id;
+		
+				delete 
+				from utility.documents ud
+				using jsonb_populate_recordset(null::special.objects, _siblist_providers) s,utility.sublist_provider us, utility.sublist_provider sp
+				where us.sublist_id in (22,24,27) 
+					and us.id = s.object_id 
+					and sp.sublist_id = us.sublist_id + 10 
+					and sp.provider_id = us.provider_id 
+					and sp.territory_id = us.territory_id 
+					and sp.house_id = us.house_id 
+					and sp.date_end is null
+					and ud.sublist_provider_id = sp.id;
+		
+				delete 
+				from utility.documents ud 
+				using jsonb_populate_recordset(null::special.objects, _siblist_providers) s, utility.sublist_provider us, utility.sublist_provider sp
+				where us.sublist_id in (32,34,37)
+						and us.id = s.object_id
+						and sp.sublist_id = us.sublist_id - 10 
+						and sp.provider_id = us.provider_id 
+						and sp.territory_id = us.territory_id 
+						and sp.house_id = us.house_id 
+						and sp.date_end is null
+						and ud.sublist_provider_id = s.object_id;
+
+				insert into utility.documents (sublist_provider_id, document_id, period_begin, period_end)
+				select s.object_id, _document_id, _period_begin, _period_end
+				from utility.sublist_provider us
+					inner join jsonb_populate_recordset(null::special.objects, _siblist_providers) s on s.object_id = us.id
+				where us.sublist_id not in (32,34,37);
+		
+				insert into utility.documents (sublist_provider_id, document_id, period_begin, period_end)
+				select sp.id, _document_id, _period_begin, _period_end
+				from utility.sublist_provider us
+					inner join jsonb_populate_recordset(null::special.objects, _siblist_providers) s on s.object_id = us.id
+					inner join utility.sublist_provider sp on sp.sublist_id = us.sublist_id+10 and sp.provider_id = us.provider_id and sp.territory_id = us.territory_id and sp.house_id = us.house_id and sp.date_end is null
+				where us.sublist_id in (22,24,27);
+				
+				insert into utility.documents (sublist_provider_id, document_id, period_begin, period_end)
+				select s.object_id, _document_id, _period_begin, _period_end
+				from utility.sublist_provider us
+					inner join jsonb_populate_recordset(null::special.objects, _siblist_providers) s on s.object_id = us.id
+					inner join utility.sublist_provider sp on sp.sublist_id = us.sublist_id-10 and sp.provider_id = us.provider_id and sp.territory_id = us.territory_id and sp.house_id = us.house_id and sp.date_end is null
+				where us.sublist_id in (32,34,37);
+
+			end;
+	end if;
+
+	update utility.sublist_provider us 
+		set	date_end = _date_end
+	from jsonb_populate_recordset(null::special.objects, _siblist_providers) s
+	where us.sublist_id not in (32,34,37) and s.object_id = us.id;
+
+	update utility.sublist_provider sp 
+		set	date_end = _date_end
+	from utility.sublist_provider us
+		inner join jsonb_populate_recordset(null::special.objects, _siblist_providers) s on s.object_id = us.id		
+	where us.sublist_id in (22,24,27)
+			and sp.sublist_id = us.sublist_id + 10 
+			and sp.provider_id = us.provider_id 
+			and sp.territory_id = us.territory_id 
+			and sp.house_id = us.house_id 
+			and sp.date_end is null;
+
+	update utility.sublist_provider us 
+		set	date_end = _date_end
+	from jsonb_populate_recordset(null::special.objects, _siblist_providers) s
+		inner join utility.sublist_provider sp on sp.date_end is null
+	where us.sublist_id in (32,34,37) 
+			and s.object_id = us.id
+			and sp.sublist_id = us.sublist_id - 10
+			and sp.provider_id = us.provider_id
+			and sp.territory_id = us.territory_id 
+			and sp.house_id = us.house_id;
+
+	update utility.contragent_group_sublist uc
+		set date_end = _date_end
+	from jsonb_populate_recordset(null::special.objects, _siblist_providers) s
+	where uc.sublist_id not in (32,34,37) 
+		and s.object_id = uc.sublist_provider_id;
+
+	update utility.contragent_group_sublist cg
+		set date_end = _date_end
+	from utility.contragent_group_sublist uc
+		inner join jsonb_populate_recordset(null::special.objects, _siblist_providers) s on s.object_id = uc.sublist_provider_id
+		inner join utility.sublist_provider us on us.id = s.object_id
+		inner join utility.sublist_provider sp on sp.sublist_id = us.sublist_id + 10 and sp.provider_id = us.provider_id and sp.territory_id = us.territory_id and sp.house_id = us.house_id and sp.date_end is null
+	where uc.sublist_id in (22,24,27) and cg.sublist_provider_id = sp.id;
+
+	update utility.sublist_provider us
+		set date_end = _date_end
+	from utility.contragent_group_sublist uc
+		inner join jsonb_populate_recordset(null::special.objects, _siblist_providers) s on s.object_id = uc.sublist_provider_id
+		inner join utility.sublist_provider sp on sp.date_end is null
+		inner join utility.contragent_group_sublist cg on cg.sublist_provider_id = sp.id
+	where uc.sublist_id in (32,34,37)
+			and us.id = s.object_id
+			and sp.sublist_id = us.sublist_id - 10 
+			and sp.provider_id = us.provider_id 
+			and sp.territory_id = us.territory_id 
+			and sp.house_id = us.house_id;
+
+end;
+"""
+  arguments = <
+    {
+      name = _document_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_begin
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _date_end
+      type = date
+      mode = IN
+    }
+
+    {
+      name = _siblist_providers
+      type = jsonb
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Modify Author: Юркин Е.Ю.
+ Modify date: 16.04.2024
+ Modify description: Автоматическое изменение поставщиков превышения платы
+ =============================================
+"""
+}
+

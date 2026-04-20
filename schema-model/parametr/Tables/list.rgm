@@ -1,0 +1,188 @@
+table "parametr"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('parametr.list_id_seq'::regclass)
+    }
+    column "parent_id" {
+      type = integer
+    }
+    column "type_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "catalog_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_required" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_characteristic" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "short_name" {
+      type = character varying(15)
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(200)
+    }
+    column "len" {
+      type = smallint
+    }
+    column "precision" {
+      type = smallint
+    }
+    column "is_calculation" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_summary" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_reset" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "default_value" {
+      type = character varying(200)
+    }
+    column "description" {
+      type = character varying(200)
+    }
+    column "is_export" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_archived" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+  )
+}
+
+foreignKey "parametr"."list"."fk_list_directory" {
+  columns = [
+    "catalog_id"
+  ]
+  referencedTable = "parametr"."catalog"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+foreignKey "parametr"."list"."fk_list_type" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "parametr"."type"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+
+index "parametr"."list_idx_parametr_list_short_name" {
+  table = "parametr"."list"
+  type = btree
+  columns = <
+    {
+      definition = short_name
+    }
+
+  >
+  isUnique = True
+  includeColumns = [
+    type_id
+    catalog_id
+    name
+  ]
+}
+
+index "parametr"."list_ix_list_catalog_id" {
+  table = "parametr"."list"
+  type = btree
+  columns = <
+    {
+      definition = is_characteristic
+    }
+
+    {
+      definition = catalog_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    type_id
+    name
+    len
+    precision
+  ]
+}
+
+index "parametr"."list_ix_list_type_id" {
+  table = "parametr"."list"
+  type = btree
+  columns = <
+    {
+      definition = type_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    short_name
+    catalog_id
+  ]
+}
+
+trigger "parametr"."list"."change_parametr" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = ROW
+  function = parametr.change_parametr
+  functionArguments = [
+  ]
+  table = "parametr"."list"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "parametr"."list"."new_param" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = ROW
+  function = parametr.new_param
+  functionArguments = [
+  ]
+  table = "parametr"."list"
+  constraint = False
+  newTableReference = inserted
+}
+

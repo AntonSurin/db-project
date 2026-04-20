@@ -1,0 +1,404 @@
+procedure "recalculation"."parametr_change(boolean, integer)" {
+  text = """
+
+declare 
+		_pivot_p		text = '';
+		_update 		text = 'set';
+		_column			text = '';
+		_i_column		text = '';
+		_date_begin		date;
+		_date_end		date;
+		_period_id		int;
+		_period_min		int;
+		_period_max		int;
+		_sql 			text = '';
+		_parametr 		text = '';
+		_cp_parametr 	text = '';
+		_parametr_house	text = '';
+
+begin
+
+	_period_id = (	
+					select id 
+					from "period".list 
+					where id = (select period_id from recalculation.root where id = _root_id)
+				);
+
+	delete from parametr.recalculation 			where root_id = _root_id;
+	delete from recalculation.parametr_transporate 	where root_id = _root_id;
+	delete from recalculation.tarif 				where root_id = _root_id;
+	delete from recalculation.normativ 				where root_id = _root_id;
+	delete from recalculation.volume 				where root_id = _root_id;
+	delete from recalculation.sum_volume 			where root_id = _root_id;
+
+	_pivot_p = '
+	with cte
+	as
+	(
+	select 
+		rc.account_id
+		,rc.period_id
+		,rc.date_begin
+		,rc.date_end
+	';
+		
+	select _pivot_p ||string_agg(a,'') as a, _update ||string_agg(b ,'') as b
+	into _pivot_p, _update
+	from (
+			select 
+				',max(case when short_name = ''' || short_name || ''' then value end) as ' || short_name || '
+				' ||
+				' ,coalesce(max(case when short_name = ''' || short_name || ''' then is_up end),0) as ' || short_name || '_up 
+				' as a
+				,' ,' || short_name || ' = case when c.' || short_name || '_up = 1 then c.' || short_name || '::'|| ic.data_type || case 
+							when data_type = 'varchar' then '(' || numeric_precision || ')' 
+							when data_type = 'numeric' then '(' || numeric_precision || ', ' || numeric_scale || ')' 
+							else '' 
+						end||' 				else cp.' || short_name || '::' || ic.data_type || case 
+							when data_type = 'varchar' then '(' || numeric_precision || ')' 
+							when data_type = 'numeric' then '(' || numeric_precision || ', ' || numeric_scale || ')' 
+							else '' 
+						end || ' end
+				' as b
+			from recalculation.parametr_for_change rc
+				inner join information_schema.columns ic on ic.column_name = rc.short_name  
+			where table_name = 'parametr_transporate' and table_schema = 'recalculation'
+			group by rc.short_name, data_type, numeric_precision, numeric_scale
+		) as rp;
+	
+	_pivot_p = _pivot_p || '
+	from _recalc_period_new rc
+		inner join period.list pl on pl.id = rc.period_id
+		left join lateral (
+								select * , 1 as is_up 
+						   		from recalculation.parametr_for_change rp
+								where rc.account_id = rp.account_id and ((rc.date_begin  = rp.date_begin and rc.date_end <= rp.date_end) 
+												or (rc.date_end = rp.date_end and rp.date_begin <= rc.date_begin) 
+												or (rc.date_begin >= rp.date_begin and rc.date_end <= rp.date_end))) r on true  
+	' ||  case when _type_arh = true then '' else  'where rc.date_end <> pl.date_end ' end ||
+	'group by rc.account_id, rc.period_id, rc.date_begin, rc.date_end)
+	
+	update recalculation.parametr_transporate as cp
+	';
+
+	_update = replace(_update, 'set ,', 'set ');
+
+	_pivot_p = _pivot_p || _update;
+
+	_pivot_p = _pivot_p || 
+	'from cte c		
+	where cp.account_id = c.account_id and cp.date_begin = c.date_begin and cp.root_id = ' || _root_id;
+
+	select _column || a, _i_column || b
+	into _column, _i_column
+	from (
+			select 
+				 string_agg('"' || column_name || '" ' || data_type || 
+					case 
+						when data_type = 'varchar' then '(' || numeric_precision || ')' 
+						when data_type = 'numeric' then '(' || numeric_precision || ', ' || numeric_scale || ')' 
+						else '' 
+					end , ',') as a
+				, string_agg( '"' || column_name || '" ', ',') as b
+			from information_schema.columns 
+			where table_name = 'parametr_transporate'
+				and table_schema = 'recalculation'
+				and column_name not in ('date_begin','date_end')
+		) d;
+
+/*
+	получение списков периодов, в которых изменяется параметр
+	и поиск промежутка дат, которые добавятся в данном периоде
+*/
+	drop table if exists _recalc_period_new; 
+
+	create temp table _recalc_period_new (period_id int, account_id int, date_begin date, date_end date);
+
+	alter table _recalc_period_new
+	add constraint un__recalc_period_new unique (account_id, date_begin);
+
+	with cte
+	as
+	(
+		select account_id, date_begin as "date"
+		from recalculation.parametr_for_change
+		union 
+		select account_id, date_end + 1
+		from recalculation.parametr_for_change
+		union 
+		select rp.account_id, pl.date_begin
+		from "period".list pl 
+		inner join (
+						select account_id, date_begin, date_end
+						from recalculation.parametr_for_change
+						group by account_id, date_begin, date_end
+					) rp on  pl.date_begin between rp.date_begin and rp.date_end
+						or pl.date_end between rp.date_begin and rp.date_end 
+						or rp.date_begin between pl.date_begin and pl.date_end
+		union 
+		select account_parent_id, date_begin
+		from calculation.account_sublist_for_change
+		where period_id = _period_id
+		union
+		select account_parent_id, date_end + 1
+		from calculation.account_sublist_for_change
+		where period_id = _period_id
+	)
+
+	insert into _recalc_period_new
+	select
+			pl.id
+			,t.account_id
+			,"date"
+			,lead(t."date" - 1, 1, pl.date_end) over (partition by t.account_id order by t.account_id, t."date")
+	from cte t
+		inner join recalculation.account ra on ra.account_id = t.account_id
+		inner join "period".list pl on t."date" between pl.date_begin and pl.date_end;
+
+	cluster _recalc_period_new using un__recalc_period_new;	
+
+	select min(period_id), max(period_id)
+	into _period_min, _period_max
+	from _recalc_period_new;
+
+	_parametr_house = (
+						select string_agg(case when pl.catalog_id = 3 then ', ' || column_name else '' end,'')
+						from information_schema.columns i
+							inner join parametr.list pl on pl.short_name = i.column_name
+						where table_name = 'parametr_transporate' and table_schema = 'calculation'
+					);
+				
+	select a,b
+	into _parametr,_cp_parametr
+	from (	
+			select string_agg(case when table_name = 'parametr_transporate' then _parametr || ', ' || column_name else _parametr end,'') as a
+					, string_agg(case when table_name = 'parametr_transporate' then _cp_parametr || '
+					,cp.' || column_name else _cp_parametr end,'') as b
+			from information_schema.columns i
+			where table_schema = 'calculation' 
+				and i.column_name not in ('id', 'house_id', 'flat_id', 'account_id', 'territory_id')
+				and table_name = ('parametr_transporate')
+		) d ;
+
+	insert into recalculation.normativ(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+	select _root_id, aa.house_id, aa.flat_id, aa.id, rp.period_id, rp.date_begin, rp.date_end
+	from _recalc_period_new rp
+		inner join adress.account aa on aa.id = rp.account_id;
+	
+	insert into recalculation.volume(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+	select _root_id, aa.house_id, aa.flat_id, rp.account_id, rp.period_id, rp.date_begin, rp.date_end
+	from _recalc_period_new rp
+		inner join adress.account aa on aa.id = rp.account_id;
+			
+	insert into recalculation.tarif(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+	select _root_id, aa.house_id, aa.flat_id, rp.account_id, rp.period_id, rp.date_begin, rp.date_end
+	from _recalc_period_new rp
+		inner join adress.account aa on aa.id = rp.account_id;
+	
+	insert into recalculation.sum_volume(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+	select _root_id, aa.house_id, aa.flat_id, rp.account_id, rp.period_id, rp.date_begin, rp.date_end
+	from _recalc_period_new rp
+		inner join adress.account aa on aa.id = rp.account_id;
+	
+	_sql = '
+			insert into recalculation.parametr_transporate (root_id, house_id, flat_id, account_id, territory_id, period_id, date_begin, date_end, is_closed_end' || _parametr || ')
+			select 
+				' || _root_id || '
+				,cp.house_id
+				,cp.flat_id
+				,cp.account_id
+				,cp.territory_id
+				,rp.period_id
+				,rp.date_begin
+				,rp.date_end
+				,case when cp.is_closed = 1 then 1 else 0 end' || _cp_parametr || '
+			from calculation.parametr_transporate' || case when _type_arh = true then '_arch ' else '' end || ' as cp 
+				inner join _recalc_period_new rp on ' || case when _type_arh = true then 'rp.period_id = cp.period_id and rp.account_id = cp.account_id' 
+																					else 'rp.account_id = cp.account_id' end 
+			|| case when _type_arh = true then ' where cp.period_id between '|| _period_min || ' and ' || _period_max else '' end;
+		
+		execute(_sql);
+		execute(_pivot_p);
+	
+		drop table if exists __account_period;
+		
+		create temp table __account_period (house_id int, flat_id int, account_id int, period_id int, new_account_id int, date_begin date, date_end date);
+	
+		with cte as 
+		(
+			select ai.house_id, ai.flat_id, ra.account_id
+			from recalculation.account ra
+				inner join adress.info ai on ai.account_id = ra.account_id
+			where not exists(select 1 from recalculation.parametr_transporate where account_id = ra.account_id and root_id = _root_id)
+		)
+		
+		insert into __account_period
+		select 
+			 al.house_id as house_id
+			,min(al.flat_id) as flat_id
+			,min(al.id) as account_id
+			,pl.id as period_id
+			,c.account_id as new_account_id
+			,pl.date_begin
+			,pl.date_end
+		from cte c
+			inner join adress.account al on c.account_id = al.id
+			inner join "period".list pl on 1 = 1 and pl.is_open = true
+		where pl.id  between _period_min and _period_max
+		group by al.house_id, pl.id, c.account_id, pl.date_begin, pl.date_end;
+
+		create index idx_account_periodtemp on __account_period (account_id, period_id) include (house_id, flat_id, new_account_id, date_begin, date_end);
+
+		_sql = '';
+		
+		if exists((	select 1 
+					from recalculation.account ra 
+					where not exists(	select 1 
+										from recalculation.parametr_transporate 
+										where account_id = ra.account_id and root_id = _root_id
+									)
+				))
+		then			
+			begin
+			
+			_sql = '
+				insert into recalculation.parametr_transporate (root_id, house_id, flat_id, account_id, territory_id, period_id, date_begin, date_end, is_closed_end' || _parametr || ')';
+					
+			if _type_arh = false
+			then 
+				begin
+					_sql = _sql || '
+						select  
+							' || _root_id || '
+							,cp.house_id
+							,a.flat_id
+							,a.new_account_id
+							,cp.territory_id
+							,a.period_id
+							,a.date_begin
+							,a.date_end
+							,case when cp.is_closed = 1 then 1 else 0 end
+							' ||  _cp_parametr || '
+						from calculation.parametr_transporate cp
+							inner join __account_period a on cp.account_id = a.account_id
+						';
+
+					insert into recalculation.normativ(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+					select _root_id, rp.house_id, rp.flat_id, a.new_account_id, a.period_id, a.date_begin, a.date_end
+					from calculation.normativ rp
+					inner join __account_period a on a.account_id = rp.account_id;
+	
+					insert into recalculation.volume(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+					select _root_id, rp.house_id, rp.flat_id, a.new_account_id, a.period_id, a.date_begin, a.date_end
+					from calculation.volume rp
+						inner join __account_period a on a.account_id = rp.account_id;
+	
+					insert into recalculation.tarif(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+					select _root_id, rp.house_id, rp.flat_id, a.new_account_id, a.period_id, a.date_begin, a.date_end
+					from calculation.tarif rp
+						inner join __account_period a on a.account_id = rp.account_id;
+	
+					insert into recalculation.sum_volume(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+					select _root_id, rp.house_id, rp.flat_id, a.new_account_id, a.period_id, a.date_begin, a.date_end
+					from calculation.sum_volume rp
+						inner join __account_period a on a.account_id = rp.account_id;
+
+				end;
+			end if;
+		end;
+		else 
+			begin
+				
+				_sql = '
+				insert into recalculation.parametr_transporate (root_id, house_id, flat_id, account_id, territory_id, period_id, date_begin, date_end, is_closed_end' || _parametr || ')';
+
+				_sql = _sql || '
+					select  
+						' || _root_id || '
+						,cp.house_id
+						,a.flat_id
+						,a.new_account_id
+						,cp.territory_id
+						,a.period_id
+						,a.date_begin
+						,a.date_end
+						,case when cp.is_closed = 1 then 1 else 0 end
+						' ||  _cp_parametr || '
+					from calculation.parametr_transporate_arch cp
+						inner join __account_period a on cp.account_id = a.account_id and cp.period_id = a.period_id
+						';
+
+				insert into recalculation.normativ(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+				select _root_id, rp.house_id, rp.flat_id, a.new_account_id, a.period_id, a.date_begin, a.date_end
+				from calculation.normativ_arch rp
+					inner join __account_period a on a.account_id = rp.account_id and rp.period_id = a.period_id;
+	
+				insert into recalculation.volume(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+				select _root_id, rp.house_id, rp.flat_id, a.new_account_id, a.period_id, a.date_begin, a.date_end
+				from calculation.volume_arch rp
+					inner join __account_period a on a.account_id = rp.account_id and rp.period_id = a.period_id;
+	
+				insert into recalculation.tarif(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+				select _root_id, rp.house_id, rp.flat_id, a.new_account_id, a.period_id, a.date_begin, a.date_end
+				from calculation.tarif_arch rp
+					inner join __account_period a on a.account_id = rp.account_id and rp.period_id = a.period_id;
+	
+				insert into recalculation.sum_volume(root_id, house_id, flat_id, account_id, period_id, date_begin, date_end)
+				select _root_id, rp.house_id, rp.flat_id, a.new_account_id, a.period_id, a.date_begin, a.date_end
+				from calculation.sum_volume_arch rp
+					inner join __account_period a on a.account_id = rp.account_id and rp.period_id = a.period_id;
+
+			end;
+		
+		execute(_sql);
+	
+		drop table if exists __account_period;
+
+		end if;
+
+		insert into parametr.recalculation (root_id, parametr_id, value, date_begin, date_end)
+		select _root_id, parametr_id, value, date_begin, date_end 
+		from recalculation.parametr_for_change 
+		group by parametr_id, value, date_begin, date_end;
+
+		with cte as 
+		(
+			select open_day,
+					sum(case when is_closed = 1 then  coalesce (date_end, _date_end) - coalesce(date_begin, _date_begin) + 1 end) over (partition by account_id, period_id)  as work_days
+			from recalculation.parametr_transporate 
+			where root_id = _root_id
+		)
+	
+		update recalculation.parametr_transporate rp
+		set open_day = ct.work_days
+		from cte ct
+		where rp.root_id = _root_id;
+	
+end
+"""
+  arguments = <
+    {
+      name = _type_arh
+      type = boolean
+      mode = IN
+    }
+
+    {
+      name = _root_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ update: поляков п.г.  (изменение алгоритма для увеличения производительности)
+ create date: 10.04.2017
+ description:	изменение значений параметров в таблице recalculation.parametr_transporate
+ =============================================
+"""
+}
+

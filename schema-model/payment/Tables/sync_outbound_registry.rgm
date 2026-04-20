@@ -1,0 +1,56 @@
+table "payment"."sync_outbound_registry" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_sync_outbound_registry"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.sync_outbound_registry_id_seq'::regclass)
+    }
+    column "file_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sync_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "batch_guid" {
+      type = uuid
+    }
+    column "bank_name" {
+      type = character varying(200)
+    }
+    column "file_name" {
+      type = character varying(200)
+    }
+    column "date" {
+      type = date
+    }
+    column "bik" {
+      type = character varying(9)
+    }
+    column "rs" {
+      type = character varying(20)
+    }
+    column "payment_counts" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(11,2)
+      null = NOT NULL
+    }
+    column "to_pay_sum" {
+      type = numeric(11,2)
+      null = NOT NULL
+    }
+  )
+}
+

@@ -1,0 +1,51 @@
+table "eco"."act_qa" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_act_qa"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.act_qa_id_seq'::regclass)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "type_act_str" {
+      type = character varying(1)
+      null = NOT NULL
+    }
+    column "number" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "start_period" {
+      type = timestamp(3) without time zone
+    }
+    column "end_period" {
+      type = timestamp(3) without time zone
+    }
+    column "path_file" {
+      type = text
+    }
+    column "file_upload_id" {
+      type = character varying(50)
+    }
+    column "file_hash" {
+      type = character varying(64)
+    }
+    column "house_id" {
+      type = integer
+    }
+  )
+}
+

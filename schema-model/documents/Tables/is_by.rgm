@@ -1,0 +1,39 @@
+table "documents"."is_by" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_is_by"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.is_by_id_seq'::regclass)
+    }
+    column "type_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(255)
+      null = NOT NULL
+    }
+    column "genitive_name" {
+      type = character varying(255)
+    }
+  )
+}
+
+foreignKey "documents"."is_by"."fk_is_by_type" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "documents"."type"
+  referencedColumns = [
+    "id"
+  ]
+}
+

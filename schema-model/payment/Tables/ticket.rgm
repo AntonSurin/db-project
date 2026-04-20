@@ -1,0 +1,38 @@
+table "payment"."ticket" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_check_rep"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.ticket_id_seq'::regclass)
+    }
+    column "period_id" {
+      type = integer
+    }
+    column "account_id" {
+      type = integer
+    }
+    column "sum" {
+      type = numeric(13,2)
+    }
+  )
+}
+
+foreignKey "payment"."ticket"."fk_ticket_list" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onUpdate = CASCADE
+}
+

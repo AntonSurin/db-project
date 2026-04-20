@@ -1,0 +1,26 @@
+table "organization"."signature" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_signature"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = smallint
+      null = NOT NULL
+      default = nextval('organization.signature_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "order_id" {
+      type = smallint
+      null = NOT NULL
+    }
+  )
+}
+

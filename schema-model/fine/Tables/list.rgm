@@ -1,0 +1,29 @@
+table "fine"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_fine_names_fine"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('fine.list_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(150)
+    }
+    column "is_default" {
+      type = boolean
+      default = false
+    }
+    column "cast_id" {
+      type = character varying
+      generatedAs = public.convert((200)::character varying, id)
+    }
+  )
+}
+

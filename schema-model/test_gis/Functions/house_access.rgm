@@ -1,0 +1,26 @@
+function "test_gis"."house_access()" {
+  text = """
+
+begin
+	
+	return query
+	select hi.house_id, hi.short_adress
+	from gis.address_info hi
+	where not exists (select * from house."access" ha where hi.house_id = ha.house_id) and hi.fias_house_guid is not null;
+
+end;
+"""
+  returnType = TABLE(house_id integer, short_adress text)
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:	 Поляков Павел
+ Create date: 28.06.2016
+ Description:	Проверка существования хотя бы одного подъезда в доме
+ =============================================
+"""
+}
+

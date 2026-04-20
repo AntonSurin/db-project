@@ -1,0 +1,121 @@
+procedure "recalculation"."contragent(integer)" {
+  text = """
+
+declare 
+		_cpr				int;
+		_date_begin			date;
+		_date_end			date;
+		_working_date_begin	date;
+
+begin
+	
+	drop table if exists _date_range;
+	drop table if exists _new_date_range;
+	drop table if exists _current_t_prop;
+	
+	_cpr = (select id from parametr.list where catalog_id = 1 and lower(short_name) = 'cpr');
+	_working_date_begin = (select date_begin from "period".list where is_working = true);
+
+	select min(pl.date_begin), max(pl.date_end)
+	into _date_begin, _date_end
+	from recalculation.root rr
+		inner join "period".list pl on pl.id between rr.period_begin and rr.period_end
+	where rr.id = _root_id;
+	
+	create temp table _date_range(account_id int, date_begin date, date_end date);
+	create temp table _new_date_range(account_id int, date_begin date, date_end date);
+
+	insert into _date_range (account_id, date_begin, date_end)
+	select ca.account_id, rc.date_begin, rc.date_end
+	from recalculation.contragent_reserve rc
+		inner join contragent.account ca on ca.id = rc.contragent_account_id
+	where root_id = _root_id;
+
+	/*	собираем установленные виды проживания у собственников	*/
+	create temp table _current_t_prop(contragent_account_id int, value int);
+
+	insert into _current_t_prop(contragent_account_id, value)
+	select contragent_account_id, pb.order_number
+	from recalculation.contragent_reserve rc
+		left join parametr.book pb on pb.id = rc.book_id
+	where root_id = _root_id
+	group by rc.contragent_account_id, pb.order_number;
+
+	delete 
+	from recalculation.parametr_for_change;
+	--where parametr_id = _cpr and account_id in (select account_id from _date_range) and date_end < _working_date_begin
+
+	with cte as 
+	(
+		select d1.account_id, d1.date_begin
+		from _date_range d1
+		union 
+		select account_id, date_end + 1
+		from _date_range
+		where date_end != _date_end
+		union 
+		select rp.account_id, pl.date_begin
+		from "period".list pl 
+		inner join (
+						select account_id,date_begin, date_end
+						from _date_range
+						group by account_id, date_begin, date_end
+					) rp on  pl.date_begin between rp.date_begin and rp.date_end
+						or pl.date_end between rp.date_begin and rp.date_end 
+						or rp.date_begin between pl.date_begin and pl.date_end
+	)
+	
+	insert into _new_date_range (account_id, date_begin, date_end)
+	select
+		c.account_id
+		,c.date_begin
+		,lead(c.date_begin - 1, 1, pl.date_end) over (partition by account_id order by account_id, c.date_begin) as date_end
+	from cte c
+		inner join "period".list pl on c.date_begin between pl.date_begin and pl.date_end
+	where pl.is_working = false;
+
+	with cte as 
+	(
+		select ca.contragent_id, n.*
+			,case 
+				when rc.type_id = 2 then 1
+				when coalesce(c.value, 2) != 2 and rc.type_id is null then 1
+				else 0
+			end as pc
+		from _new_date_range n
+			inner join contragent.account ca on ca.account_id = n.account_id
+			inner join _current_t_prop c on c.contragent_account_id = ca.id
+			left join recalculation.contragent_reserve rc on rc.contragent_account_id = ca.id
+				and coalesce(rc.date_begin, _date_begin) <= n.date_end and coalesce(rc.date_end, _date_end) >= n.date_begin
+	)
+
+	insert into recalculation.parametr_for_change (house_id, flat_id, account_id, parametr_id, short_name, value, date_begin, date_end)
+	select null, null, account_id, _cpr, 'cpr', sum(pc), date_begin, date_end
+	from cte 
+	group by account_id, date_begin, date_end;
+
+	drop table if exists _date_range;
+	drop table if exists _new_date_range;
+	drop table if exists _current_t_prop;
+		
+end
+"""
+  arguments = <
+    {
+      name = _root_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 17.12.2018
+ description:	перерасчет по проживающим
+ =============================================
+"""
+}
+

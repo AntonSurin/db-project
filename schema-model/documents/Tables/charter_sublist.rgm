@@ -1,0 +1,57 @@
+table "documents"."charter_sublist" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_charter_sublist"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.charter_sublist_id_seq'::regclass)
+    }
+    column "charter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sublist_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "sublist_code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "start_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "end_date" {
+      type = date
+      null = NOT NULL
+    }
+    column "is_house" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "documents"."charter_sublist"."fk_charter_sublist_charter" {
+  columns = [
+    "charter_id"
+  ]
+  referencedTable = "documents"."charter"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

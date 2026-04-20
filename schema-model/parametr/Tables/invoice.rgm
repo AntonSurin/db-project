@@ -1,0 +1,41 @@
+table "parametr"."invoice" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_invoice"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('parametr.invoice_id_seq'::regclass)
+    }
+    column "parametr_name" {
+      type = character varying(50)
+    }
+    column "display_name" {
+      type = character varying(100)
+    }
+    column "name" {
+      type = character varying(50)
+    }
+    column "input_name" {
+      type = character varying(50)
+    }
+    column "sublist_id" {
+      type = integer
+    }
+    column "unit_id" {
+      type = integer
+    }
+    column "is_active" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+  )
+}
+

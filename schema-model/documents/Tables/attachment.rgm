@@ -1,0 +1,30 @@
+table "documents"."attachment" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_attachment"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.attachment_id_seq'::regclass)
+    }
+    column "file_base64" {
+      type = bytea
+    }
+    column "attachment_guid" {
+      type = uuid
+    }
+    column "gost_hash" {
+      type = text
+    }
+    column "file_name" {
+      type = character varying(260)
+    }
+  )
+}
+

@@ -1,0 +1,45 @@
+function "payment"."detal_changed_update()" {
+  text = """
+
+declare 
+	_i int; 
+begin
+	
+	update payment.balance pb 
+		set	pay  =  coalesce(pb.pay, 0) - d."sum"
+	from (
+			select de.period_id, de.account_id, de.sublist_id, sum(de."sum") as sum
+			from deleted de
+			group by de.period_id, de.account_id, de.sublist_id
+		) d
+	where pb.account_id = d.account_id 
+		and pb.period_id = d.period_id 
+		and pb.sublist_id = d.sublist_id;
+
+	insert into payment.balance as pb (period_id, sublist_id, house_id, flat_id, account_id, pay, account_parent_id)
+	select i.period_id, i.sublist_id, aa.house_id, aa.flat_id, i.account_id, i."sum" as pay, aa.parent_id
+	from (
+			select ii.period_id, ii.account_id, ii.sublist_id, sum(ii."sum") as "sum"
+			from inserted ii
+			group by ii.period_id, ii.account_id, ii.sublist_id
+		) i
+		inner join adress.account aa on aa.id = i.account_id
+	on conflict (account_id, sublist_id, period_id)
+	do update 
+		set pay = coalesce(pb.pay, 0) + coalesce(excluded.pay, 0);
+
+	return null;
+			
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+Object:  Trigger [Payment].[Detal_Changed]    
+ Script Date: 01.11.2022 11:10:30
+"""
+}
+

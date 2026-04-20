@@ -1,0 +1,63 @@
+table "bank"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list_8"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('bank.list_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(500)
+      null = NOT NULL
+    }
+    column "old_import" {
+      type = text
+    }
+    column "export" {
+      type = text
+    }
+    column "is_use_bank_percent" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_group_one_file" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "export_procedure_name" {
+      type = character varying(50)
+    }
+    column "export_procedure_header_name" {
+      type = character varying(50)
+    }
+    column "ftp_options" {
+      type = character varying(4000)
+    }
+    column "account_fine" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "import" {
+      type = text
+    }
+    column "is_paying_agent" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "bank_type" {
+      type = smallint
+    }
+  )
+}
+

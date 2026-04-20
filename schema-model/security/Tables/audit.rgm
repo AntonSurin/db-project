@@ -1,0 +1,19 @@
+table "security"."audit" {
+  owner = postgres
+  columns = (
+    column "date" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "user" {
+      type = character varying(50)
+    }
+    column "statement" {
+      type = text
+    }
+    column "machine" {
+      type = character varying(50)
+    }
+  )
+}
+

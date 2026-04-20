@@ -1,0 +1,284 @@
+table "payment"."list" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_list"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.list_id_seq'::regclass)
+    }
+    column "batch_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(15,2)
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type_id" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "is_print_check" {
+      type = boolean
+      default = false
+    }
+    column "payment_type" {
+      type = smallint
+      default = 0
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "payment_period_id" {
+      type = integer
+    }
+    column "unique_number" {
+      type = character varying(32)
+    }
+    column "guid" {
+      type = uuid
+    }
+    column "status" {
+      type = smallint
+      default = 0
+    }
+    column "check_type" {
+      type = smallint
+    }
+    column "service_guid" {
+      type = uuid
+      default = gen_random_uuid()
+    }
+    column "check_status" {
+      type = smallint
+      null = NOT NULL
+      default = 0
+    }
+    column "upload_number" {
+      type = integer
+    }
+    column "print_date" {
+      type = timestamp(6) without time zone
+    }
+    column "registred_date" {
+      type = timestamp(6) without time zone
+    }
+    column "cashless_payment" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "created_at" {
+      type = timestamp(6) without time zone
+    }
+    column "session_id" {
+      type = integer
+    }
+    column "return_basis_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "payment"."list"."fk_list_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."list"."fk_list_batch" {
+  columns = [
+    "batch_id"
+  ]
+  referencedTable = "payment"."batch"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."list"."fk_list_payment_period" {
+  columns = [
+    "payment_period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."list"."fk_list_period" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."list"."fk_list_type_pay" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "payment"."type"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."list"."fk_payment_list_upload_number" {
+  columns = [
+    "upload_number"
+  ]
+  referencedTable = "payment"."upload_info"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "payment"."list_ak_service_guid" {
+  table = "payment"."list"
+  type = btree
+  columns = <
+    {
+      definition = service_guid
+    }
+
+  >
+  isUnique = True
+}
+
+index "payment"."list_idx_account_id" {
+  table = "payment"."list"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = period_id
+    }
+
+    {
+      definition = type_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    batch_id
+    date
+    sum
+  ]
+}
+
+index "payment"."list_idx_batch_id" {
+  table = "payment"."list"
+  type = btree
+  columns = <
+    {
+      definition = batch_id
+    }
+
+    {
+      definition = period_id
+    }
+
+    {
+      definition = type_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    date
+    sum
+  ]
+}
+
+index "payment"."list_idx_invoice_last_payment" {
+  table = "payment"."list"
+  type = btree
+  columns = <
+    {
+      definition = period_id
+    }
+
+    {
+      definition = type_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    account_id
+    date
+    sum
+  ]
+}
+
+trigger "payment"."list"."batch_sum_delete" {
+  timing = AFTER
+  events = [
+    DELETE
+  ]
+  level = STATEMENT
+  function = payment.batch_sum_update
+  functionArguments = [
+  ]
+  table = "payment"."list"
+  constraint = False
+  oldTableReference = deleted
+}
+
+trigger "payment"."list"."batch_sum_insert" {
+  timing = AFTER
+  events = [
+    INSERT
+  ]
+  level = STATEMENT
+  function = payment.batch_sum_update
+  functionArguments = [
+  ]
+  table = "payment"."list"
+  constraint = False
+  newTableReference = inserted
+}
+
+trigger "payment"."list"."batch_sum_update" {
+  timing = AFTER
+  events = [
+    UPDATE
+  ]
+  level = STATEMENT
+  function = payment.batch_sum_update
+  functionArguments = [
+  ]
+  table = "payment"."list"
+  constraint = False
+  newTableReference = inserted
+}
+

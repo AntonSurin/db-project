@@ -1,0 +1,108 @@
+function "bank"."export_header_by_group(integer, integer, jsonb, boolean)" {
+  text = """
+
+begin
+
+	if (_is_group_in_one_file = false)
+		then 
+			begin
+				return query
+				select
+					 pl.date_begin as date_begin
+					,pl.date_end as date_end
+					,coalesce(cl.name, cl.surname) as organization_name
+					,pl."year" as period_year	
+					,pl.name_month as period_month
+					,cl.inn
+					,aa.group_id
+					,cc.rs
+					,bc.code
+					,cc.id as counting_id
+					,sum(pb.current_calc + pb.recalc) as sum_calc
+					,sum(case when pb.in_balance + pb.current_calc + pb.recalc - pb.pay <= 0 then 0 else pb.in_balance + pb.current_calc + pb.recalc - pb.pay end) as sum_calc_with_debt
+					,to_char(current_date, 'ddMMyyyy')::varchar(8) as "current_date"
+					,to_char(current_date, 'dd.MM.yyyy')::varchar(10) as current_date_format
+					,count(*) account_count
+				from payment.balance_group pb 
+					inner join adress.account aa on aa.id = pb.account_id
+					inner join bank.counting_group bc on bc.group_id = aa.group_id and bc.bank_id = _bank_id
+					inner join contragent.counting cc on cc.id = bc.counting_id
+					inner join contragent.list cl on cl.id = cc.contragent_id
+					inner join "period".list pl on pl.id = pb.period_id 
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+				where pb.period_id = _period_id 
+				group by pl.date_begin, pl.date_end, cl.inn, cc.rs, bc.code, cc.id, aa.group_id, cl.name, pl."year", pl.name_month, cl.surname;
+			end;
+		else
+			begin
+				return query
+				select
+					 pl.date_begin as date_begin
+					,pl.date_end as date_end
+					,coalesce(ol.name, ol.surname) as organization_name
+					,pl."year" as period_year
+					,pl.name_month as period_month 
+					,ol.inn
+					,null::int2 as group_id
+					,oc.rs
+					,bc.code
+					,oc.id as counting_id
+					,sum(pb.current_calc + pb.recalc) as sum_calc
+					,sum(case when pb.in_balance + pb.current_calc + pb.recalc - pb.pay <= 0 then 0 else pb.in_balance + pb.current_calc + pb.recalc - pb.pay end) as sum_calc_with_debt
+					,to_char(current_date, 'ddMMyyyy')::varchar(8) as "current_date"
+					,to_char(current_date, 'dd.MM.yyyy')::varchar(10) as current_date_format
+					,count(*) account_count
+				from payment.balance_group pb 
+					inner join adress.account aa on aa.id = pb.account_id
+					inner join bank.counting_group bc on bc.group_id = aa.group_id	and bc.bank_id = _bank_id
+					inner join contragent.counting oc on oc.id = bc.counting_id
+					inner join contragent.list ol on ol.id = oc.contragent_id
+					inner join "period".list pl on pl.id = pb.period_id 
+					inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+				where pb.period_id = _period_id and coalesce(bc.code, '') != ''
+				group by pl.date_begin, pl.date_end, ol.inn, oc.rs, bc.code, oc.id, ol.name, pl."year", pl.name_month, ol.surname;		
+			end;
+	end if;
+
+end;
+"""
+  returnType = TABLE(date_begin date, date_end date, organization_name character varying, period_year integer, period_month character varying, inn character varying, group_id smallint, rs character varying, code character varying, counting_id integer, sum_calc numeric, sum_calc_with_debt numeric, "current_date" character varying, current_date_format character varying, account_count bigint)
+  arguments = <
+    {
+      name = _bank_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _is_group_in_one_file
+      type = boolean
+      mode = IN
+      default = false
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		<author,,name>
+ create date: <create date,,>
+ description:	<description,,>
+ modified date: трофимов б.и. - поправил экспорт с группами в одном файле
+ =============================================
+"""
+}
+

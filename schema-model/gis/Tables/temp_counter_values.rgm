@@ -1,0 +1,36 @@
+table "gis"."temp_counter_values" {
+  primaryKey = {
+    columns = [
+      "counter_id"
+    ]
+    name = "pk_temp_counter_values"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "counter_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "counter_guid" {
+      type = uuid
+    }
+    column "sublist_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date" {
+      type = date
+      null = NOT NULL
+    }
+    column "value" {
+      type = numeric(13,5)
+      null = NOT NULL
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+

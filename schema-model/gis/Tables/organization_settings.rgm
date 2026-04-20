@@ -1,0 +1,47 @@
+table "gis"."organization_settings" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_organization_settings"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.organization_settings_id_seq'::regclass)
+    }
+    column "organization_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "role" {
+      type = integer
+      null = NOT NULL
+    }
+    column "gis_organization_id" {
+      type = integer
+    }
+    column "certificate_thumbprint" {
+      type = character varying(50)
+    }
+    column "is_kp" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_operator_signature" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "is_special_kp" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+  )
+}
+

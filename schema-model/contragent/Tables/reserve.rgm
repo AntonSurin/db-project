@@ -1,0 +1,54 @@
+table "contragent"."reserve" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_reserve"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('contragent.reserve_id_seq'::regclass)
+    }
+    column "contragent_account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "type_id" {
+      type = smallint
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = date
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = date
+    }
+  )
+}
+
+foreignKey "contragent"."reserve"."fk_reserve_account" {
+  columns = [
+    "contragent_account_id"
+  ]
+  referencedTable = "contragent"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "contragent"."reserve"."fk_reserve_reserve_type" {
+  columns = [
+    "type_id"
+  ]
+  referencedTable = "contragent"."reserve_type"
+  referencedColumns = [
+    "id"
+  ]
+}
+

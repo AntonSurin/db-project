@@ -1,0 +1,53 @@
+table "security"."role_rule" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_role_rule"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('security.role_rule_id_seq'::regclass)
+    }
+    column "role_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "rule_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "has_right" {
+      type = boolean
+      null = NOT NULL
+      default = true
+    }
+  )
+}
+
+foreignKey "security"."role_rule"."fk_role_rule_role" {
+  columns = [
+    "role_id"
+  ]
+  referencedTable = "security"."role"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "security"."role_rule"."fk_role_rule_rule" {
+  columns = [
+    "rule_id"
+  ]
+  referencedTable = "security"."rule"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+

@@ -1,0 +1,126 @@
+procedure "calculation"."changed_parametr(integer, jsonb, integer)" {
+  text = """
+
+declare
+		_date_begin date;
+		_date_end	date;
+begin	
+	
+	create temp table _house (house_id int);
+	
+	select date_begin, date_end 
+		into _date_begin,_date_end   
+	from "period".list 
+	where id = _period_id;
+
+	delete 
+	from recalculation.account
+	where session_id = _session_id;
+
+	create temp table _date_end_account (parametr_id int, short_name varchar(15), account_id int, value varchar(200), date_begin date, date_end date);
+	create temp table _date_end_flat (parametr_id int, short_name varchar(15), flat_id int, value varchar(200), date_begin date, date_end date);
+	create temp table _date_end_house (parametr_id int, short_name varchar(15), house_id int, value varchar(200), date_begin date, date_end date);
+		
+	insert into _date_end_account
+	select 
+		pa.parametr_id
+		,pl.short_name
+		,pa.account_id
+		,pa.value
+		,case when pa.date_begin < _date_begin then _date_begin else pa.date_begin end as date_begin
+		,pa.date_end
+	from parametr.account pa
+		inner join parametr.list  pl on pl.id = pa.parametr_id
+	where date_end is not null and date_end between _date_begin and _date_end and pl.is_calculation = true;
+
+	insert into _date_end_flat
+	select 
+		 pa.parametr_id
+		,pl.short_name
+		,pa.flat_id
+		,pa.value
+		,case when pa.date_begin < _date_begin then _date_begin else pa.date_begin end as date_begin
+		,pa.date_end
+	from parametr.flat pa
+		inner join parametr.list  pl on pl.id = pa.parametr_id
+	where date_end is not null and date_end between _date_begin and _date_end and pl.is_calculation = true;
+
+	insert into _date_end_house
+	select 
+		pa.parametr_id
+		,pl.short_name
+		,pa.house_id
+		,pa.value
+		,case when pa.date_begin < _date_begin then _date_begin else pa.date_begin end as date_begin
+		,pa.date_end
+	from parametr.house pa
+		inner join parametr.list  pl on pl.id = pa.parametr_id
+	where date_end is not null and date_end between _date_begin and _date_end and is_calculation = true;
+
+	insert into _house
+	select distinct aa.house_id
+	from adress.account aa
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = aa.id
+		inner join _date_end_account da on aa.id = da.account_id;
+
+	insert into recalculation.account
+	select aa.id, _session_id
+	from adress.account aa 
+		inner join _house h on h.house_id = aa.house_id
+	where parent_id is null
+	union
+	select account_parent_id, _session_id
+	from calculation.account_sublist_for_change
+	where period_id = _period_id;
+
+	delete from recalculation.parametr_for_change;
+	
+	insert into recalculation.parametr_for_change  (house_id, flat_id, account_id, parametr_id, short_name, value, date_begin, date_end)
+	select null::int, null::int, d.account_id ,parametr_id, short_name, value, date_begin, date_end 
+	from _date_end_account d
+		union all
+	select null::int, d.flat_id, null::int, parametr_id, short_name, value, date_begin, date_end 
+	from _date_end_flat d 
+		union all
+	select d.house_id, null::int, null::int, parametr_id, short_name, value, date_begin, date_end 
+	from _date_end_house d; 
+
+	drop table if exists _date_end_account;
+	drop table if exists _date_end_house;
+	drop table if exists _date_end_flat;
+	drop table if exists _house;
+
+end
+"""
+  arguments = <
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _session_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:	 Поляков Павел
+ Create date: 03-04-2015
+ Description:	Возвращает список измененных параметров в рабочем периоде и пишет в Recalculation для последующего перерасчета
+   Сбор измненных параметров происходи не зависимо от лс по которым запущен расчет
+ =============================================
+"""
+}
+

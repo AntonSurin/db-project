@@ -1,0 +1,28 @@
+table "report"."send_type" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_send_type"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = smallint
+      null = NOT NULL
+      default = nextval('report.send_type_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(100)
+      null = NOT NULL
+    }
+    column "header" {
+      type = character varying(100)
+    }
+    column "body" {
+      type = character varying(2000)
+    }
+  )
+}
+

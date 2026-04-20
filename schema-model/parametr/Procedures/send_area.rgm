@@ -1,0 +1,169 @@
+procedure "parametr"."send_area(character varying, integer, boolean)" {
+  text = """
+ 
+declare 
+	_date_begin date;
+begin
+
+	_date_begin = (select date_begin from "period".list where is_working = true);
+
+	create temp table _table_parametr (parametr varchar(4), parametr_flat_id int, parametr_account_id int);
+
+	insert into _table_parametr
+	select 'osq' as parametr, p.id as parametr_flat_id, l.id as parametr_account_id
+	from parametr.list p
+		inner join parametr.list l on lower(p.short_name) = 'osqf' and lower(l.short_name) = 'osq'
+	union 
+	select 'nsq' as parametr, p.id as parametr_flat_id, l.id as parametr_account_id
+	from parametr.list p
+		inner join parametr.list l on lower(p.short_name) = 'sbalk' and lower(l.short_name) = 'nsq'
+	union
+	select 'jsq' as parametr, p.id as parametr_flat_id, l.id as parametr_account_id
+	from parametr.list p
+		inner join parametr.list l on lower(p.short_name) = 'jsqf' and lower(l.short_name) = 'jsq';
+
+	if lower(_table_name) = 'adress.flat'
+		then  
+			begin
+				
+				create temp table _source_flat (parametr_id int, account_id int, pf_value numeric(8,2), pa_value numeric(8,2), date_begin date);
+		
+				insert into _source_flat 
+				select  parametr_account_id as parametr_id, 
+						pa.account_id as account_id, 
+						cast(coalesce(nullif(pf.value, ''), '0') as numeric(8,2)) as pf_value,
+						cast(coalesce(nullif(pa.value ,'') ,'0') as numeric(8,2)) as pa_value, 
+						case 
+							when _date_begin < pa.date_begin 
+							then pa.date_begin 
+							else _date_begin 
+						end as date_begin
+				from _table_parametr tp
+					inner join parametr.flat pf on pf.parametr_id = tp.parametr_flat_id and pf.date_end is null
+					inner join adress.account aa on aa.flat_id = pf.flat_id and aa.parent_id is null
+					inner join parametr.account pa on pa.account_id = aa.id and pa.parametr_id = tp.parametr_account_id and pa.date_end is null
+				where aa.house_id = _house_id;
+		
+				merge into parametr.account as target 
+				using (select parametr_id, account_id, pf_value as value, date_begin
+						from _source_flat
+						where pf_value > 0 and pa_value = 0) 
+				as source(parametr_id, account_id, value, date_begin)
+				on (target.parametr_id = source.parametr_id and 
+						target.account_id = source.account_id and 
+						target.date_begin = source.date_begin and
+						target.date_end is null)
+				when matched then
+					update set 
+						value = source.value
+				when not matched then
+					insert (parametr_id, account_id, value, date_begin)
+					values (source.parametr_id, source.account_id, source.value, source.date_begin);
+		
+			end;
+	end if;
+
+	if lower(_table_name) = 'adress.account'
+		then 
+			begin
+				
+				create temp table _account_list (flat_id int, account_id int);
+	
+				if _variant = false
+					then
+						insert into _account_list
+						select aa.flat_id, pac.account_id
+						from adress.account aa
+							inner join parametr.account pac on pac.account_id = aa.id 
+						where aa.house_id = _house_id 
+							and pac.parametr_id = 1362 
+							and pac.date_end is null 
+							and coalesce(nullif(pac.value,''), '0') = '1';
+				elsif _variant = true
+					then
+						insert into _account_list
+						select flat_id, max(pac.account_id) as account_id
+						from adress.account aa
+							inner join parametr.account pac on pac.account_id = aa.id 
+						where aa.house_id = _house_id 
+							and pac.parametr_id = 1362 
+							and pac.date_end is null 
+							and coalesce(nullif(pac.value,''), '0') = '1'
+						group by flat_id;
+				end if;
+
+				create temp table _source_account (parametr_id int, flat_id int, pa_value numeric(8,2), pf_value numeric(8,2), date_begin date);
+				
+				insert into _source_account
+				select  parametr_flat_id as parametr_id, 
+						pf.flat_id as flat_id, 
+						sum(cast(coalesce(nullif(pa.value, ''), '0') as numeric(9,2))) as pa_value, 
+						cast(coalesce(nullif(pf.value, ''), '0') as numeric(9,2)) as pf_value, 
+						max(case 
+								when _date_begin < pa.date_begin 
+								then pa.date_begin 
+								else _date_begin 
+							end) as date_begin
+				from _table_parametr tp
+					inner join parametr.account pa on pa.parametr_id = tp.parametr_account_id and pa.date_end is null
+					inner join _account_list al on al.account_id = pa.account_id
+					inner join parametr.flat pf on pf.parametr_id = tp.parametr_flat_id and pf.flat_id = al.flat_id and pf.date_end is null
+				group by parametr_flat_id, pf.flat_id, pf.value;
+	
+				merge into parametr.flat as target 
+				using (select parametr_id, flat_id, pa_value as value, date_begin
+						from _source_account
+						where pa_value > 0 and pf_value = 0) 
+				as source(parametr_id, flat_id, value, date_begin)
+				on (target.parametr_id = source.parametr_id and 
+						target.flat_id = source.flat_id and 
+						target.date_begin = source.date_begin and
+						target.date_end is null)
+				when matched then
+					update set 
+						value = source.value
+				when not matched then
+					insert (parametr_id, flat_id, value, date_begin)
+					values (source.parametr_id, source.flat_id, source.value, source.date_begin);
+	
+			end;
+	end if;
+		
+		drop table if exists _table_parametr;
+		drop table if exists _source_flat;
+		drop table if exists _account_list;	
+		drop table if exists _source_account;
+	
+end
+"""
+  arguments = <
+    {
+      name = _table_name
+      type = character varying
+      mode = IN
+    }
+
+    {
+      name = _house_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _variant
+      type = boolean
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		юркин е.ю.
+ create date: 18.03.2020
+ description:	перенос площадей из лицевых в квартиры или наоборот
+ =============================================
+"""
+}
+

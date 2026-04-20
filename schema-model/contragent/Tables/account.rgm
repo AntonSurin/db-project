@@ -1,0 +1,127 @@
+table "contragent"."account" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_account_4"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('contragent.account_id_seq'::regclass)
+    }
+    column "contragent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_responsible" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "reg_date_begin" {
+      type = date
+    }
+    column "reg_date_end" {
+      type = date
+    }
+    column "is_reserved" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "reserver_date_end" {
+      type = date
+    }
+    column "description" {
+      type = character varying(200)
+    }
+  )
+}
+
+foreignKey "contragent"."account"."fk_account_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+foreignKey "contragent"."account"."fk_account_list" {
+  columns = [
+    "contragent_id"
+  ]
+  referencedTable = "contragent"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "contragent"."account_idx_contragent_account_resp" {
+  table = "contragent"."account"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+    {
+      definition = is_responsible
+    }
+
+    {
+      definition = contragent_id
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    reg_date_begin
+    reg_date_end
+    is_reserved
+    reserver_date_end
+  ]
+}
+
+index "contragent"."account_idx_is_responsible" {
+  table = "contragent"."account"
+  type = btree
+  columns = <
+    {
+      definition = is_responsible
+    }
+
+  >
+  isUnique = False
+  includeColumns = [
+    id
+    contragent_id
+    account_id
+  ]
+}
+
+index "contragent"."account_ix_conragent_account" {
+  table = "contragent"."account"
+  type = btree
+  columns = <
+    {
+      definition = contragent_id
+    }
+
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = True
+}
+

@@ -1,0 +1,146 @@
+function "payment"."split_payments()" {
+  text = """
+
+declare 
+	_book_id 		int;
+	_period_id 		int;
+	_work_period_id int;
+	_account		jsonb;
+begin
+
+	create temp table _days ("date" date);
+	create temp table _batch (batch_id int);
+	create temp table _new_batch (batch_id int, batch_date date, counting_id int, period_id int);
+
+	_work_period_id = (select pl.id from "period".list pl where pl.is_working = true);
+
+	_period_id =(	select max(pl.id)
+					from inserted p
+						inner join "period".list pl on p."date" between pl.date_begin and pl.date_end);
+
+-- Собираем ЛС по которым нужно обработать платежи
+
+	_account = (select to_jsonb(array_agg(aa.id))
+				from adress.account aa
+				inner join inserted p on p.account_name = aa."name"
+				group by aa.id);
+
+--- Проверяем наличние параметра пачки
+
+	if exists (select * from parametr.book where parametr_id = 289 and lower("name") = 'Загружено из "1C"')
+		then
+			begin 
+				_book_id = (select cast ("number" as int) from parametr.book where parametr_id = 289 and lower("name") = 'Загружено из "1C"');
+			end;
+		else
+			begin 
+				insert into parametr.book (parametr_id, "number",order_number, "name")
+				select 289, max(cast ("number" as int)) + 1, max(cast ("number" as int)) + 1, 'Загружено из "1C"'
+				from parametr.book 
+				where parametr_id = 289;
+				
+				_book_id = (select cast ("number" as int) from parametr.book where parametr_id = 289 and lower("name") = 'Загружено из "1C"');
+			end;
+	end if;
+
+---- Проверяем наличие ранее созданных пачек
+	insert into _batch
+	select b.id
+	from inserted p
+		inner join "period".list pl on p."date" between pl.date_begin and pl.date_end
+		inner join organization.list  ol on ol.inn = p.inn
+		inner join organization.counting oc on oc.list_id = ol.id 
+		inner join (
+						select pb."date", pb.counting_id, pb.id
+						from  payment.batch pb 
+						where pb.bank_id = _book_id 
+					) b on b.counting_id = oc.id and b."date" = p."date"
+	where pl.id = _period_id
+	group by b.id;
+
+--- Удаляем все пачки и ранее созданные платежи
+	delete 
+	from "1c".payment pc
+		using payment.list pl, _batch b 
+	where pl.id = pc.payment_id and b.batch_id = pl.batch_id;
+
+	delete 
+	from payment.detal pd
+		using _batch b, payment.list pl 
+	where pd.payment_id = pl.id	and pl.batch_id = b.batch_id;
+
+	delete 
+	from payment.list pl
+		using _batch b
+	where pl.batch_id = b.batch_id;
+
+	delete 
+	from payment.batch pb
+		using _batch b
+	where pb.id = b.batch_id;
+
+	if (_work_period_id <> _period_id)
+		then
+			begin 
+				call calculation.calc_in_balance (_period_id, _work_period_id, _account);
+			end;
+	end if;
+
+---- Вставляем новые пачки  
+	with cte as 
+	(
+		insert into payment.batch (period_id, counting_id, "date", "number", "sum", bank_id)
+		select pl.id, oc.id as counting_id, p."date", 555 as "number", sum(p.pay_sum) as pay_sum, _book_id
+		from inserted p
+			inner join "period".list pl on p."date" between pl.date_begin and pl.date_end
+			inner join organization.list  ol on ol.inn = p.inn
+			inner join organization.counting oc on oc.list_id = ol.id
+		where oc.rs = '00000000000000000000' and pl.id = _period_id
+		group by pl.id, p."date", oc.id
+		returning id, "date", counting_id, period_id 
+	)
+
+	insert into _new_batch
+	select *
+	from cte;
+
+	insert into payment.list (batch_id, "date", "sum", account_id, is_print_check, type_id, payment_type, period_id, payment_period_id)
+	select b.batch_id, p."date", p.pay_sum, aa.id, 0, 0, 0, b.period_id, null
+	from inserted p
+		inner join adress.account aa on aa."name" = p.account_name
+		inner join organization.list  ol on ol.inn = p.inn
+		inner join organization.counting oc on oc.list_id = ol.id
+		inner join _new_batch b on b.counting_id = oc.id and b.batch_date = p."date"
+	where b.period_id = _period_id;
+
+	if (_work_period_id <> _period_id)
+		then
+			begin 
+				call calculation.calc_in_balance (_period_id, _work_period_id, _account);
+			end;
+	end if;
+
+
+	delete from payment.temp_payment_from_1c;
+	drop table if exists _days;
+	drop table if exists _batch;
+	drop table if exists _new_batch;
+	return null;
+	
+	
+end;
+"""
+  returnType = trigger
+  arguments = [
+  ]
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ Author:		Поляков Павел
+ Create date: 24.04.2017
+ Description:	Расщепление и регистрация платежей принятых в 1С
+ =============================================
+"""
+}
+

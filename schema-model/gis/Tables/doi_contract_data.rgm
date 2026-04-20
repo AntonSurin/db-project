@@ -1,0 +1,138 @@
+table "gis"."doi_contract_data" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_doi_contract_data"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.doi_contract_data_id_seq'::regclass)
+    }
+    column "house_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_org" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "other_side_person_id" {
+      type = integer
+    }
+    column "other_side_org_id" {
+      type = integer
+    }
+    column "contract_number" {
+      type = character varying(50)
+    }
+    column "date" {
+      type = timestamp(6) without time zone
+    }
+    column "start_date" {
+      type = timestamp(6) without time zone
+    }
+    column "end_date" {
+      type = timestamp(6) without time zone
+    }
+    column "contract_object" {
+      type = character varying(2000)
+    }
+    column "comments" {
+      type = character varying(300)
+    }
+    column "payment" {
+      type = numeric(10,2)
+    }
+    column "money_spent_direction" {
+      type = character varying(200)
+    }
+    column "contract_guid" {
+      type = uuid
+    }
+    column "status_contract_gis" {
+      type = character varying(15)
+    }
+    column "contract_vertion_guid" {
+      type = uuid
+    }
+    column "status_vertion_gis" {
+      type = character varying(15)
+    }
+    column "payment_interval_type_other" {
+      type = character varying(200)
+    }
+    column "from_interval_date_num" {
+      type = integer
+    }
+    column "from_interval_last_day" {
+      type = boolean
+    }
+    column "from_interval_is_next_month" {
+      type = boolean
+    }
+    column "to_interval_date_num" {
+      type = integer
+    }
+    column "to_interval_last_day" {
+      type = boolean
+    }
+    column "to_interval_is_next_month" {
+      type = boolean
+    }
+    column "date_update_gis" {
+      type = timestamp(3) without time zone
+    }
+    column "is_gratuitous_basis" {
+      type = boolean
+    }
+    column "contract_arcus_id" {
+      type = integer
+    }
+  )
+}
+
+foreignKey "gis"."doi_contract_data"."fk_doi_contract_data_characteristic" {
+  columns = [
+    "house_id"
+  ]
+  referencedTable = "house"."characteristic"
+  referencedColumns = [
+    "house_id"
+  ]
+}
+
+foreignKey "gis"."doi_contract_data"."fk_doi_contract_data_doi_contract_arcus" {
+  columns = [
+    "contract_arcus_id"
+  ]
+  referencedTable = "gis"."doi_contract_arcus"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "gis"."doi_contract_data"."fk_doi_contract_data_doi_org_data" {
+  columns = [
+    "other_side_org_id"
+  ]
+  referencedTable = "gis"."doi_org_data"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "gis"."doi_contract_data"."fk_doi_contract_data_doi_person" {
+  columns = [
+    "other_side_person_id"
+  ]
+  referencedTable = "gis"."doi_person"
+  referencedColumns = [
+    "id"
+  ]
+}
+

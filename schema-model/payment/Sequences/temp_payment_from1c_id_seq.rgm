@@ -1,0 +1,12 @@
+sequence "payment"."temp_payment_from1c_id_seq" {
+  type = bigint
+  increment = 1
+  minValue = 1
+  maxValue = 9223372036854775807
+  start = 1
+  cache = 1
+  cycle = NO CYCLE
+  ownedBy = "payment"."temp_payment_from_1c"."id"
+  owner = postgres
+}
+

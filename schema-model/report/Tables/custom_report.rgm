@@ -1,0 +1,38 @@
+table "report"."custom_report" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_custom_report"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('report.custom_report_id_seq'::regclass)
+    }
+    column "name" {
+      type = character varying(50)
+    }
+    column "parameters" {
+      type = character varying(100)
+    }
+    column "value" {
+      type = text
+    }
+    column "layout" {
+      type = text
+    }
+    column "is_band" {
+      type = boolean
+      null = NOT NULL
+      default = false
+    }
+    column "export_type" {
+      type = integer
+    }
+  )
+}
+

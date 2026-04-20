@@ -1,0 +1,67 @@
+table "eco"."org_work_gis_book" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_org_work_gis_book"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.org_work_gis_book_id_seq'::regclass)
+    }
+    column "organization_work_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+    column "is_arch" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(500)
+      null = NOT NULL
+    }
+    column "group_guid" {
+      type = uuid
+      null = NOT NULL
+    }
+    column "is_okei" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "parent_guid" {
+      type = uuid
+    }
+    column "required_work_guids" {
+      type = text
+      null = NOT NULL
+    }
+    column "unit_code" {
+      type = character varying(50)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "eco"."org_work_gis_book"."fk_org_work_gis_book_organization_work" {
+  columns = [
+    "organization_work_id"
+  ]
+  referencedTable = "eco"."organization_work"
+  referencedColumns = [
+    "id"
+  ]
+}
+

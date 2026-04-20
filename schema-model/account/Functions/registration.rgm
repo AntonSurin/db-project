@@ -1,0 +1,148 @@
+function "account"."registration(integer, integer)" {
+  text = """
+			
+declare
+		_date_begin date;
+		_date_end 	date;
+
+begin 
+	
+	select pl.date_begin, pl.date_end 
+	into _date_begin, _date_end 
+	from "period".list pl
+	where pl.id = _period_id;
+
+
+	return query
+	select 
+		 ca.contragent_id
+		,cl.full_name
+		,ci.date_birth
+		,(case when co.id is not null then true else false end ) as doc
+		,co.series
+		,co."number"
+		,co.date_begin
+		,co.date_end
+		,co."share"
+		,ca.reg_date_begin
+		,ca.reg_date_end
+		,ci.place_birth
+		,dk."name" as kind_name
+		,ca.is_responsible
+		,max(case when cp.parametr_id = 358  then pb."name" end)::varchar(100) as rs
+		,max(case when cp.parametr_id = 1383 then pb."name" end)::varchar(100) as t_prop
+		,max(case when cp.parametr_id = 1451 then pb."name" end)::varchar(100) as t_reg
+		,max(case when cp.parametr_id = 1452 then pb."name" end)::varchar(100) as t_status
+		,max(case when cp.parametr_id = 1472 then pb."name" end)::varchar(100) as ellgot_type
+		,(
+			case 
+				when coalesce(ca.reg_date_end, _date_begin) >= _date_begin and coalesce(ca.reg_date_begin, _date_end) <= _date_end
+				then true 
+				else false
+			end 
+		) as is_active
+		,(
+			case 
+				when co.id is not null and coalesce(co.date_end, _date_begin) >= _date_begin and coalesce(co.date_begin, _date_end) <= _date_end
+				then true
+				else false
+			end 
+		) as is_active_owner
+		,(
+			case 
+				when co.id is null or (co.id is not null 
+								  	and co.date_end < _date_begin    
+									and param.reg > 0 or param.status > 0
+									and co.own = 0
+										) 
+				then true 
+				else false 
+			end 
+		) is_owner
+		,row_number () over (partition by ca.account_id, ca.contragent_id order by ca.account_id, ca.contragent_id, co.date_begin) rn
+	from contragent.list cl
+		inner join contragent.account ca on ca.contragent_id = cl.id
+		inner join contragent.info ci on ci.contragent_id = cl.id
+		inner join contragent.parametr cp on cp.contragent_account_id = ca.id 
+		left join parametr.book pb on pb.id = cp.book_id
+		left join (
+					select
+						ca.id contragent_account_id
+						,sum(
+								case 
+									when lower(pl.short_name) = 't_prop' 
+									then 
+										case 
+											when lower(pb."name") = 'не проживает' or pb.id is null 
+											then 0 
+											else 1 
+										end 
+									else 0 
+								end
+							) as status
+						,sum(
+								case 
+									when lower(pl.short_name) = 't_reg' 
+									then 
+										case 
+											when lower(pb."name") = 'не зарегистрирован' or pb.id is null 
+											then 0 
+											else 1 
+										end 
+									else 0 
+								end
+							) as reg
+					from contragent.account ca
+						left join contragent.parametr cp on cp.contragent_account_id = ca.id
+						left join parametr.list pl on pl.id = cp.parametr_id
+						left join parametr.book pb on pb.id = cp.book_id
+					group by ca.id
+				) param on param.contragent_account_id = ca.id 
+		left join (
+					select 
+						 cod.*
+						,sum(
+							case 
+								when cod.date_end is null or cod.date_end > _date_begin  
+								then 1 
+								else 0 
+							end
+							) over (partition by contragent_account_id order by contragent_account_id) own
+					from contragent.owner_documents cod
+						inner join contragent.account ca on ca.id = cod.contragent_account_id
+					where ca.account_id =  _account_id 
+				) co on co.contragent_account_id = ca.id
+		left join documents.kind dk on dk.id = co.kind_id
+	where ca.account_id =  _account_id 
+	group by ca.contragent_id, cl.full_name, ci.date_birth, co.id, co.date_begin, co.date_end, co.series, co.number, co.share, ca.reg_date_begin, ca.reg_date_end, ci.place_birth, dk.name, ca.is_responsible
+			, param.reg, param.status, ca.account_id, co.own
+;
+
+end;
+"""
+  returnType = TABLE(contragent_id integer, full_name character varying, date_birth date, doc boolean, series character varying, number character varying, date_begin date, date_end date, share character varying, reg_date_begin date, reg_date_end date, place_birth character varying, kind_name character varying, is_responsible boolean, rs character varying, t_prop character varying, t_reg character varying, t_status character varying, ellgot_type character varying, is_active boolean, is_active_owner boolean, is_owner boolean, rn bigint)
+  arguments = <
+    {
+      name = _account_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 18.12.2015
+ description:	список проживающих на лицевом счете
+ =============================================
+"""
+}
+

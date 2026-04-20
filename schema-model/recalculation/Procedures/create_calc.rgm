@@ -1,0 +1,788 @@
+procedure "recalculation"."create_calc(integer, integer, smallint, integer, integer, jsonb, numeric, text, text)" {
+  text = """
+
+declare
+	_period_id				int;
+	_date_begin				date;
+	_date_end				date;
+	_is_input				bool;
+	_input_calc_parametr	text = '';
+	_sublist_filter			text = '';
+	_batch_period_count		int  = 3;
+	_existing_group			bool = false;
+	_calc_column 			text = '';
+	_calc_column_with_type 	text = '';
+	_calc_formula 			text = '';
+	_number_batch 			int  = 1;
+	_sql					text = '';
+	_normativ				text = '';
+	_rate					text = '';
+	_tarif					text = '';
+	_volume					text = '';
+	_normativ_odn			text = '';
+	_tarif_odn				text = '';
+	_volume_odn				text = '';
+	_period_day				int;
+	_tarif_balance			text = '';
+	_volume_balance			text = '';
+	_normativ_balance		text = '';
+	_rate_balance			text = '';
+	_sublist_parametr 		text = '';
+	_sublist_ot 			text = '';
+begin
+
+	create temp table _period  (period_id int, formula_period_id int, date_begin date, date_end date, day_in_month int);
+	create temp table _formula_tarif (formula_id int, period_id int, short_name varchar(20), date_begin date, odn bool not null);
+	create temp table _formula_normativ (formula_id int, period_id int, short_name varchar(20), date_begin date, odn bool not null);
+	create temp table _formula_volume (formula_id int, period_id int, short_name varchar(20), date_begin date, odn bool not null);
+
+	if exists (select * from adress.account where group_id is not null)
+		then 
+			_existing_group = 1;
+	end if;
+
+	select id, date_begin, date_end 
+	into _period_id, _date_begin, _date_end 
+	from "period".list 
+	where is_working = true;
+	
+	_is_input = (select (case 
+			 				when array_to_string(xpath('Root/UI/IsUseInput/text()', p.xml_data)::text[] , '') = '' 
+			 				then false::bool 
+			 				else array_to_string(xpath('Root/UI/IsUseInput/text()', p.xml_data)::text[], '')::bool 
+			 			end)
+		 		 from special.parametr p);	
+
+	call recalculation.account_sublist_change (_root_id, _period_start, _period_end);
+
+	delete from recalculation.list_preview where root_id = _root_id;
+
+	create temp table _batch_table (period_id int, number_batch int);
+
+	select input_calc_parametr, sublist_filter
+	into _input_calc_parametr, _sublist_filter
+	from (
+			select 
+				string_agg('
+				"' || pl.short_name || '" = "new_' || pl.short_name || '"',',') as input_calc_parametr, 
+				string_agg(SUBSTRING(formula, '([0-9]{1,2})'), ',') as sublist_filter
+			from parametr.list pl
+				inner join parametr.formula pf on pf.parametr_id = pl."id"
+			where pl.catalog_id = 9 and pf.tag_id = 2 and pf.date_end is null
+		) param;
+
+		select calc_column, calc_column_with_type, calc_formula 
+		into _calc_column, _calc_column_with_type, _calc_formula 
+		from (
+				select 
+					 string_agg(',
+					' || pl.short_name, '') as calc_column,
+					string_agg(', ' || pl.short_name || ' numeric(' || cast(pl."len" as varchar(3)) || ', ' || cast(pl."precision" as varchar(3)) || ')', '') as calc_column_with_type ,
+					string_agg(case when s.short_name is null then '
+					,sum(case when cp.is_closed = 1 then ' || pf.formula || ' end)'
+					else '
+					,sum(case 
+							when cp.is_closed_end = 0 and cp.account_open = 0 then 0.0 
+							else 
+								case 
+									when ' || s.short_name || ' is null 
+									then case when cp.is_closed = 1 then ' || pf.formula || ' else 0.0 end 
+									else ' || pf.formula || ' 
+								end 
+						end)'
+					end 
+					|| ' over (partition by cp.house_id, cp.period_id' 
+					|| case when _is_input = true and il.sublist_id is not null then ', "i_' || cast(us.short_name as varchar(10)) || '"' else '' end 
+					|| ' order by cp.house_id, cp.period_id' 
+					|| case when _is_input = true and il.sublist_id is not null then ', "i_' || cast(us.short_name as varchar(10)) || '"' else '' end 
+					|| ') as "new_' || pl.short_name || '"
+					,"cs"."' || pl.short_name || '"','') as calc_formula
+				from parametr.list pl
+					inner join parametr.formula pf on pf.parametr_id = pl.id
+					left join utility.sublist us on us.id = pf.sublist_id
+					left join (
+									select distinct sublist_id
+									from "input".list
+								) il on il.sublist_id = us.id
+					left join (
+									select pl.short_name, ps.sublist_id
+									from parametr.sublist ps
+										inner join parametr.list pl on pl.id = ps.parametr_id
+										inner join utility.sublist us on us.id = ps.sublist_id
+									where pl.catalog_id = 1 and us.list_id != 1021
+									union all
+									select distinct coalesce(pl.short_name, 'ras_gv') as short_name, coalesce(ps.sublist_id, us.id) as sublist_id
+									from utility.sublist us
+										left join parametr.sublist ps on us.id = ps.sublist_id and ps.catalog_id = 1
+										left join parametr.list pl on pl.id = ps.parametr_id and pl.catalog_id = ps.catalog_id
+									where us.list_id = 1021 and us.is_counter = true
+								) s on s.sublist_id = us.id
+				where pl.catalog_id = 9 and pf.tag_id = 2 and pf.date_end is null 
+			) as param;
+
+	with recursive batch_cte as 
+	(
+		select _period_start as "period", 1 as number_batch, 1 as batch_count
+		union all 
+		select "period" + 1, case when batch_count = _batch_period_count then number_batch + 1 else number_batch end, case when batch_count = _batch_period_count then 1 else batch_count + 1 end 
+		from batch_cte 
+		where "period" < _period_end
+	)
+
+	insert into _batch_table(period_id, number_batch)
+	select "period", number_batch
+	from batch_cte;
+
+	while exists(select * from _batch_table) loop
+	begin 
+		select min(period_id), max(period_id) 
+		into _period_start, _period_end 
+		from _batch_table 
+		where number_batch = _number_batch;
+
+		drop table if exists _period;
+ 
+		create temp table _period  (period_id int, formula_period_id int, date_begin date, date_end date, day_in_month int);
+	
+		insert into _period (period_id, formula_period_id, date_begin, date_end, day_in_month)
+		select id, 
+			case when _rules_calculation in (1,3) then _period_id else id end, 
+			case when _rules_calculation in (1,3) then _date_begin else date_begin end, 
+			case when _rules_calculation in (1,3) then _date_end else date_end end, 
+			case when _rules_calculation in (1,3) then (_date_end - _date_begin) + 1 else day_in_month end
+		from "period".list where id between _period_start and _period_end;
+	
+		with cte as
+		(
+			select
+			     f.sublist_id
+				,f.period_id
+				,f."type"
+				,'
+				 when cp.period_id = ' || cast(p.period_id as varchar(3)) || ' then ' || 
+					case 
+						when _decimal_value is not null and f.sublist_id in (select s.sublist_id from jsonb_populate_recordset(null::report.sublist, _sublist) as s) and "type" = 1
+						then cast(_decimal_value as varchar(10)) 
+							|| case 
+									when _denominator is not null then '/nullif(' || _denominator || ', 0)'
+									else ''
+								end 
+						else 
+							case 
+								when type = 3 
+								then 
+									case 
+										when _numerator is not null and f.sublist_id in (select s.sublist_id from jsonb_populate_recordset(null::report.sublist, _sublist) as s)
+										then _numerator  
+										else f.formula 
+									end 
+								else f.formula 
+							end
+					end as formula
+				,row_number() over (partition by f.sublist_id, f."type" order by f.period_id, f."type")  rn
+				,count(*) over (partition by f.sublist_id, f."type" order by f.sublist_id, f."type")  cnt
+				,p.day_in_month
+			from utility.formula_result f
+				inner join _period p on p.formula_period_id = f.period_id
+			where p.period_id between _period_start and _period_end
+		)
+		
+		select tarif, tarif_odn, normativ, volume, volume_odn
+		into _tarif, _tarif_odn, _normativ, _volume, _volume_odn
+		from (
+				select 
+					  string_agg(case 
+							when c."type" = 1 and us.is_odn = false
+							then 
+								case 
+									when cnt = 1 then '"t_' || us.short_name || '" = case ' || formula ||  ' end,'
+									when cnt <> 1 and rn = 1 then '"t_' || us.short_name || '" = case ' || formula || ' '
+									when cnt <> 1 and cnt = rn then formula || ' end, ' 
+									else ' ' ||  formula || ' '
+								end
+							else ''
+						end, '') as tarif,
+					  string_agg(case 
+									when c."type" = 1 and us.is_odn = true
+									then 
+										case 
+											when cnt = 1 then '"t_' || us.short_name || '" = case ' || formula ||  ' end,'
+											when cnt <> 1 and rn = 1 then '"t_' || us.short_name || '" = case ' || formula || ' '
+											when cnt <> 1 and cnt = rn then formula || ' end, ' 
+											else ' ' ||  formula || ' '
+										end
+									else ''
+								end, '') as tarif_odn,
+					string_agg(case 
+									when c."type" = 2
+									then 
+										case 
+											when cnt = 1 then '"n_' || us.short_name || '" = case ' || formula ||  ' end,'
+											when cnt <> 1 and rn = 1 then '"n_' || us.short_name || '" = case ' || formula || ' '
+											when cnt <> 1 and cnt = rn then formula || ' end,' 
+											else ' ' ||  formula || ' '
+										end
+									else ''
+								end, '') as normativ,
+				 	string_agg(case 
+									when c."type" = 3 and us.is_odn = false
+									then 
+										case 
+											when cnt = 1 then '"v_' || us.short_name || '" = (case ' || formula ||  ' end) * ((cp.date_end - cp.date_begin) + 1) / pl.day_in_month,'
+											when cnt <> 1 and rn = 1 then '"v_' || us.short_name || '" = (case ' || formula || ' '
+											when cnt <> 1 and cnt = rn then formula || ' end) * ((cp.date_end - cp.date_begin) + 1) / pl.day_in_month,' 
+											else ' ' ||  formula || ' '
+										end
+									else ''
+								end, '') as volume,
+					string_agg(case 
+									when c."type" = 3 and us.is_odn = true
+									then 
+										case 
+											when cnt = 1 then '"v_' || us.short_name || '" = (case ' || formula ||  ' end) * ((cp.date_end - cp.date_begin) + 1) / pl.day_in_month,'
+											when cnt <> 1 and rn = 1 then '"v_' || us.short_name || '" = (case ' || formula || ' '
+											when cnt <> 1 and cnt = rn then formula || ' end) / pl.day_in_month * ((cp.date_end - cp.date_begin) + 1),' 
+											else ' ' ||  formula || ' '
+										end
+									else ''
+								end,'') as volume_odn
+				from cte c
+					inner join utility.sublist us on us.id = c.sublist_id
+			) as v;
+	
+		with cte as 
+		(
+			select 
+				us.id as sublist_id,
+				pl.period_id,
+				coalesce(' when cp.period_id = ' || cast(pl.period_id as varchar(5)) || ' then case ' || 
+				(
+					select string_agg(' when cp.territory_id = ' || cast(nl.territory_id as varchar(5)) || ' then ' || cast(nl.rate as varchar(10)), '')
+					from normativ.list nl
+					where nl.sublist_id = us.id
+						and pl.date_begin between nl.date_begin and coalesce(nl.date_end, pl.date_end)
+						and exists(select * from adress.house where territory_id = nl.territory_id)
+					group by nl.sublist_id, nl.rate, territory_id			
+				) || ' end', '') as formula
+			from _period pl
+				inner join utility.sublist us on 1 = 1
+			where pl.period_id between _period_start and _period_end 
+				and exists (select * from normativ.list where sublist_id = us.id)
+		), cte2 as 
+		(
+			select 
+				sublist_id
+				,formula
+				,row_number() over (partition by c.sublist_id order by c.period_id)  rn
+				,count(*) over (partition by c.sublist_id order by c.sublist_id)  cnt
+			from cte c
+			where formula != ''
+		)
+	
+		select rate
+		into _rate
+		from (
+				select 
+					string_agg(case 
+									when cnt = 1 
+									then '
+				"r_' || us.short_name || '" = 
+					case 
+						' || formula ||  ' 
+					end,'
+									when cnt <> 1 and rn = 1 then '
+				"r_' || us.short_name || '" = 
+					case ' || formula || ' '
+									when cnt <> 1 and cnt = rn then formula || ' 
+					end,' 
+									else ' ' ||  formula || ' '
+						end, '') as rate
+				from cte2 c
+					inner join utility.sublist us on us.id = c.sublist_id
+			) as t;
+	
+		_tarif 			= case when _tarif 			= '' then '' else substring(_tarif, 1, length(_tarif) - 1) end;
+		_tarif_odn 		= case when _tarif_odn 		= '' then '' else substring(_tarif_odn, 1, length(_tarif_odn) - 1) end;
+		_normativ 		= case when _normativ		= '' then '' else substring(_normativ, 1, length(_normativ) - 1) end;
+		_normativ_odn 	= case when _normativ_odn 	= '' then '' else substring(_normativ_odn, 1, length(_normativ_odn) - 1) end;
+		_volume	 		= case when _volume 		= '' then '' else left(_volume, length(_volume) - 1) end;
+		_volume_odn 	= case when _volume_odn 	= '' then '' else substring(_volume_odn, 1, length(_volume_odn) - 1) end;
+		_rate 			= case when _rate 			= '' then '' else substring(_rate, 1, length(_rate) - 1) end;
+	
+		select tarif_balance, normativ_balance, rate_balance, volume_balance 
+		into _tarif_balance, _normativ_balance, _rate_balance, _volume_balance
+		from(
+				select 
+					 string_agg(case when fr."type" = 1 then  '
+					 	 when ca.sublist_id = ' || cast(us.id as varchar(10)) || ' and cn.period_id = ' || cast(period_id as varchar(10)) || ' then coalesce("t_' || us.short_name || '", 0.0)' else '' end,'') as tarif_balance,
+					 string_agg(case when fr."type" = 2 then  '
+					 	 when ca.sublist_id = ' || cast(us.id as varchar(10)) || ' and cn.period_id = ' || cast(period_id as varchar(10)) || ' then coalesce("n_' || us.short_name || '", 0.0)' else '' end,'') as normativ_balance,
+					 string_agg(case when fr."type" = 2 then case when us."type" = 1 or ut.parent_id = 1 then '
+						 when ca.sublist_id = ' || cast(us.id as varchar(10)) || ' and cn.period_id = ' || cast(period_id as varchar(10)) || ' then "r_' || us.short_name || '"' else '' end else '' end,'') as rate_balance,
+					string_agg(case when fr."type" = 3 then  '
+						 when ca.sublist_id = ' || cast(us.id as varchar(10)) || ' and cn.period_id = ' || cast(period_id as varchar(10)) || ' then coalesce("v_' || us.short_name || '", 0.0)' else '' end,'') as volume_balance
+				from utility.sublist us 
+					inner join utility."type" ut on ut.id = us."type"
+					inner join utility.formula_result fr on fr.sublist_id = us.id
+				where fr.period_id between _period_start and _period_end
+			) as balance;
+		
+		_tarif_balance = (case when _tarif_balance != '' then '
+		,case' || _tarif_balance || ' 
+			else 0.0
+		end' else '
+		,0.0' end);
+
+		_normativ_balance = (case when _normativ_balance != '' then '
+		,case' || _normativ_balance || ' 
+			else 0.0
+		end' else '
+		,0.0' end);
+
+		_rate_balance = (case when _rate_balance != '' then 'case' || _rate_balance || ' 
+			else 0.0
+		end' else '
+		,0.0' end);
+
+		_volume_balance = (case when _volume_balance != '' then '
+		,case' || _volume_balance || ' 
+			else 0.0
+		end' else '
+		,0.0' end);
+
+		_sublist_parametr = (
+								select string_agg(d,'')
+								from (
+										select 	'when t.sublist_id = ' || cast(us.id as varchar(4)) || ' and ' || pl.short_name || ' is not null and cp.is_closed = 1 
+												then (volume * p.day_in_month / open_day)' as d
+										from parametr.list pl
+											inner join parametr.sublist ps on ps.parametr_id = pl.id
+											inner join utility.sublist us on us.id = ps.sublist_id
+										where pl.type_id = 1 and pl.catalog_id = 1 and pl.is_calculation = true and us.is_counter = true
+										order by us.id, pl.id
+									 ) f
+							);
+
+		_sublist_ot = (
+							select string_agg(cast(us.id as varchar(4)), ',')
+							from utility.sublist us
+								inner join utility.formula uf on uf.sublist_id = us.id and uf.date_end is null and uf.formula_type = 3
+							where us.list_id = 1022 and coalesce(us.is_odn,false) = false and us."type" = 1 and us.date_end is null and uf.formula ilike '%ras_ot%'
+							group by us.id
+						);
+
+		_sublist_parametr = (
+								select replace(
+													_sublist_parametr, 
+													'= 22 and ras_xv is not null',
+													'in (' || coalesce(
+																		(
+																			select string_agg(cast(id as varchar(4)), ',') 
+																			from utility.sublist 
+																			where id in (22,23) and "type" = 1
+																		), '22'
+																	  ) 
+																|| ') and ras_xv is not null'
+												)
+							);
+
+		if exists (select sublist_id from utility.formula where sublist_id = 43 and date_end is null and formula_type = 3)
+			then
+				begin 
+					_sublist_parametr = (
+											select replace(
+																_sublist_parametr,
+																'= 24 and ras_gv is not null',
+																'in (' || coalesce(
+																					(
+																						select string_agg(cast(id as varchar(4)), ',') 
+																						from utility.sublist 
+																						where id in (43,24,41,61) and "type" = 1
+																					), '24'
+																					) 
+																			|| ') and ras_gv is not null'
+															)
+										);
+				end; 
+			else 
+				begin
+					_sublist_parametr = (
+											select replace(
+																_sublist_parametr,
+																'= 24 and ras_gv is not null',
+																'in (' || coalesce(
+																					(
+																						select string_agg(cast(id as varchar(4)), ',') 
+																						from utility.sublist 
+																						where id in (23,24,41,61) and "type" = 1 
+																					), '24'
+																					) 
+																				|| ') and ras_gv is not null'
+														)
+										);
+				end;
+		end if;
+
+		_sublist_parametr = (
+								select replace(
+													_sublist_parametr,
+													'= 38 and ras_ot is not null',
+													'in (' || coalesce(case when _sublist_ot != '' then substring(_sublist_ot, 1, length(_sublist_ot) - 1) end,'38') 
+															|| ') and (ras_ot is not null or coalesce(h_cocall,0) > 0)'
+												)
+							);
+	
+		_sublist_parametr = (
+								select replace(
+												_sublist_parametr,
+												'= 27 and ras_el is not null',
+												'in (' || coalesce(
+																	(
+																		select string_agg(cast(id as varchar(4)), ',') 
+																		from utility.sublist 
+																		where id in (27,8,31,30) and list_id = 1028 and "type" = 1 
+																	), '27'
+																) 
+															|| ') and ras_el is not null'
+												)
+							);
+
+		_sublist_parametr = (
+								select replace(
+												_sublist_parametr,
+												'= 42 and ras_el_day is not null',
+												'in (' || coalesce(
+																	(
+																		select string_agg(cast(id as varchar(4)), ',') 
+																		from utility.sublist 
+																		where id in (42,9,33) and "type" = 1 
+																	), '42'
+																	) 
+																|| ') and ras_el_day is not null'
+												)
+							);
+
+		_sublist_parametr = (
+								select replace(
+												_sublist_parametr,
+												'= 28 and ras_el_night is not null',
+												'in (' || coalesce(
+																	(
+																		select string_agg(cast(id as varchar(4)), ',') 		
+																		from utility.sublist 
+																		where id in (28,10,36) and "type" = 1 
+																	), '28'
+																	) 
+																|| ') and ras_el_night is not null'
+												)
+							);
+
+		_sublist_parametr = (select case when _sublist_parametr = '' then 'when 1 = 0 then 0.0' else _sublist_parametr end);
+
+	_sql = ' 
+
+create or replace procedure recalculation.calc 
+(
+	_root_id int,
+	_sublist jsonb
+)
+language plpgsql
+as $recalculation_calc$
+begin
+	drop table if exists _temp_balance;
+
+	create temp table _temp_balance (period_id int, date_begin date, date_end date, house_id int not null, flat_id int not null, account_id int not null, 
+									sublist_id int not null, is_day bool, account_parent_id int not null
+									, tarif ' || case when nullif(_numerator, '') is not null then 'numeric(9,5)' else 'numeric(9,2)' end || ' not null, 
+									volume numeric(11,5) not null, normativ numeric(9,5) not null);
+
+	alter table _temp_balance
+	add constraint un_temp_balance unique (account_id, sublist_id, period_id, date_begin);
+	' ||
+	case when _normativ != '' then '
+	update recalculation.normativ as cn 
+		set ' || _normativ || case when _rate = '' then '' else ',' || _rate end || '
+	from recalculation.parametr_transporate cp
+		inner join recalculation.account ra on ra.account_id = cp.account_id
+	where cn.account_id = cp.account_id and cn.date_begin = cp.date_begin and cn.root_id = cp.root_id and cp.is_closed = 1 and cp.root_id = _root_id 
+			and cp.period_id between ' || _period_start || ' and ' || _period_end || ';
+	' else '' end || '
+
+	update recalculation.volume as cv 
+		set	' || _volume || '
+	from recalculation.parametr_transporate cp
+		inner join period.list pl on pl.id = cp.period_id
+		inner join recalculation.account ra on ra.account_id = cp.account_id
+		inner join recalculation.normativ cn on cn.account_id = cp.account_id
+			and cn.date_begin = cp.date_begin
+			and cn.root_id = cp.root_id			 
+	where cv.account_id = cp.account_id	and cv.date_begin = cp.date_begin and cv.root_id = cp.root_id and cp.root_id = _root_id and cp.period_id between ' 
+			|| _period_start || ' and ' || _period_end || ';
+	';
+
+	if (_calc_formula != '')
+		then
+			begin
+				_sql = _sql || '
+				with cte as 
+				(
+					select 
+						 cv.date_begin
+						,cv.root_id
+						,cv.house_id 
+						,cv.account_id' || _calc_formula || ' 
+					from recalculation.parametr_transporate cp
+						inner join period.list pl on pl.id = cp.period_id
+						inner join recalculation.sum_volume cs on cp.account_id = cs.account_id
+							and cs.date_begin = cp.date_begin
+							and cs.root_id = cp.root_id
+						inner join recalculation.volume cv on cp.account_id = cv.account_id
+							and cv.date_begin = cp.date_begin
+							and cv.root_id = cp.root_id
+				';
+
+				if (_is_input = true)
+					then
+						begin
+							_sql = _sql || '
+								left join (
+									select 
+										account_id';
+					
+							_sql = _sql || (select string_agg('
+										,max(case when sublist_id = ' || us.id || ' then input_id end) as "i_' || us.short_name || '"','')
+											from utility.sublist us
+												inner join (
+																select sublist_id
+																from "input".list 
+																group by sublist_id
+															) i on i.sublist_id = us.id
+											where is_on = true);
+					
+							_sql = _sql || '
+									from "input".account 
+									group by account_id
+								) i on i.account_id = cp.account_id';
+						end;
+				end if;
+		
+				_sql = _sql || '
+					where cp.root_id = _root_id and cp.period_id between ' || _period_start || ' and ' || _period_end || '
+				)
+				';
+			end;
+	end if;
+
+	if (_input_calc_parametr != '')
+		then
+			begin
+				_sql = _sql || '
+				update recalculation.sum_volume as cv
+					set ' || _input_calc_parametr ||  '
+				from cte ct
+				where cv.date_begin = ct.date_begin and cv.root_id = ct.root_id and cv.account_id = ct.account_id;';
+			end;
+	end if;
+	
+	_sql = _sql ||
+	case 
+		when _volume_odn != '' then '
+	update recalculation.volume as cv set
+		' || _volume_odn || '
+	from recalculation.parametr_transporate cp
+		inner join period.list pl on pl.id = cp.period_id
+		inner join recalculation.normativ cn on cn.account_id = cp.account_id
+			and cn.date_begin = cp.date_begin
+			and cn.root_id = cp.root_id
+		inner join recalculation.sum_volume sv on sv.account_id = cp.account_id
+			and sv.date_begin = cp.date_begin
+			and sv.root_id = cp.root_id
+	where cv.account_id = cp.account_id and cv.date_begin = cp.date_begin and cv.root_id = cp.root_id and cp.root_id = _root_id and cp.is_closed = 1 and cp.period_id between ' 
+		|| _period_start || ' and ' || _period_end || ';' else '' end || '
+
+	update recalculation.tarif as ct 
+	set
+		' || replace(_tarif, 'house_id', 'cp.house_id') || '
+		' || case when _tarif_odn != '' and _tarif != '' then ',' else '' end || replace(_tarif_odn, 'house_id', 'cp.house_id') || '
+	from recalculation.parametr_transporate cp
+		inner join recalculation.normativ cn on cn.account_id = cp.account_id
+			and cn.date_begin = cp.date_begin
+			and cn.root_id = cp.root_id
+		inner join recalculation.volume cv on cv.account_id = cp.account_id	
+			and cv.date_begin = cp.date_begin
+			and cv.root_id = cp.root_id
+		inner join recalculation.sum_volume c on c.account_id = cp.account_id
+			and c.date_begin = cp.date_begin
+			and c.root_id = cp.root_id
+	where ct.account_id = cp.account_id	and ct.date_begin = cp.date_begin and ct.root_id = cp.root_id and cp.is_closed = 1 and cp.root_id = _root_id and cp.period_id between ' 
+		|| _period_start || ' and ' || _period_end || ';
+
+	/*  volume восстанавливаем из volumefact  */
+
+	insert into _temp_balance (period_id, date_begin, date_end, house_id, flat_id, account_id, sublist_id, is_day, account_parent_id, tarif, volume, normativ)
+	select 
+		cn.period_id
+		,cn.date_begin
+		,cn.date_end
+		,cn.house_id
+		,cn.flat_id
+		,ca.account_id
+		,ca.sublist_id
+		,us.is_day
+		,cn.account_id
+		' || _tarif_balance || _volume_balance || _normativ_balance || '
+	from recalculation.normativ cn
+		inner join recalculation.volume cv on cv.account_id = cn.account_id
+			and cv.date_begin = cn.date_begin
+			and cv.root_id = cn.root_id
+		inner join recalculation.tarif ct on ct.account_id = cn.account_id
+			and ct.date_begin = cn.date_begin
+			and ct.root_id = cn.root_id
+		inner join recalculation.account ra on ra.account_id = cn.account_id
+		inner join calculation.account_sublist ca on ca.account_parent_id = cn.account_id
+		inner join utility.sublist us on us.id = ca.sublist_id
+	where us.is_on = true and cn.root_id = _root_id and cn.period_id between ' || _period_start || ' and ' || _period_end || ';
+
+	insert into recalculation.list_preview (root_id, period_id, house_id, flat_id, account_id, sublist_id, date_begin, date_end, tarif_value,  volume_value, account_parent_id)
+	select 
+		_root_id
+		,t.period_id
+		,t.house_id
+		,t.flat_id
+		,t.account_id
+		,t.sublist_id
+		,t.date_begin
+		,t.date_end
+		,t.tarif
+		,case ' || _sublist_parametr || '
+			when t.is_day = true and cp.is_closed = 1 then (volume * p.day_in_month / open_day)
+			else 
+				case 
+					when cp.is_closed = 1 then volume 
+					else 0.0 
+				end 
+		end
+		,t.account_parent_id
+	from _temp_balance t
+		inner join recalculation.parametr_transporate cp on cp.account_id = t.account_parent_id
+			and cp.date_begin = t.date_begin
+		inner join jsonb_populate_recordset(null::report.sublist, _sublist) s on s.sublist_id = t.sublist_id
+		inner join period.list p on p.id = cp.period_id
+	where root_id = _root_id;
+
+end
+$recalculation_calc$;
+
+comment on procedure recalculation.calc is
+ ''=============================================
+ author:		поляков п.г., глещинский д.в.
+ create date: ' || (select current_date ) || '
+ description:	процедура расчета
+				!!!данная процедура создана автоматически!!!
+ =============================================;''
+
+';
+
+
+		execute  (_sql);
+
+
+
+		delete from _batch_table where number_batch = _number_batch;
+		delete from _formula_tarif;
+		delete from _formula_normativ;
+		delete from _formula_volume;
+		delete from _period;
+		
+		_number_batch = _number_batch + 1;
+	
+	end;	
+	end loop;
+
+		drop table if exists _batch_table;
+		drop table if exists _formula_tarif;
+		drop table if exists _formula_normativ;
+		drop table if exists _formula_volume;
+		drop table if exists _period;
+	
+	
+end
+"""
+  arguments = <
+    {
+      name = _period_start
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _period_end
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _rules_calculation
+      type = smallint
+      mode = IN
+    }
+
+    {
+      name = _re_create_rules
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _root_id
+      type = integer
+      mode = IN
+    }
+
+    {
+      name = _sublist
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _decimal_value
+      type = numeric
+      mode = IN
+      default = NULL::numeric
+    }
+
+    {
+      name = _numerator
+      type = text
+      mode = IN
+      default = NULL::text
+    }
+
+    {
+      name = _denominator
+      type = text
+      mode = IN
+      default = NULL::text
+    }
+
+  >
+  language = plpgsql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		глещинский д.в.
+ create date: 28.05.2014
+ description:	формирование процедуры перерасчетов
+				period_start_			int - верхняя граница периодов, за который нужно произвести перерасчет
+				period_end_				int - нижняя граница периодов, за который нужно произвести перерасчет
+				rules_calculation_		int - правило перерасчета, если rules_calculation_ = 1 то расчитываем по правилам рабочего периода,
+											  иначе по каждому периоду по своему правилу
+				re_create_rules_			int - парамет, обязательный только при закрытии лицевого счета, и открытии на основе него, нового
+											  0 - весь объем передается на закрытый л/с
+											  1 - весь объем передается на новый л/с
+											  2 - объем делится пропорционально между старым и новым л/с
+ =============================================
+"""
+}
+

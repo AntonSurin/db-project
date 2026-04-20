@@ -1,0 +1,10 @@
+function "public"."newid()" {
+  text = select gen_random_uuid()
+  returnType = uuid
+  arguments = [
+  ]
+  language = sql
+  volatility = IMMUTABLE
+  owner = postgres
+}
+

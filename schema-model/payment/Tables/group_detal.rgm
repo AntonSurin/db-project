@@ -1,0 +1,67 @@
+table "payment"."group_detal" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_split_by_group_result"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('payment.group_detal_id_seq'::regclass)
+    }
+    column "payment_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "group_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "sum" {
+      type = numeric(15,2)
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "payment"."group_detal"."fk_split_by_group_result_contragent_group" {
+  columns = [
+    "group_id"
+  ]
+  referencedTable = "utility"."contragent_group"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "payment"."group_detal"."fk_split_by_group_result_list" {
+  columns = [
+    "payment_id"
+  ]
+  referencedTable = "payment"."list"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "payment"."group_detal_idx_unique_payment_group_detal" {
+  table = "payment"."group_detal"
+  type = btree
+  columns = <
+    {
+      definition = payment_id
+    }
+
+    {
+      definition = group_id
+    }
+
+  >
+  isUnique = True
+}
+

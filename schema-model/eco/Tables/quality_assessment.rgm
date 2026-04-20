@@ -1,0 +1,59 @@
+table "eco"."quality_assessment" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_quality_assessment"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('eco.quality_assessment_id_seq'::regclass)
+    }
+    column "year_plan_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "report_period_guid" {
+      type = uuid
+    }
+    column "period_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "date_update" {
+      type = timestamp(3) without time zone
+    }
+    column "status_gis" {
+      type = integer
+      null = NOT NULL
+    }
+    column "is_works_from_act" {
+      type = boolean
+    }
+  )
+}
+
+foreignKey "eco"."quality_assessment"."fk_eco_quality_assessment_list" {
+  columns = [
+    "period_id"
+  ]
+  referencedTable = "period"."list"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+foreignKey "eco"."quality_assessment"."fk_eco_quality_assessment_year_plan" {
+  columns = [
+    "year_plan_id"
+  ]
+  referencedTable = "eco"."year_plan"
+  referencedColumns = [
+    "id"
+  ]
+}
+

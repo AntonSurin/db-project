@@ -1,0 +1,27 @@
+table "dbo"."tarif_house_tarif_2022_07" {
+  owner = postgres
+  columns = (
+    column "house_id" {
+      type = integer
+    }
+    column "tarif_id" {
+      type = integer
+    }
+    column "number" {
+      type = integer
+    }
+    column "date_begin" {
+      type = date
+    }
+    column "date_end" {
+      type = date
+    }
+    column "type" {
+      type = character varying(50)
+    }
+    column "insert_date" {
+      type = timestamp(3) without time zone
+    }
+  )
+}
+

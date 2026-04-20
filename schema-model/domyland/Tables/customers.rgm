@@ -1,0 +1,29 @@
+table "domyland"."customers" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_customers"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.customers_id_seq'::regclass)
+    }
+    column "contragent_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "domyland_id" {
+      type = uuid
+    }
+    column "status" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+

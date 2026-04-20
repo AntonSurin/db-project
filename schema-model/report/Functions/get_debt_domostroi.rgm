@@ -1,0 +1,41 @@
+function "report"."get_debt_domostroi(jsonb, integer)" {
+  text = """
+
+
+	select
+		aa."name" as account_id,
+		'Да' as debt_type,
+		sum(pb.in_balance - pb.pay) * (-1) as balance
+	from payment.balance pb
+		inner join jsonb_populate_recordset(null::account.list, _account) a on a.account_id = pb.account_parent_id
+		inner join adress.account aa on aa.id = a.account_id
+	where pb.period_id = _period_id
+	group by pb.period_id, pb.account_parent_id, aa."name";
+
+"""
+  returnType = TABLE(account_id character varying, debt_type character varying, balance numeric)
+  arguments = <
+    {
+      name = _account
+      type = jsonb
+      mode = IN
+    }
+
+    {
+      name = _period_id
+      type = integer
+      mode = IN
+    }
+
+  >
+  language = sql
+  owner = postgres
+  comment = """-
+=============================================
+ author:		казакова с. и.
+ create date: 03.08.2018
+ description:	выгрузка в домострой
+ =============================================
+"""
+}
+

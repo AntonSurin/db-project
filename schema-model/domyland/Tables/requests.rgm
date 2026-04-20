@@ -1,0 +1,39 @@
+table "domyland"."requests" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_requests"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('domyland.requests_id_seq'::regclass)
+    }
+    column "version" {
+      type = character varying(50)
+    }
+    column "computer_name" {
+      type = character varying(15)
+      null = NOT NULL
+    }
+    column "message_guid" {
+      type = uuid
+    }
+    column "connection_string" {
+      type = text
+    }
+    column "request" {
+      type = text
+      null = NOT NULL
+    }
+    column "is_automited" {
+      type = boolean
+      null = NOT NULL
+    }
+  )
+}
+

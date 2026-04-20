@@ -1,0 +1,44 @@
+table "calculation"."account" {
+  primaryKey = {
+    columns = [
+      "account_id"
+      "session_id"
+    ]
+    name = "pk_account"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "account_id" {
+      type = integer
+      null = NOT NULL
+    }
+    column "session_id" {
+      type = integer
+      null = NOT NULL
+    }
+  )
+}
+
+foreignKey "calculation"."account"."fk_account_account" {
+  columns = [
+    "account_id"
+  ]
+  referencedTable = "adress"."account"
+  referencedColumns = [
+    "id"
+  ]
+}
+
+index "calculation"."account_ix_account_account_id" {
+  table = "calculation"."account"
+  type = btree
+  columns = <
+    {
+      definition = account_id
+    }
+
+  >
+  isUnique = False
+}
+

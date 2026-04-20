@@ -1,0 +1,29 @@
+table "gis"."electric_counter" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_electrity_counter"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('gis.electric_counter_id_seq'::regclass)
+    }
+    column "t1" {
+      type = integer
+      null = NOT NULL
+    }
+    column "t2" {
+      type = integer
+      null = NOT NULL
+    }
+    column "t3" {
+      type = integer
+    }
+  )
+}
+

@@ -1,0 +1,87 @@
+table "documents"."contract" {
+  primaryKey = {
+    columns = [
+      "id"
+    ]
+    name = "pk_documents_contract"
+    objectType = primaryKey
+  }
+  owner = postgres
+  columns = (
+    column "id" {
+      type = integer
+      null = NOT NULL
+      default = nextval('documents.contract_id_seq'::regclass)
+    }
+    column "contract_guid" {
+      type = uuid
+    }
+    column "contract_base_id" {
+      type = integer
+    }
+    column "number" {
+      type = character varying(255)
+    }
+    column "date_create" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_begin" {
+      type = timestamp(3) without time zone
+      null = NOT NULL
+    }
+    column "date_end" {
+      type = timestamp(3) without time zone
+    }
+    column "contract_status" {
+      type = character varying(20)
+    }
+    column "contract_state" {
+      type = character varying(20)
+    }
+    column "is_license_request" {
+      type = boolean
+      null = NOT NULL
+    }
+    column "name" {
+      type = character varying(100)
+    }
+    column "description" {
+      type = character varying(500)
+    }
+    column "other_party_contract" {
+      type = integer
+      null = NOT NULL
+    }
+    column "version_guid" {
+      type = uuid
+    }
+    column "contract_object_version_guid" {
+      type = uuid
+    }
+  )
+}
+
+foreignKey "documents"."contract"."fk_documents_contract_gis_book_contract_base_id" {
+  columns = [
+    "contract_base_id"
+  ]
+  referencedTable = "gis"."book"
+  referencedColumns = [
+    "id"
+  ]
+  onDelete = CASCADE
+}
+
+index "documents"."contract_ix_contract_base_id" {
+  table = "documents"."contract"
+  type = btree
+  columns = <
+    {
+      definition = contract_base_id
+    }
+
+  >
+  isUnique = False
+}
+
