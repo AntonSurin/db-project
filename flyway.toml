@@ -9,6 +9,8 @@ mixed = true
 outOfOrder = true
 schemaModelLocation = "schema-model"
 validateMigrationNaming = true
+baselineVersion = "000"
+baselineOnMigrate = true
 
 [flywayDesktop]
 enableMigrations = true
@@ -26,3 +28,55 @@ detectRenames = "identical-only"
 
 [redgateCompare.postgresql.options.ignores]
 ignoreNewlinesInTextObjects = "off"
+
+[environments.JSK-119]
+url = "jdbc:postgresql://localhost:5432/JSK-119"
+schemas = [
+  "public",
+  "utility",
+  "tests",
+  "test_gis",
+  "temp",
+  "tarif",
+  "support",
+  "special",
+  "sms",
+  "service",
+  "security",
+  "report",
+  "recalculation",
+  "portal",
+  "person",
+  "period",
+  "payment",
+  "partner",
+  "parametr",
+  "organization",
+  "normativ",
+  "law",
+  "input",
+  "import",
+  "house",
+  "group",
+  "gis",
+  "flat",
+  "fine",
+  "export",
+  "exchange",
+  "eco",
+  "domyland",
+  "documents",
+  "dbo",
+  "counter",
+  "contragent",
+  "connection",
+  "call",
+  "calculation",
+  "benefit",
+  "bank",
+  "api",
+  "adress",
+  "account",
+  "1c"
+]
+displayName = "JSK-119"

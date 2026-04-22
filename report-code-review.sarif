@@ -1,0 +1,2931 @@
+{
+  "$schema" : "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "version" : "2.1.0",
+  "runs" : [ {
+    "tool" : {
+      "driver" : {
+        "name" : "Redgate Flyway Code Review",
+        "version" : "12.5.0-rc1852",
+        "informationUri" : "https://help.red-gate.com/help/flyway-cli12/help_5.aspx?topic=check-code",
+        "rules" : [ {
+          "id" : "ST06",
+          "shortDescription" : {
+            "text" : "Select wildcards then simple targets before calculations and aggregates."
+          },
+          "helpUri" : "https://help.red-gate.com/help/flyway-cli12/help_5.aspx?topic=rules/ST06"
+        }, {
+          "id" : "AM05",
+          "shortDescription" : {
+            "text" : "Join clauses should be fully qualified."
+          },
+          "helpUri" : "https://help.red-gate.com/help/flyway-cli12/help_5.aspx?topic=rules/AM05"
+        }, {
+          "id" : "ST09",
+          "shortDescription" : {
+            "text" : "Joins should list the table referenced earlier first."
+          },
+          "helpUri" : "https://help.red-gate.com/help/flyway-cli12/help_5.aspx?topic=rules/ST09"
+        }, {
+          "id" : "ST02",
+          "shortDescription" : {
+            "text" : "Unnecessary CASE statement. Use COALESCE function instead."
+          },
+          "helpUri" : "https://help.red-gate.com/help/flyway-cli12/help_5.aspx?topic=rules/ST02"
+        }, {
+          "id" : "ST04",
+          "shortDescription" : {
+            "text" : "Nested 'CASE' statement in 'ELSE' clause could be flattened."
+          },
+          "helpUri" : "https://help.red-gate.com/help/flyway-cli12/help_5.aspx?topic=rules/ST04"
+        } ]
+      }
+    },
+    "results" : [ {
+      "ruleId" : "ST06",
+      "level" : "error",
+      "message" : {
+        "text" : "Select wildcards then simple targets before calculations and aggregates."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 357,
+            "startColumn" : 167,
+            "endLine" : 366,
+            "endColumn" : 141
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST06",
+      "level" : "error",
+      "message" : {
+        "text" : "Select wildcards then simple targets before calculations and aggregates."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 604,
+            "startColumn" : 367,
+            "endLine" : 656,
+            "endColumn" : 16
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 658,
+            "startColumn" : 6,
+            "endLine" : 658,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 658,
+            "startColumn" : 38,
+            "endLine" : 658,
+            "endColumn" : 44
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 658,
+            "startColumn" : 38,
+            "endLine" : 658,
+            "endColumn" : 44
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 658,
+            "startColumn" : 38,
+            "endLine" : 658,
+            "endColumn" : 44
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 658,
+            "startColumn" : 38,
+            "endLine" : 658,
+            "endColumn" : 44
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 658,
+            "startColumn" : 38,
+            "endLine" : 658,
+            "endColumn" : 44
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 658,
+            "startColumn" : 38,
+            "endLine" : 658,
+            "endColumn" : 44
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 658,
+            "startColumn" : 38,
+            "endLine" : 658,
+            "endColumn" : 44
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 659,
+            "startColumn" : 6,
+            "endLine" : 659,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 660,
+            "startColumn" : 6,
+            "endLine" : 660,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 661,
+            "startColumn" : 6,
+            "endLine" : 661,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 662,
+            "startColumn" : 6,
+            "endLine" : 662,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 663,
+            "startColumn" : 6,
+            "endLine" : 663,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 664,
+            "startColumn" : 6,
+            "endLine" : 664,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 665,
+            "startColumn" : 6,
+            "endLine" : 665,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST06",
+      "level" : "error",
+      "message" : {
+        "text" : "Select wildcards then simple targets before calculations and aggregates."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 812,
+            "startColumn" : 421,
+            "endLine" : 855,
+            "endColumn" : 15
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST02",
+      "level" : "error",
+      "message" : {
+        "text" : "Unnecessary CASE statement. Use COALESCE function instead."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 825,
+            "startColumn" : 18,
+            "endLine" : 825,
+            "endColumn" : 64
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 6,
+            "endLine" : 857,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 857,
+            "startColumn" : 32,
+            "endLine" : 857,
+            "endColumn" : 43
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 858,
+            "startColumn" : 6,
+            "endLine" : 858,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 860,
+            "startColumn" : 6,
+            "endLine" : 860,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 861,
+            "startColumn" : 6,
+            "endLine" : 861,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 862,
+            "startColumn" : 6,
+            "endLine" : 862,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 863,
+            "startColumn" : 6,
+            "endLine" : 863,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 864,
+            "startColumn" : 6,
+            "endLine" : 864,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 865,
+            "startColumn" : 6,
+            "endLine" : 865,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 866,
+            "startColumn" : 6,
+            "endLine" : 866,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 877,
+            "startColumn" : 14,
+            "endLine" : 877,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 877,
+            "startColumn" : 42,
+            "endLine" : 877,
+            "endColumn" : 47
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 877,
+            "startColumn" : 42,
+            "endLine" : 877,
+            "endColumn" : 47
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 878,
+            "startColumn" : 14,
+            "endLine" : 878,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 879,
+            "startColumn" : 14,
+            "endLine" : 879,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 882,
+            "startColumn" : 22,
+            "endLine" : 882,
+            "endColumn" : 26
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 882,
+            "startColumn" : 63,
+            "endLine" : 882,
+            "endColumn" : 77
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 891,
+            "startColumn" : 14,
+            "endLine" : 891,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 891,
+            "startColumn" : 46,
+            "endLine" : 891,
+            "endColumn" : 53
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 892,
+            "startColumn" : 14,
+            "endLine" : 892,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 898,
+            "startColumn" : 14,
+            "endLine" : 898,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 938,
+            "startColumn" : 6,
+            "endLine" : 938,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 938,
+            "startColumn" : 31,
+            "endLine" : 938,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 938,
+            "startColumn" : 31,
+            "endLine" : 938,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 938,
+            "startColumn" : 31,
+            "endLine" : 938,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 938,
+            "startColumn" : 31,
+            "endLine" : 938,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 938,
+            "startColumn" : 31,
+            "endLine" : 938,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 938,
+            "startColumn" : 31,
+            "endLine" : 938,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 938,
+            "startColumn" : 31,
+            "endLine" : 938,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 939,
+            "startColumn" : 6,
+            "endLine" : 939,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 940,
+            "startColumn" : 6,
+            "endLine" : 940,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 941,
+            "startColumn" : 6,
+            "endLine" : 941,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 942,
+            "startColumn" : 6,
+            "endLine" : 942,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 943,
+            "startColumn" : 6,
+            "endLine" : 943,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 944,
+            "startColumn" : 6,
+            "endLine" : 944,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 948,
+            "startColumn" : 14,
+            "endLine" : 948,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 948,
+            "startColumn" : 43,
+            "endLine" : 948,
+            "endColumn" : 48
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 959,
+            "startColumn" : 14,
+            "endLine" : 959,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 959,
+            "startColumn" : 44,
+            "endLine" : 959,
+            "endColumn" : 51
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 959,
+            "startColumn" : 44,
+            "endLine" : 959,
+            "endColumn" : 51
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 960,
+            "startColumn" : 14,
+            "endLine" : 960,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 961,
+            "startColumn" : 14,
+            "endLine" : 961,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 964,
+            "startColumn" : 22,
+            "endLine" : 964,
+            "endColumn" : 26
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 964,
+            "startColumn" : 63,
+            "endLine" : 964,
+            "endColumn" : 77
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST04",
+      "level" : "error",
+      "message" : {
+        "text" : "Nested 'CASE' statement in 'ELSE' clause could be flattened."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1017,
+            "startColumn" : 21,
+            "endLine" : 1020,
+            "endColumn" : 24
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1025,
+            "startColumn" : 14,
+            "endLine" : 1025,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1025,
+            "startColumn" : 48,
+            "endLine" : 1025,
+            "endColumn" : 58
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1031,
+            "startColumn" : 6,
+            "endLine" : 1031,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1031,
+            "startColumn" : 31,
+            "endLine" : 1031,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1031,
+            "startColumn" : 31,
+            "endLine" : 1031,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1031,
+            "startColumn" : 31,
+            "endLine" : 1031,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1031,
+            "startColumn" : 31,
+            "endLine" : 1031,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1031,
+            "startColumn" : 31,
+            "endLine" : 1031,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1031,
+            "startColumn" : 31,
+            "endLine" : 1031,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1031,
+            "startColumn" : 31,
+            "endLine" : 1031,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1031,
+            "startColumn" : 31,
+            "endLine" : 1031,
+            "endColumn" : 36
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1032,
+            "startColumn" : 6,
+            "endLine" : 1032,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1033,
+            "startColumn" : 6,
+            "endLine" : 1033,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1034,
+            "startColumn" : 6,
+            "endLine" : 1034,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1035,
+            "startColumn" : 6,
+            "endLine" : 1035,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1036,
+            "startColumn" : 6,
+            "endLine" : 1036,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1037,
+            "startColumn" : 6,
+            "endLine" : 1037,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1038,
+            "startColumn" : 6,
+            "endLine" : 1038,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1042,
+            "startColumn" : 14,
+            "endLine" : 1042,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1042,
+            "startColumn" : 43,
+            "endLine" : 1042,
+            "endColumn" : 48
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1053,
+            "startColumn" : 14,
+            "endLine" : 1053,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1053,
+            "startColumn" : 44,
+            "endLine" : 1053,
+            "endColumn" : 51
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1053,
+            "startColumn" : 44,
+            "endLine" : 1053,
+            "endColumn" : 51
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1054,
+            "startColumn" : 14,
+            "endLine" : 1054,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1055,
+            "startColumn" : 14,
+            "endLine" : 1055,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1058,
+            "startColumn" : 22,
+            "endLine" : 1058,
+            "endColumn" : 26
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1058,
+            "startColumn" : 63,
+            "endLine" : 1058,
+            "endColumn" : 77
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1092,
+            "startColumn" : 6,
+            "endLine" : 1092,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1092,
+            "startColumn" : 30,
+            "endLine" : 1092,
+            "endColumn" : 41
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1092,
+            "startColumn" : 30,
+            "endLine" : 1092,
+            "endColumn" : 41
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST06",
+      "level" : "error",
+      "message" : {
+        "text" : "Select wildcards then simple targets before calculations and aggregates."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1106,
+            "startColumn" : 243,
+            "endLine" : 1132,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1139,
+            "startColumn" : 6,
+            "endLine" : 1139,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1140,
+            "startColumn" : 6,
+            "endLine" : 1140,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1141,
+            "startColumn" : 6,
+            "endLine" : 1141,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1142,
+            "startColumn" : 6,
+            "endLine" : 1142,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1146,
+            "startColumn" : 45,
+            "endLine" : 1146,
+            "endColumn" : 55
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1146,
+            "startColumn" : 45,
+            "endLine" : 1146,
+            "endColumn" : 55
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1309,
+            "startColumn" : 6,
+            "endLine" : 1309,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1309,
+            "startColumn" : 28,
+            "endLine" : 1309,
+            "endColumn" : 33
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1309,
+            "startColumn" : 28,
+            "endLine" : 1309,
+            "endColumn" : 33
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1326,
+            "startColumn" : 50,
+            "endLine" : 1326,
+            "endColumn" : 63
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1342,
+            "startColumn" : 57,
+            "endLine" : 1342,
+            "endColumn" : 71
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST06",
+      "level" : "error",
+      "message" : {
+        "text" : "Select wildcards then simple targets before calculations and aggregates."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1348,
+            "startColumn" : 232,
+            "endLine" : 1373,
+            "endColumn" : 21
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1375,
+            "startColumn" : 6,
+            "endLine" : 1375,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1376,
+            "startColumn" : 6,
+            "endLine" : 1376,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1376,
+            "startColumn" : 30,
+            "endLine" : 1376,
+            "endColumn" : 40
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1376,
+            "startColumn" : 30,
+            "endLine" : 1376,
+            "endColumn" : 40
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1377,
+            "startColumn" : 6,
+            "endLine" : 1377,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1378,
+            "startColumn" : 6,
+            "endLine" : 1378,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1501,
+            "startColumn" : 6,
+            "endLine" : 1501,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1501,
+            "startColumn" : 30,
+            "endLine" : 1501,
+            "endColumn" : 41
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1502,
+            "startColumn" : 6,
+            "endLine" : 1502,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1512,
+            "startColumn" : 14,
+            "endLine" : 1512,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1512,
+            "startColumn" : 42,
+            "endLine" : 1512,
+            "endColumn" : 47
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1512,
+            "startColumn" : 42,
+            "endLine" : 1512,
+            "endColumn" : 47
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1513,
+            "startColumn" : 14,
+            "endLine" : 1513,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1514,
+            "startColumn" : 14,
+            "endLine" : 1514,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1517,
+            "startColumn" : 22,
+            "endLine" : 1517,
+            "endColumn" : 26
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1517,
+            "startColumn" : 63,
+            "endLine" : 1517,
+            "endColumn" : 77
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1552,
+            "startColumn" : 6,
+            "endLine" : 1552,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1552,
+            "startColumn" : 30,
+            "endLine" : 1552,
+            "endColumn" : 41
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1553,
+            "startColumn" : 6,
+            "endLine" : 1553,
+            "endColumn" : 10
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1563,
+            "startColumn" : 14,
+            "endLine" : 1563,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1563,
+            "startColumn" : 42,
+            "endLine" : 1563,
+            "endColumn" : 47
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1563,
+            "startColumn" : 42,
+            "endLine" : 1563,
+            "endColumn" : 47
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1564,
+            "startColumn" : 14,
+            "endLine" : 1564,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1565,
+            "startColumn" : 14,
+            "endLine" : 1565,
+            "endColumn" : 18
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "AM05",
+      "level" : "error",
+      "message" : {
+        "text" : "Join clauses should be fully qualified."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1568,
+            "startColumn" : 22,
+            "endLine" : 1568,
+            "endColumn" : 26
+          }
+        }
+      } ]
+    }, {
+      "ruleId" : "ST09",
+      "level" : "error",
+      "message" : {
+        "text" : "Joins should list the table referenced earlier first."
+      },
+      "locations" : [ {
+        "physicalLocation" : {
+          "artifactLocation" : {
+            "uri" : "migrations/V001_20260422104638__Anton.sql",
+            "uriBaseId" : "%SRCROOT%"
+          },
+          "region" : {
+            "startLine" : 1568,
+            "startColumn" : 63,
+            "endLine" : 1568,
+            "endColumn" : 77
+          }
+        }
+      } ]
+    } ],
+    "originalUriBaseIds" : {
+      "%SRCROOT%" : {
+        "uri" : "file:///C:/Musor/Test%20FlyWay/DB-project_test/",
+        "uriBaseId" : null
+      }
+    }
+  } ]
+}
